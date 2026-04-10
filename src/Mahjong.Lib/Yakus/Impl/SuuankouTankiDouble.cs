@@ -5,7 +5,7 @@ using Mahjong.Lib.Tiles;
 namespace Mahjong.Lib.Yakus.Impl;
 
 /// <summary>
-/// 四暗刻単騎待ちタブル役満
+/// 四暗刻単騎待ちダブル役満
 /// </summary>
 public record SuuankouTankiDouble : Yaku
 {
