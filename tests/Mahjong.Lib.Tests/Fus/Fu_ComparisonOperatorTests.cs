@@ -5,7 +5,7 @@ namespace Mahjong.Lib.Tests.Fus;
 public class Fu_ComparisonOperatorTests
 {
     [Fact]
-    public void 小なり演算子_Numberが小さい場合_trueを返す()
+    public void 小なり演算子_Typeが小さい場合_trueを返す()
     {
         // Arrange & Act & Assert
         Assert.True(Fu.Futei < Fu.Menzen);
@@ -14,7 +14,7 @@ public class Fu_ComparisonOperatorTests
     }
 
     [Fact]
-    public void 大なり演算子_Numberが大きい場合_trueを返す()
+    public void 大なり演算子_Typeが大きい場合_trueを返す()
     {
         // Arrange & Act & Assert
         Assert.True(Fu.Menzen > Fu.Futei);
@@ -23,7 +23,7 @@ public class Fu_ComparisonOperatorTests
     }
 
     [Fact]
-    public void 以下演算子_Number以下の場合_trueを返す()
+    public void 以下演算子_Type以下の場合_trueを返す()
     {
         // Arrange & Act & Assert
         Assert.True(Fu.Futei <= Fu.Menzen);
@@ -32,7 +32,7 @@ public class Fu_ComparisonOperatorTests
     }
 
     [Fact]
-    public void 以上演算子_Number以上の場合_trueを返す()
+    public void 以上演算子_Type以上の場合_trueを返す()
     {
         // Arrange & Act & Assert
         Assert.True(Fu.Menzen >= Fu.Futei);

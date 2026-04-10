@@ -52,16 +52,16 @@ public class FuList_ConstructorTests
     public void コレクションコンストラクタ_順不同の入力でもソートされる()
     {
         // Arrange
-        var fus = new[] { Fu.Tsumo, Fu.Futei, Fu.Menzen }; // Number: 4, 0, 1
+        var fus = new[] { Fu.Tsumo, Fu.Futei, Fu.Menzen }; // Type ordinal: 4, 0, 1
 
         // Act
         var fuList = new FuList(fus);
 
         // Assert
         var items = fuList.ToList();
-        Assert.Equal(Fu.Futei, items[0]);   // Number: 0
-        Assert.Equal(Fu.Menzen, items[1]);   // Number: 1
-        Assert.Equal(Fu.Tsumo, items[2]);    // Number: 4
+        Assert.Equal(Fu.Futei, items[0]);   // Type ordinal: 0
+        Assert.Equal(Fu.Menzen, items[1]);   // Type ordinal: 1
+        Assert.Equal(Fu.Tsumo, items[2]);    // Type ordinal: 4
     }
 
     [Fact]
