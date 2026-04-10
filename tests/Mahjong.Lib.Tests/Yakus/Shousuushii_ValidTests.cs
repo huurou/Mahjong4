@@ -6,7 +6,6 @@ namespace Mahjong.Lib.Tests.Yakus;
 
 public class Shousuushii_ValidTests
 {
-
     [Fact]
     public void Valid_風牌の刻子3種と風牌の対子1種_手牌のみ_成立する()
     {

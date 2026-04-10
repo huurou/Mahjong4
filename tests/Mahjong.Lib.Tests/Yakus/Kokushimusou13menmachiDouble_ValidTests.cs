@@ -6,7 +6,6 @@ namespace Mahjong.Lib.Tests.Yakus;
 
 public class Kokushimusou13menmachiDouble_ValidTests
 {
-
     [Fact]
     public void Valid_ダブル役満有効_国士無双十三面待ちの条件を満たす_成立する()
     {

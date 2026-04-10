@@ -7,7 +7,6 @@ namespace Mahjong.Lib.Tests.Yakus;
 
 public class Tanyao_ValidTests
 {
-
     [Fact]
     public void Valid_正常形_副露なし_成立する()
     {

@@ -1,14 +1,12 @@
 ﻿using Mahjong.Lib.Calls;
 using Mahjong.Lib.Games;
 using Mahjong.Lib.Tiles;
-using Mahjong.Lib.Yakus;
 using Mahjong.Lib.Yakus.Impl;
 
 namespace Mahjong.Lib.Tests.Yakus;
 
 public class PlayerWindWest_ValidTests
 {
-
     [Fact]
     public void Valid_東家で東の刻子あり_成立しない()
     {

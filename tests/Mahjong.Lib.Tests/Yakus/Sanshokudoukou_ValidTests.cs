@@ -1,13 +1,11 @@
 ﻿using Mahjong.Lib.Calls;
 using Mahjong.Lib.Tiles;
-using Mahjong.Lib.Yakus;
 using Mahjong.Lib.Yakus.Impl;
 
 namespace Mahjong.Lib.Tests.Yakus;
 
 public class Sanshokudoukou_ValidTests
 {
-
     [Fact]
     public void Valid_手牌内で三色同刻_成立する()
     {

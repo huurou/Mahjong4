@@ -7,7 +7,6 @@ namespace Mahjong.Lib.Tests.Yakus;
 
 public class Sanankou_ValidTests
 {
-
     [Fact]
     public void Valid_暗刻2つシャンポンツモアガリ_成立()
     {

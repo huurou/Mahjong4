@@ -1,13 +1,11 @@
 ﻿using Mahjong.Lib.Calls;
 using Mahjong.Lib.Tiles;
-using Mahjong.Lib.Yakus;
 using Mahjong.Lib.Yakus.Impl;
 
 namespace Mahjong.Lib.Tests.Yakus;
 
 public class Ryanpeikou_ValidTests
 {
-
     [Fact]
     public void Valid_同じ順子が2組あり_面前の場合_成立する()
     {

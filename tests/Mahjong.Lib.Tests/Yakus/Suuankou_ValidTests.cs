@@ -7,7 +7,6 @@ namespace Mahjong.Lib.Tests.Yakus;
 
 public class Suuankou_ValidTests
 {
-
     [Fact]
     public void Valid_ツモアガリで4つの暗刻がある_成立()
     {

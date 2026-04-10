@@ -46,5 +46,4 @@ public class Renhou_ValidTests
         // Assert
         Assert.False(actual);
     }
-
 }

@@ -1,14 +1,12 @@
 ﻿using Mahjong.Lib.Calls;
 using Mahjong.Lib.Games;
 using Mahjong.Lib.Tiles;
-using Mahjong.Lib.Yakus;
 using Mahjong.Lib.Yakus.Impl;
 
 namespace Mahjong.Lib.Tests.Yakus;
 
 public class RoundWindSouth_ValidTests
 {
-
     [Fact]
     public void Valid_東場で東の刻子あり_成立しない()
     {
@@ -143,6 +141,7 @@ public class RoundWindSouth_ValidTests
         // Assert
         Assert.False(actual);
     }
+
     [Fact]
     public void Valid_西場で西の刻子あり_成立しない()
     {
@@ -172,6 +171,7 @@ public class RoundWindSouth_ValidTests
         // Assert
         Assert.False(actual);
     }
+
     [Fact]
     public void Valid_北場で北の刻子あり_成立しない()
     {

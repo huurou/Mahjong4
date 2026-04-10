@@ -174,7 +174,6 @@ public record TileKindList() : IEnumerable<TileKind>, IComparable<TileKindList>
         tileKinds_ = builder.ToImmutable();
     }
 
-
     /// <summary>
     /// 指定された牌種別がこのリスト内に何個存在するかを数えます
     /// </summary>

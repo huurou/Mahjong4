@@ -6,7 +6,6 @@ namespace Mahjong.Lib.Tests.Yakus;
 
 public class Daisangen_ValidTests
 {
-
     [Fact]
     public void Valid_白發中の刻子あり_成立する()
     {

@@ -1,13 +1,11 @@
 ﻿using Mahjong.Lib.Calls;
 using Mahjong.Lib.Tiles;
-using Mahjong.Lib.Yakus;
 using Mahjong.Lib.Yakus.Impl;
 
 namespace Mahjong.Lib.Tests.Yakus;
 
 public class Shousangen_ValidTests
 {
-
     [Fact]
     public void Valid_三元牌の対子と2組の刻子_手牌のみ_成立する()
     {

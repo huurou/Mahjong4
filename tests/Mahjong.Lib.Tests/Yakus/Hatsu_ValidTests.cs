@@ -1,13 +1,11 @@
 ﻿using Mahjong.Lib.Calls;
 using Mahjong.Lib.Tiles;
-using Mahjong.Lib.Yakus;
 using Mahjong.Lib.Yakus.Impl;
 
 namespace Mahjong.Lib.Tests.Yakus;
 
 public class Hatsu_ValidTests
 {
-
     [Fact]
     public void Valid_發の刻子あり_成立する()
     {

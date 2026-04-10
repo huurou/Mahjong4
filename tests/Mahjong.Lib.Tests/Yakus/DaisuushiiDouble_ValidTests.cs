@@ -7,7 +7,6 @@ namespace Mahjong.Lib.Tests.Yakus;
 
 public class DaisuushiiDouble_ValidTests
 {
-
     [Fact]
     public void Valid_ダブル役満有効_大四喜の条件を満たす_成立する()
     {

@@ -1,13 +1,11 @@
 ﻿using Mahjong.Lib.Calls;
 using Mahjong.Lib.Tiles;
-using Mahjong.Lib.Yakus;
 using Mahjong.Lib.Yakus.Impl;
 
 namespace Mahjong.Lib.Tests.Yakus;
 
 public class Suukantsu_ValidTests
 {
-
     [Fact]
     public void Valid_槓子が4つある場合_成立する()
     {

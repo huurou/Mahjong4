@@ -1,12 +1,10 @@
 ﻿using Mahjong.Lib.Games;
-using Mahjong.Lib.Yakus;
 using Mahjong.Lib.Yakus.Impl;
 
 namespace Mahjong.Lib.Tests.Yakus;
 
 public class Nagashimangan_ValidTests
 {
-
     [Fact]
     public void Valid_流し満貫である場合_成立する()
     {

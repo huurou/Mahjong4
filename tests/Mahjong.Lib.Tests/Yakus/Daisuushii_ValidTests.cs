@@ -6,7 +6,6 @@ namespace Mahjong.Lib.Tests.Yakus;
 
 public class Daisuushii_ValidTests
 {
-
     [Fact]
     public void Valid_風牌4種類_刻子_成立する()
     {

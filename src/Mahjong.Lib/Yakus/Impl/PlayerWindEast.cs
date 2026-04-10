@@ -19,7 +19,7 @@ public record PlayerWindEast : Yaku
 
     public static bool Valid(Hand hand, CallList callList, WinSituation winSituation)
     {
-        return winSituation.PlayerWind == Wind.East && 
+        return winSituation.PlayerWind == Wind.East &&
             hand.CombineFuuro(callList).IncludesKoutsu(TileKind.Ton);
     }
 }

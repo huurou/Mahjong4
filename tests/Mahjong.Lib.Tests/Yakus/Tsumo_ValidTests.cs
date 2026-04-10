@@ -7,7 +7,6 @@ namespace Mahjong.Lib.Tests.Yakus;
 
 public class Tsumo_ValidTests
 {
-
     [Fact]
     public void Valid_門前_ツモ和了_成立する()
     {

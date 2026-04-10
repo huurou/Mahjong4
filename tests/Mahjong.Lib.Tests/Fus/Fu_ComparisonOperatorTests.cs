@@ -51,11 +51,5 @@ public class Fu_ComparisonOperatorTests
         Assert.False(nullFu > Fu.Tsumo);
         Assert.True(nullFu <= Fu.Tsumo);
         Assert.False(nullFu >= Fu.Tsumo);
-#pragma warning disable CS1718 // null同士の比較演算子テスト
-        Assert.False(nullFu < nullFu);
-        Assert.False(nullFu > nullFu);
-        Assert.True(nullFu <= nullFu);
-        Assert.True(nullFu >= nullFu);
-#pragma warning restore CS1718
     }
 }

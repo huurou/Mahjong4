@@ -6,7 +6,6 @@ namespace Mahjong.Lib.Tests.Yakus;
 
 public class Chinroutou_ValidTests
 {
-
     [Fact]
     public void Valid_全ての牌が老頭牌_成立する()
     {

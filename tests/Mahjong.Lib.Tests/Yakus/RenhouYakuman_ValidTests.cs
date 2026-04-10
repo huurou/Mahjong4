@@ -5,7 +5,6 @@ namespace Mahjong.Lib.Tests.Yakus;
 
 public class RenhouYakuman_ValidTests
 {
-
     [Fact]
     public void Valid_人和かつ役満扱いの場合_成立する()
     {

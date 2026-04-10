@@ -1,12 +1,10 @@
 ﻿using Mahjong.Lib.Tiles;
-using Mahjong.Lib.Yakus;
 using Mahjong.Lib.Yakus.Impl;
 
 namespace Mahjong.Lib.Tests.Yakus;
 
 public class Chuurenpoutou_ValidTests
 {
-
     [Fact]
     public void Valid_同一スートで1112345678999と任意の数牌_成立する()
     {

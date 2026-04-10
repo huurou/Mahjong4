@@ -7,7 +7,6 @@ namespace Mahjong.Lib.Tests.Yakus;
 
 public class SuuankouTanki_ValidTests
 {
-
     [Fact]
     public void Valid_四暗刻が成立しアガリ牌が雀頭_成立()
     {

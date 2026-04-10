@@ -1,13 +1,11 @@
 ﻿using Mahjong.Lib.Calls;
 using Mahjong.Lib.Tiles;
-using Mahjong.Lib.Yakus;
 using Mahjong.Lib.Yakus.Impl;
 
 namespace Mahjong.Lib.Tests.Yakus;
 
 public class Sanshoku_ValidTests
 {
-
     [Fact]
     public void Valid_萬子筒子索子で同じ数の順子が揃う_成立する()
     {

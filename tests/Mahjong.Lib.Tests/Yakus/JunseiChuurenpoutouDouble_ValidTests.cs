@@ -6,7 +6,6 @@ namespace Mahjong.Lib.Tests.Yakus;
 
 public class JunseiChuurenpoutouDouble_ValidTests
 {
-
     [Fact]
     public void Valid_ダブル役満有効_純正九蓮宝燈の条件を満たす_成立する()
     {

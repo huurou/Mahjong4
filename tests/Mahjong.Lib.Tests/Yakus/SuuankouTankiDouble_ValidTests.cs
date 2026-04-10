@@ -7,7 +7,6 @@ namespace Mahjong.Lib.Tests.Yakus;
 
 public class SuuankouTankiDouble_ValidTests
 {
-
     [Fact]
     public void Valid_ダブル役満有効_四暗刻単騎待ちの条件を満たす_成立する()
     {

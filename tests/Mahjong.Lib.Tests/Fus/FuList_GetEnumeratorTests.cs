@@ -1,5 +1,5 @@
-﻿using System.Collections;
-using Mahjong.Lib.Fus;
+﻿using Mahjong.Lib.Fus;
+using System.Collections;
 
 namespace Mahjong.Lib.Tests.Fus;
 

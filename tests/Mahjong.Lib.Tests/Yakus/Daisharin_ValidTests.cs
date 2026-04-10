@@ -6,7 +6,6 @@ namespace Mahjong.Lib.Tests.Yakus;
 
 public class Daisharin_ValidTests
 {
-
     [Fact]
     public void Valid_大車輪形の手牌でルール有効_成立する()
     {

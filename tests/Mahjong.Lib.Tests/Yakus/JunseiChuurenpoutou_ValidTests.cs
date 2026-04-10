@@ -1,12 +1,10 @@
 ﻿using Mahjong.Lib.Tiles;
-using Mahjong.Lib.Yakus;
 using Mahjong.Lib.Yakus.Impl;
 
 namespace Mahjong.Lib.Tests.Yakus;
 
 public class JunseiChuurenpoutou_ValidTests
 {
-
     [Fact]
     public void Valid_純正九蓮形で1で和了_成立する()
     {

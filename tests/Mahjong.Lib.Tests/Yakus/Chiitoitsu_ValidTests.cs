@@ -1,12 +1,10 @@
 ﻿using Mahjong.Lib.Tiles;
-using Mahjong.Lib.Yakus;
 using Mahjong.Lib.Yakus.Impl;
 
 namespace Mahjong.Lib.Tests.Yakus;
 
 public class Chiitoitsu_ValidTests
 {
-
     [Fact]
     public void Valid_7つの対子がある場合_成立する()
     {

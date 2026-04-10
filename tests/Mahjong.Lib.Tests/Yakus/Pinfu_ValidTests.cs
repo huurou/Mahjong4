@@ -6,7 +6,6 @@ namespace Mahjong.Lib.Tests.Yakus;
 
 public class Pinfu_ValidTests
 {
-
     [Fact]
     public void Valid_ツモアガリでピンヅモあり_成立()
     {

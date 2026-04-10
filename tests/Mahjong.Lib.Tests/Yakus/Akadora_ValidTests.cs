@@ -1,12 +1,10 @@
 ﻿using Mahjong.Lib.Games;
-using Mahjong.Lib.Yakus;
 using Mahjong.Lib.Yakus.Impl;
 
 namespace Mahjong.Lib.Tests.Yakus;
 
 public class Akadora_ValidTests
 {
-
     [Fact]
     public void Valid_赤ドラが1つ_成立する()
     {
