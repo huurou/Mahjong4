@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/Aspire/">
+    <Project Path="src/Mahjong.AppHost/Mahjong.AppHost.csproj" />
+    <Project Path="src/Mahjong.ServiceDefaults/Mahjong.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/Lib/">
+    <Project Path="src/Mahjong.Lib/Mahjong.Lib.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="tests/Mahjong.Lib.Tests/Mahjong.Lib.Tests.csproj" />
+  </Folder>
+  <Project Path="src/Mahjong.ApiService/Mahjong.ApiService.csproj" />
+  <Project Path="src/Mahjong.Web/Mahjong.Web.csproj" />
+</Solution>

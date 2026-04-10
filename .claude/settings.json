@@ -1,0 +1,14 @@
+﻿{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh scripts/ConvertToUtf8Bom.ps1"
+          }
+        ]
+      }
+    ]
+  }
+}
