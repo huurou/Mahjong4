@@ -4,7 +4,6 @@ namespace Mahjong.Lib.Tests.Tiles;
 
 public class TileKind_TryGetAtDistanceTests
 {
-
     [Theory]
     [InlineData(0, 1, true, 1)]   // Man1 + 1 → Man2
     [InlineData(0, 2, true, 2)]   // Man1 + 2 → Man3

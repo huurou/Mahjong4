@@ -14,6 +14,11 @@ $skipDirectoryNames = @(
     'TestResults'
 )
 
+$skipBOMFilePattern = @(
+    '.gitignore',
+    '.gitattributes'
+)
+
 function Invoke-PauseIfStartedFromExplorer {
     try {
         $currentProcess = Get-CimInstance -ClassName Win32_Process -Filter "ProcessId = $PID"
@@ -229,11 +234,13 @@ function Convert-CsFilesToUtf8Bom {
         [System.Text.Encoding]$Utf8BomEncoding
     )
 
-    $files = Get-ChildItem -Path $RootPath -Recurse -File -Include '*.cs', '*.xaml' |
+    $files = Get-ChildItem -Path $RootPath -Recurse -File -Exclude $skipBOMFilePattern |
         Where-Object { $_.FullName -notmatch $SkipPattern.ToString() }
 
     $converted = 0
+    $unchanged = 0
     $failed = 0
+    $skipped = 0
 
     Write-Output ""
     Write-Output ("Start(UTF8-BOM): {0}" -f (Get-Date -Format o))
@@ -241,6 +248,22 @@ function Convert-CsFilesToUtf8Bom {
 
     foreach ($file in $files) {
         try {
+            if (Test-IsBinaryFile -Path $file.FullName) {
+                Write-Output ("SKIP(binary): {0}" -f $file.FullName)
+                $skipped++
+                continue
+            }
+
+            # 既にUTF-8 BOM付きならスキップ
+            $headBytes = New-Object byte[] 3
+            $fs = [System.IO.File]::Open($file.FullName, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+            try { [void]$fs.Read($headBytes, 0, 3) } finally { $fs.Dispose() }
+            if ($headBytes[0] -eq 0xEF -and $headBytes[1] -eq 0xBB -and $headBytes[2] -eq 0xBF) {
+                Write-Output ("UNCHANGED: {0}" -f $file.FullName)
+                $unchanged++
+                continue
+            }
+
             $result = Get-FileContentWithEncoding -Path $file.FullName
             [System.IO.File]::WriteAllText($file.FullName, $result.Content, $Utf8BomEncoding)
 
@@ -257,11 +280,15 @@ function Convert-CsFilesToUtf8Bom {
     Write-Output ""
     Write-Output "Summary(UTF8-BOM):"
     Write-Output ("ConvertedFiles: {0}" -f $converted)
+    Write-Output ("UnchangedFiles: {0}" -f $unchanged)
+    Write-Output ("SkippedFiles: {0}" -f $skipped)
     Write-Output ("FailedFiles: {0}" -f $failed)
     Write-Output ("End(UTF8-BOM): {0}" -f (Get-Date -Format o))
 
     return [PSCustomObject]@{
         Converted = $converted
+        Unchanged = $unchanged
+        Skipped   = $skipped
         Failed    = $failed
     }
 }
@@ -315,6 +342,8 @@ try {
     if ($utf8Result) {
         $utf8Properties = $utf8Result.PSObject.Properties.Name
         $hasUtf8Summary = $utf8Properties -contains 'Converted' -and
+            $utf8Properties -contains 'Unchanged' -and
+            $utf8Properties -contains 'Skipped' -and
             $utf8Properties -contains 'Failed'
     }
 
@@ -322,6 +351,8 @@ try {
         Write-Warning 'UTF8-BOM の集計結果を取得できなかったため、0件として処理を継続します。'
         $utf8Result = [PSCustomObject]@{
             Converted = 0
+            Unchanged = 0
+            Skipped   = 0
             Failed    = 0
         }
     }
@@ -329,7 +360,7 @@ try {
     Write-Output ""
     Write-Output "Overall Summary:"
     Write-Output ("LineEndings -> Updated:{0} / Unchanged:{1} / Skipped:{2}" -f $lineEndingResult.Updated, $lineEndingResult.Unchanged, $lineEndingResult.Skipped)
-    Write-Output ("UTF8-BOM -> Converted:{0} / Failed:{1}" -f $utf8Result.Converted, $utf8Result.Failed)
+    Write-Output ("UTF8-BOM -> Converted:{0} / Unchanged:{1} / Skipped:{2} / Failed:{3}" -f $utf8Result.Converted, $utf8Result.Unchanged, $utf8Result.Skipped, $utf8Result.Failed)
 }
 finally {
     Invoke-PauseIfStartedFromExplorer

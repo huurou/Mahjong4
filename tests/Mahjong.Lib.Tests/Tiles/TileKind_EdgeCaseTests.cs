@@ -1,6 +1,6 @@
-﻿using System.Reflection;
+﻿using Mahjong.Lib.Tiles;
+using System.Reflection;
 using System.Runtime.CompilerServices;
-using Mahjong.Lib.Tiles;
 
 namespace Mahjong.Lib.Tests.Tiles;
 
@@ -68,7 +68,7 @@ public class TileKind_EdgeCaseTests
         var tile = CreateInvalidTileKind(34);
 
         // Act
-        var ex = Record.Exception(() => tile.ToString());
+        var ex = Record.Exception(tile.ToString);
 
         // Assert
         Assert.IsType<ArgumentOutOfRangeException>(ex);
