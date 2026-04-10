@@ -39,13 +39,22 @@ pwsh scripts/TestCoverage.ps1
 - **Mahjong.Lib** — 麻雀ドメインロジック。他プロジェクトへの依存なし
 - **Mahjong.Lib.Tests** — Mahjong.Libのテスト（InternalsVisibleToで内部メンバーにアクセス可能）
 
-### ドメインモデル（Mahjong.Lib/Tiles/）
+### ドメインモデル
 
-イミュータブル（record + ImmutableList）で設計されている。
+全ドメイン型はイミュータブル（record + ImmutableList）で設計されている。コレクション型（TileKindList, TileKindListList, CallList, Hand）は`[CollectionBuilder]`属性によりコレクション式`[.. ]`での生成に対応し、ネストされたBuilderクラスを持つ。
 
-- **TileKind** — 牌種別（0-33の値）。萬子(0-8)・筒子(9-17)・索子(18-26)・風牌(27-30)・三元牌(31-33)
-- **TileKindList** — 牌の集合。文字列コンストラクタ対応（`new TileKindList(man: "123", pin: "456")`）。面子判定プロパティ（IsToitsu, IsShuntsu, IsKoutsu, IsKantsu）を持つ
+#### 牌（Mahjong.Lib/Tiles/）
+
+- **TileKind** — 牌種別（0-33の値）。萬子(0-8)・筒子(9-17)・索子(18-26)・風牌(27-30)・三元牌(31-33)。コンストラクタはinternal
+- **TileKindList** — 牌の集合。自動ソート済み。文字列コンストラクタ対応（`new TileKindList(man: "123", pin: "456")`）。面子判定プロパティ（IsToitsu, IsShuntsu, IsKoutsu, IsKantsu）を持つ
 - **TileKindListList** — TileKindListの集合。面子グループの管理に使用
+- **Hand** — TileKindListListを継承。晒していない手牌を表現。副露との結合（CombineFuuro）や和了グループ取得（GetWinGroups）を提供
+
+#### 副露（Mahjong.Lib/Calls/）
+
+- **CallType** — 副露種別のenum（Chi, Pon, Ankan, Minkan, Nuki）。ToStr()拡張メソッドで日本語表記を返す
+- **Call** — 副露を表現するrecord。コンストラクタで種類と牌構成の整合性を検証する。ファクトリメソッド（`Call.Chi(man: "123")`等）で簡潔に生成可能
+- **CallList** — 副露の集合。HasOpenで門前判定、TileKindListsで牌リストへの変換を提供
 
 ## コーディング規約
 
