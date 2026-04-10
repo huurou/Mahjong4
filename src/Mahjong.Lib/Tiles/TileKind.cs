@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Mahjong.Lib.Tiles;
 
@@ -176,7 +177,7 @@ public sealed record TileKind : IComparable<TileKind>
     /// <summary>
     /// 全種類の牌のリスト
     /// </summary>
-    public static IEnumerable<TileKind> All { get; } = [
+    public static ReadOnlyCollection<TileKind> All { get; } = [
         Man1, Man2, Man3, Man4, Man5, Man6, Man7, Man8, Man9,
         Pin1, Pin2, Pin3, Pin4, Pin5, Pin6, Pin7, Pin8, Pin9,
         Sou1, Sou2, Sou3, Sou4, Sou5, Sou6, Sou7, Sou8, Sou9,
@@ -186,43 +187,43 @@ public sealed record TileKind : IComparable<TileKind>
     /// <summary>
     /// 数牌のリスト
     /// </summary>
-    public static IReadOnlyList<TileKind> Numbers { get; } = [.. All.Where(x => x.IsNumber)];
+    public static ReadOnlyCollection<TileKind> Numbers { get; } = [.. All.Where(x => x.IsNumber)];
     /// <summary>
     /// 萬子のリスト
     /// </summary>
-    public static IReadOnlyList<TileKind> Mans { get; } = [.. All.Where(x => x.IsMan)];
+    public static ReadOnlyCollection<TileKind> Mans { get; } = [.. All.Where(x => x.IsMan)];
     /// <summary>
     /// 筒子のリスト
     /// </summary>
-    public static IReadOnlyList<TileKind> Pins { get; } = [.. All.Where(x => x.IsPin)];
+    public static ReadOnlyCollection<TileKind> Pins { get; } = [.. All.Where(x => x.IsPin)];
     /// <summary>
     /// 索子のリスト
     /// </summary>
-    public static IReadOnlyList<TileKind> Sous { get; } = [.. All.Where(x => x.IsSou)];
+    public static ReadOnlyCollection<TileKind> Sous { get; } = [.. All.Where(x => x.IsSou)];
     /// <summary>
     /// 字牌のリスト
     /// </summary>
-    public static IReadOnlyList<TileKind> Honors { get; } = [.. All.Where(x => x.IsHonor)];
+    public static ReadOnlyCollection<TileKind> Honors { get; } = [.. All.Where(x => x.IsHonor)];
     /// <summary>
     /// 風牌のリスト
     /// </summary>
-    public static IReadOnlyList<TileKind> Winds { get; } = [.. All.Where(x => x.IsWind)];
+    public static ReadOnlyCollection<TileKind> Winds { get; } = [.. All.Where(x => x.IsWind)];
     /// <summary>
     /// 三元牌のリスト
     /// </summary>
-    public static IReadOnlyList<TileKind> Dragons { get; } = [.. All.Where(x => x.IsDragon)];
+    public static ReadOnlyCollection<TileKind> Dragons { get; } = [.. All.Where(x => x.IsDragon)];
     /// <summary>
     /// 中張牌のリスト
     /// </summary>
-    public static IReadOnlyList<TileKind> Chunchans { get; } = [.. All.Where(x => x.IsChunchan)];
+    public static ReadOnlyCollection<TileKind> Chunchans { get; } = [.. All.Where(x => x.IsChunchan)];
     /// <summary>
     /// 么九牌のリスト
     /// </summary>
-    public static IReadOnlyList<TileKind> Yaochus { get; } = [.. All.Where(x => x.IsYaochu)];
+    public static ReadOnlyCollection<TileKind> Yaochus { get; } = [.. All.Where(x => x.IsYaochu)];
     /// <summary>
     /// 老頭牌のリスト
     /// </summary>
-    public static IReadOnlyList<TileKind> Routous { get; } = [.. All.Where(x => x.IsRoutou)];
+    public static ReadOnlyCollection<TileKind> Routous { get; } = [.. All.Where(x => x.IsRoutou)];
 
     /// <summary>
     /// 数牌かどうか
@@ -270,7 +271,7 @@ public sealed record TileKind : IComparable<TileKind>
     /// </summary>
     /// <param name="value">牌種別の値 (0-33の範囲)</param>
     /// <exception cref="ArgumentOutOfRangeException">値が0-33の範囲外の場合</exception>
-    public TileKind(int value)
+    internal TileKind(int value)
     {
         if (value is < 0 or > 33) { throw new ArgumentOutOfRangeException(nameof(value), value, $"TileKindの値は0から33の範囲である必要があります。"); }
 
@@ -334,12 +335,12 @@ public sealed record TileKind : IComparable<TileKind>
 
     public static bool operator <=(TileKind? left, TileKind? right)
     {
-        return left is null ? true : left.CompareTo(right) <= 0;
+        return left is null || left.CompareTo(right) <= 0;
     }
 
     public static bool operator >(TileKind? left, TileKind? right)
     {
-        return left is null ? false : left.CompareTo(right) > 0;
+        return left is not null && left.CompareTo(right) > 0;
     }
 
     public static bool operator >=(TileKind? left, TileKind? right)

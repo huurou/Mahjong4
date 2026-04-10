@@ -15,6 +15,19 @@ public class TileKind_EdgeCaseTests
         return tile;
     }
 
+    private static Exception? RecordExceptionSafe(Action action)
+    {
+        try
+        {
+            action();
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return ex;
+        }
+    }
+
     [Fact]
     public void IsNumber_負の値_falseを返す()
     {
@@ -36,44 +49,28 @@ public class TileKind_EdgeCaseTests
     }
 
     [Fact]
-    public void GetActualDora_範囲外の値_例外が発生する()
+    public void GetActualDora_範囲外の値_ArgumentOutOfRangeException発生()
     {
         // Arrange
         var tile = CreateInvalidTileKind(34);
-        var thrown = false;
 
         // Act
-        try
-        {
-            TileKind.GetActualDora(tile);
-        }
-        catch (ArgumentOutOfRangeException)
-        {
-            thrown = true;
-        }
+        var ex = RecordExceptionSafe(() => TileKind.GetActualDora(tile));
 
         // Assert
-        Assert.True(thrown);
+        Assert.IsType<ArgumentOutOfRangeException>(ex);
     }
 
     [Fact]
-    public void ToString_範囲外の値_例外が発生する()
+    public void ToString_範囲外の値_ArgumentOutOfRangeException発生()
     {
         // Arrange
         var tile = CreateInvalidTileKind(34);
-        var thrown = false;
 
         // Act
-        try
-        {
-            tile.ToString();
-        }
-        catch (ArgumentOutOfRangeException)
-        {
-            thrown = true;
-        }
+        var ex = Record.Exception(() => tile.ToString());
 
         // Assert
-        Assert.True(thrown);
+        Assert.IsType<ArgumentOutOfRangeException>(ex);
     }
 }
