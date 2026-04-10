@@ -69,6 +69,19 @@ public class TileKindListList_EqualsTests
     }
 
     [Fact]
+    public void 同一参照_Trueを返す()
+    {
+        // Arrange
+        var list = new TileKindListList([
+            new TileKindList(man: "123"),
+            new TileKindList(pin: "456"),
+        ]);
+
+        // Act & Assert
+        Assert.True(list.Equals(list));
+    }
+
+    [Fact]
     public void Object型で同じ内容_Trueを返す()
     {
         // Arrange

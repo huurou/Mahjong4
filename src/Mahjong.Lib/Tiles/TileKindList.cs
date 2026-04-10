@@ -61,7 +61,7 @@ public record TileKindList() : IEnumerable<TileKind>, IComparable<TileKindList>
                 return false;
             }
 
-            var numTiles = tileKinds_.Where(x => x.IsNumber).OrderBy(x => x.Value).ToList();
+            var numTiles = tileKinds_.Where(x => x.IsNumber).ToList();
             return numTiles.Count == 3 &&
                 numTiles[0].Value + 1 == numTiles[1].Value &&
                 numTiles[1].Value + 1 == numTiles[2].Value;
@@ -102,7 +102,7 @@ public record TileKindList() : IEnumerable<TileKind>, IComparable<TileKindList>
 
     private TileKindList(ImmutableList<TileKind> immutableList) : this()
     {
-        tileKinds_ = immutableList.Sort();
+        tileKinds_ = immutableList;
     }
 
     /// <summary>
@@ -377,6 +377,7 @@ public record TileKindList() : IEnumerable<TileKind>, IComparable<TileKindList>
         {
             var builder = ImmutableList.CreateBuilder<TileKind>();
             foreach (var value in values) { builder.Add(value); }
+            builder.Sort();
             return new TileKindList(builder.ToImmutable());
         }
     }
