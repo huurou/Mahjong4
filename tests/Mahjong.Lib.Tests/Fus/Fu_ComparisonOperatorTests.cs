@@ -41,7 +41,7 @@ public class Fu_ComparisonOperatorTests
     }
 
     [Fact]
-    public void null比較_正しく処理される()
+    public void Null比較_正しく処理される()
     {
         // Arrange
         Fu? nullFu = null;

@@ -72,4 +72,32 @@ public class Call_CompareToTests
         Assert.False(chi > pon);
         Assert.False(pon < chi);
     }
+
+    [Fact]
+    public void 比較演算子_leftがnull_正しく動作する()
+    {
+        // Arrange
+        Call? nullCall = null;
+        var call = Call.Chi(new TileKindList(man: "123"));
+
+        // Act & Assert
+        Assert.True(nullCall < call);
+        Assert.False(nullCall > call);
+        Assert.True(nullCall <= call);
+        Assert.False(nullCall >= call);
+    }
+
+    [Fact]
+    public void 比較演算子_両方null_正しく動作する()
+    {
+        // Arrange
+        Call? left = null;
+        Call? right = null;
+
+        // Act & Assert
+        Assert.False(left < right);
+        Assert.False(left > right);
+        Assert.True(left <= right);
+        Assert.True(left >= right);
+    }
 }

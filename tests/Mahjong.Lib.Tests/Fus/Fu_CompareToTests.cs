@@ -47,7 +47,7 @@ public class Fu_CompareToTests
     }
 
     [Fact]
-    public void null_正の値を返す()
+    public void Null_正の値を返す()
     {
         // Arrange
         var fu = Fu.Tsumo;

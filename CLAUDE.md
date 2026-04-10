@@ -39,13 +39,23 @@ pwsh scripts/TestCoverage.ps1
 - **Mahjong.Lib** — 麻雀ドメインロジック。他プロジェクトへの依存なし
 - **Mahjong.Lib.Tests** — Mahjong.Libのテスト（InternalsVisibleToで内部メンバーにアクセス可能）
 
+### ソリューション構成（Mahjong4.slnx）
+
+ソリューションフォルダで整理されている:
+- **/Aspire/** — AppHost, ServiceDefaults
+- **/Lib/** — Mahjong.Lib
+- **/Tests/** — Mahjong.Lib.Tests
+- ルート — ApiService, Web
+
 ### ドメインモデル
 
-全ドメイン型はイミュータブル（record + ImmutableList）で設計されている。コレクション型（TileKindList, TileKindListList, CallList, Hand）は`[CollectionBuilder]`属性によりコレクション式`[.. ]`での生成に対応し、ネストされたBuilderクラスを持つ。
+全ドメイン型はイミュータブル（record + ImmutableList）で設計されている。コレクション型（TileKindList, TileKindListList, CallList, Hand, FuList）は`[CollectionBuilder]`属性によりコレクション式`[.. ]`での生成に対応し、ネストされたBuilderクラスを持つ。
+
+TileKindとFuはstaticプロパティによるシングルトンインスタンスを持ち、コンストラクタはinternal。
 
 #### 牌（Mahjong.Lib/Tiles/）
 
-- **TileKind** — 牌種別（0-33の値）。萬子(0-8)・筒子(9-17)・索子(18-26)・風牌(27-30)・三元牌(31-33)。コンストラクタはinternal
+- **TileKind** — 牌種別（0-33の値）。萬子(0-8)・筒子(9-17)・索子(18-26)・風牌(27-30)・三元牌(31-33)。34個のstaticシングルトン（`TileKind.Man1`等）と分類用staticコレクション（All, Numbers, Mans, Pins, Sous, Honors, Winds, Dragons, Chunchans, Yaochus, Routous）を持つ
 - **TileKindList** — 牌の集合。自動ソート済み。文字列コンストラクタ対応（`new TileKindList(man: "123", pin: "456")`）。面子判定プロパティ（IsToitsu, IsShuntsu, IsKoutsu, IsKantsu）を持つ
 - **TileKindListList** — TileKindListの集合。面子グループの管理に使用
 - **Hand** — TileKindListListを継承。晒していない手牌を表現。副露との結合（CombineFuuro）や和了グループ取得（GetWinGroups）を提供
@@ -56,7 +66,13 @@ pwsh scripts/TestCoverage.ps1
 - **Call** — 副露を表現するrecord。コンストラクタで種類と牌構成の整合性を検証する。ファクトリメソッド（`Call.Chi(man: "123")`等）で簡潔に生成可能
 - **CallList** — 副露の集合。HasOpenで門前判定、TileKindListsで牌リストへの変換を提供
 
-### ドメインモデル（Mahjong.Lib/Games/）
+#### 符（Mahjong.Lib/Fus/）
+
+- **FuType** — 符の種別enum。基本符（Futei=20, FuteiOpenPinfu=30, Chiitoitsu=25, Menzen=10）、待ち符（Tsumo, Kanchan, Penchan, Tanki=各2）、雀頭符（JantouPlayerWind, JantouRoundWind, JantouDragon=各2）、面子符（Minko/Anko/Minkan/Ankan × Chunchan/Yaochu=2〜32）
+- **Fu** — 符を表現するrecord。FuTypeごとのstaticシングルトンインスタンス（`Fu.Futei`, `Fu.Tsumo`等）を持つ。Valueプロパティで符数を返す
+- **FuList** — 符の集合。Totalプロパティで合計符数を計算（七対子は常に25符、それ以外は10の位に切り上げ）
+
+#### ゲーム設定（Mahjong.Lib/Games/）
 
 - **KazoeLimit** — 数え役満の扱い（Limited/Sanbaiman/NoLimit）
 - **Wind** — 風（東南西北）。TileKindへの変換拡張メソッドあり

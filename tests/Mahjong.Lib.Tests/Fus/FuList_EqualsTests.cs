@@ -55,4 +55,17 @@ public class FuList_EqualsTests
         Assert.NotNull(fuList);
         Assert.False(fuList.Equals(null));
     }
+
+    [Fact]
+    public void 同一参照_等しいと判定される()
+    {
+        // Arrange
+        var fuList = new FuList([Fu.Futei, Fu.Menzen]);
+
+        // Act
+        var result = fuList.Equals(fuList);
+
+        // Assert
+        Assert.True(result);
+    }
 }

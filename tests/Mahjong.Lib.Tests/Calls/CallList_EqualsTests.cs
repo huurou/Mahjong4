@@ -40,8 +40,11 @@ public class CallList_EqualsTests
         // Arrange
         var callList = new CallList([Call.Chi(new TileKindList(man: "123"))]);
 
-        // Act & Assert
-        Assert.Equal(callList, callList);
+        // Act
+        var result = callList.Equals(callList);
+
+        // Assert
+        Assert.True(result);
     }
 
     [Fact]

@@ -75,4 +75,32 @@ public class CallList_CompareToTests
         Assert.False(callList1 > callList2);
         Assert.False(callList2 < callList1);
     }
+
+    [Fact]
+    public void 比較演算子_leftがnull_正しく動作する()
+    {
+        // Arrange
+        CallList? nullCallList = null;
+        var callList = new CallList([Call.Chi(new TileKindList(man: "123"))]);
+
+        // Act & Assert
+        Assert.True(nullCallList < callList);
+        Assert.False(nullCallList > callList);
+        Assert.True(nullCallList <= callList);
+        Assert.False(nullCallList >= callList);
+    }
+
+    [Fact]
+    public void 比較演算子_両方null_正しく動作する()
+    {
+        // Arrange
+        CallList? left = null;
+        CallList? right = null;
+
+        // Act & Assert
+        Assert.False(left < right);
+        Assert.False(left > right);
+        Assert.True(left <= right);
+        Assert.True(left >= right);
+    }
 }
