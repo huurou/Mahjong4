@@ -47,6 +47,13 @@ pwsh scripts/TestCoverage.ps1
 - **TileKindList** — 牌の集合。文字列コンストラクタ対応（`new TileKindList(man: "123", pin: "456")`）。面子判定プロパティ（IsToitsu, IsShuntsu, IsKoutsu, IsKantsu）を持つ
 - **TileKindListList** — TileKindListの集合。面子グループの管理に使用
 
+### ドメインモデル（Mahjong.Lib/Games/）
+
+- **KazoeLimit** — 数え役満の扱い（Limited/Sanbaiman/NoLimit）
+- **Wind** — 風（東南西北）。TileKindへの変換拡張メソッドあり
+- **GameRules** — ゲームルール設定（食いタン、ダブル役満、数え役満等）
+- **WinSituation** — 和了状況（ツモ・リーチ・一発等のフラグ、自風・場風、IsDealer計算プロパティ）
+
 ## コーディング規約
 
 - プライベートフィールド: キャメルケース + `_`サフィックス（例: `myField_`）
