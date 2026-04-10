@@ -1,4 +1,5 @@
 ﻿using Mahjong.Lib.Calls;
+using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 
 namespace Mahjong.Lib.Tiles;
@@ -39,7 +40,7 @@ public record Hand : TileKindListList
     /// </summary>
     /// <param name="winTileKind">和了牌の種別</param>
     /// <returns>和了牌を含むTileKindListのリスト</returns>
-    public List<TileKindList> GetWinGroups(TileKind winTileKind)
+    public ImmutableList<TileKindList> GetWinGroups(TileKind winTileKind)
     {
         return [.. this.Where(x => x.Contains(winTileKind)).Distinct()];
     }
