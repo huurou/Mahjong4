@@ -1,4 +1,4 @@
-<Solution>
+﻿<Solution>
   <Folder Name="/Aspire/">
     <Project Path="src/Mahjong.AppHost/Mahjong.AppHost.csproj" />
     <Project Path="src/Mahjong.ServiceDefaults/Mahjong.ServiceDefaults.csproj" />
