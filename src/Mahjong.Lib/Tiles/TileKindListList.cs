@@ -30,9 +30,7 @@ public record TileKindListList() : IEnumerable<TileKindList>, IComparable<TileKi
     /// <param name="tileKindLists">牌種別リストのコレクション</param>
     public TileKindListList(IEnumerable<TileKindList> tileKindLists) : this()
     {
-        var builder = ImmutableList.CreateBuilder<TileKindList>();
-        builder.AddRange(tileKindLists);
-        tileLists_ = builder.ToImmutable();
+        tileLists_ = [.. tileKindLists];
     }
 
     private TileKindListList(ImmutableList<TileKindList> immutableList) : this()
@@ -57,7 +55,7 @@ public record TileKindListList() : IEnumerable<TileKindList>, IComparable<TileKi
     /// <returns>牌種別リストが追加された新しいTileKindListList</returns>
     public TileKindListList Add(TileKindList tileKindList)
     {
-        return new TileKindListList(tileLists_.Add(tileKindList));
+        return [.. tileLists_.Add(tileKindList)];
     }
 
     /// <summary>
@@ -67,7 +65,7 @@ public record TileKindListList() : IEnumerable<TileKindList>, IComparable<TileKi
     /// <returns>牌種別リストのコレクションが追加された新しいTileKindListList</returns>
     public TileKindListList AddRange(IEnumerable<TileKindList> tileKindLists)
     {
-        return new TileKindListList(tileLists_.AddRange(tileKindLists));
+        return [.. tileLists_.AddRange(tileKindLists)];
     }
 
     /// <summary>
@@ -78,11 +76,9 @@ public record TileKindListList() : IEnumerable<TileKindList>, IComparable<TileKi
     public TileKindListList Remove(TileKindList tileKindList)
     {
         var newList = tileLists_.Remove(tileKindList);
-        if (newList.Count == tileLists_.Count)
-        {
-            throw new ArgumentException($"指定リストがありません。 tileKindList:{tileKindList}", nameof(tileKindList));
-        }
-        return new TileKindListList(newList);
+        return newList.Count == tileLists_.Count
+            ? throw new ArgumentException($"指定リストがありません。 tileKindList:{tileKindList}", nameof(tileKindList))
+            : [.. newList];
     }
 
     /// <summary>
@@ -110,7 +106,7 @@ public record TileKindListList() : IEnumerable<TileKindList>, IComparable<TileKi
     /// <returns>等しい場合はtrue、それ以外の場合はfalse</returns>
     public virtual bool Equals(TileKindListList? other)
     {
-        return other is not null && this.OrderBy(x => x).SequenceEqual(other.OrderBy(x => x));
+        return other is not null && (ReferenceEquals(this, other) || this.OrderBy(x => x).SequenceEqual(other.OrderBy(x => x)));
     }
 
     /// <summary>
@@ -169,8 +165,7 @@ public record TileKindListList() : IEnumerable<TileKindList>, IComparable<TileKi
     /// <returns>最初のインスタンスが二番目のインスタンスより小さい場合は true、それ以外の場合は false</returns>
     public static bool operator <(TileKindListList? left, TileKindListList? right)
     {
-        if (left is null) return right is not null;
-        return left.CompareTo(right) < 0;
+        return left is null ? right is not null : left.CompareTo(right) < 0;
     }
 
     /// <summary>
@@ -181,8 +176,7 @@ public record TileKindListList() : IEnumerable<TileKindList>, IComparable<TileKi
     /// <returns>最初のインスタンスが二番目のインスタンスより大きい場合は true、それ以外の場合は false</returns>
     public static bool operator >(TileKindListList? left, TileKindListList? right)
     {
-        if (left is null) return false;
-        return left.CompareTo(right) > 0;
+        return left is not null && left.CompareTo(right) > 0;
     }
 
     /// <summary>
@@ -193,8 +187,7 @@ public record TileKindListList() : IEnumerable<TileKindList>, IComparable<TileKi
     /// <returns>最初のインスタンスが二番目のインスタンス以下の場合は true、それ以外の場合は false</returns>
     public static bool operator <=(TileKindListList? left, TileKindListList? right)
     {
-        if (left is null) return true;
-        return left.CompareTo(right) <= 0;
+        return left is null || left.CompareTo(right) <= 0;
     }
 
     /// <summary>
@@ -205,8 +198,7 @@ public record TileKindListList() : IEnumerable<TileKindList>, IComparable<TileKi
     /// <returns>最初のインスタンスが二番目のインスタンス以上の場合は true、それ以外の場合は false</returns>
     public static bool operator >=(TileKindListList? left, TileKindListList? right)
     {
-        if (left is null) return right is null;
-        return left.CompareTo(right) >= 0;
+        return left is null ? right is null : left.CompareTo(right) >= 0;
     }
 
     /// <summary>

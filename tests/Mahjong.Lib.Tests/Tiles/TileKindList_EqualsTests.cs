@@ -29,15 +29,15 @@ public class TileKindList_EqualsTests
     }
 
     [Fact]
-    public void 同じ要素で異なる順序_Falseを返す()
+    public void 同じ要素で異なる順序_Trueを返す()
     {
         // Arrange
         var list1 = new TileKindList([TileKind.Man1, TileKind.Man2]);
         var list2 = new TileKindList([TileKind.Man2, TileKind.Man1]);
 
         // Act & Assert
-        Assert.False(list1.Equals(list2));
-        Assert.NotEqual(list1, list2);
+        Assert.True(list1.Equals(list2));
+        Assert.Equal(list1, list2);
     }
 
     [Fact]

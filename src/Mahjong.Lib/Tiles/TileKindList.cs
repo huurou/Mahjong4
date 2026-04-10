@@ -96,12 +96,13 @@ public record TileKindList() : IEnumerable<TileKind>, IComparable<TileKindList>
     {
         var builder = ImmutableList.CreateBuilder<TileKind>();
         builder.AddRange(tileKinds);
+        builder.Sort();
         tileKinds_ = builder.ToImmutable();
     }
 
     private TileKindList(ImmutableList<TileKind> immutableList) : this()
     {
-        tileKinds_ = immutableList;
+        tileKinds_ = immutableList.Sort();
     }
 
     /// <summary>
@@ -173,20 +174,6 @@ public record TileKindList() : IEnumerable<TileKind>, IComparable<TileKindList>
         tileKinds_ = builder.ToImmutable();
     }
 
-    /// <summary>
-    /// 牌種別リストの内容をソートした新しい牌種別リストを返します
-    /// </summary>
-    /// <remarks>
-    /// ソートの順序：萬子→筒子→索子→風牌（東南西北）→三元牌（白發中）の順
-    /// 同じ種類の牌は数字順（1,2,3...）、字牌は定義された順序に従います
-    /// </remarks>
-    /// <returns>ソート済みの新しい牌種別リスト</returns>
-    public TileKindList Sorted()
-    {
-        var builder = tileKinds_.ToBuilder();
-        builder.Sort();
-        return new TileKindList(builder.ToImmutable());
-    }
 
     /// <summary>
     /// 指定された牌種別がこのリスト内に何個存在するかを数えます
@@ -205,7 +192,7 @@ public record TileKindList() : IEnumerable<TileKind>, IComparable<TileKindList>
     /// <returns>指定された牌種別が追加された新しい牌種別リスト</returns>
     public TileKindList Add(TileKind tileKind)
     {
-        return new TileKindList(tileKinds_.Add(tileKind));
+        return [.. tileKinds_.Add(tileKind)];
     }
 
     /// <summary>
@@ -215,7 +202,7 @@ public record TileKindList() : IEnumerable<TileKind>, IComparable<TileKindList>
     /// <returns>指定された牌種別が追加された新しい牌種別リスト</returns>
     public TileKindList AddRange(IEnumerable<TileKind> tileKinds)
     {
-        return new TileKindList(tileKinds_.AddRange(tileKinds));
+        return [.. tileKinds_.AddRange(tileKinds)];
     }
 
     /// <summary>
@@ -232,7 +219,7 @@ public record TileKindList() : IEnumerable<TileKind>, IComparable<TileKindList>
         {
             if (!builder.Remove(tileKind)) { throw new ArgumentException($"指定牌がありません。 tile:{tileKind} count:{count}", nameof(tileKind)); }
         }
-        return new TileKindList(builder.ToImmutable());
+        return [.. builder.ToImmutable()];
     }
 
     /// <summary>
@@ -248,7 +235,7 @@ public record TileKindList() : IEnumerable<TileKind>, IComparable<TileKindList>
         {
             if (!builder.Remove(tile)) { throw new ArgumentException($"指定牌がありません。 tile:{tile}", nameof(tileKinds)); }
         }
-        return new TileKindList(builder.ToImmutable());
+        return [.. builder.ToImmutable()];
     }
 
     /// <summary>
@@ -311,16 +298,7 @@ public record TileKindList() : IEnumerable<TileKind>, IComparable<TileKindList>
     /// <returns>指定された牌種別リストと現在の牌種別リストが等しい場合はtrue、それ以外の場合はfalse</returns>
     public virtual bool Equals(TileKindList? other)
     {
-        if (other is null)
-        {
-            return false;
-        }
-        if (ReferenceEquals(this, other))
-        {
-            return true;
-        }
-
-        return tileKinds_.SequenceEqual(other.tileKinds_);
+        return other is not null && (ReferenceEquals(this, other) || tileKinds_.SequenceEqual(other.tileKinds_));
     }
 
     /// <summary>
@@ -349,8 +327,7 @@ public record TileKindList() : IEnumerable<TileKind>, IComparable<TileKindList>
     /// <returns>最初のインスタンスが二番目のインスタンスより小さい場合は true、それ以外の場合は false</returns>
     public static bool operator <(TileKindList? left, TileKindList? right)
     {
-        if (left is null) return right is not null;
-        return left.CompareTo(right) < 0;
+        return left is null ? right is not null : left.CompareTo(right) < 0;
     }
 
     /// <summary>
@@ -361,8 +338,7 @@ public record TileKindList() : IEnumerable<TileKind>, IComparable<TileKindList>
     /// <returns>最初のインスタンスが二番目のインスタンスより大きい場合は true、それ以外の場合は false</returns>
     public static bool operator >(TileKindList? left, TileKindList? right)
     {
-        if (left is null) return false;
-        return left.CompareTo(right) > 0;
+        return left is not null && left.CompareTo(right) > 0;
     }
 
     /// <summary>
@@ -373,8 +349,7 @@ public record TileKindList() : IEnumerable<TileKind>, IComparable<TileKindList>
     /// <returns>最初のインスタンスが二番目のインスタンス以下の場合は true、それ以外の場合は false</returns>
     public static bool operator <=(TileKindList? left, TileKindList? right)
     {
-        if (left is null) return true;
-        return left.CompareTo(right) <= 0;
+        return left is null || left.CompareTo(right) <= 0;
     }
 
     /// <summary>
@@ -385,8 +360,7 @@ public record TileKindList() : IEnumerable<TileKind>, IComparable<TileKindList>
     /// <returns>最初のインスタンスが二番目のインスタンス以上の場合は true、それ以外の場合は false</returns>
     public static bool operator >=(TileKindList? left, TileKindList? right)
     {
-        if (left is null) return right is null;
-        return left.CompareTo(right) >= 0;
+        return left is null ? right is null : left.CompareTo(right) >= 0;
     }
 
     /// <summary>

@@ -16,7 +16,7 @@ public class TileKindList_ConstructorTests
     }
 
     [Fact]
-    public void IEnumerableコンストラクタ_牌種別配列指定_順序が保持される()
+    public void IEnumerableコンストラクタ_牌種別配列指定_ソート済みで作成される()
     {
         // Arrange
         var tiles = new[] { TileKind.Man3, TileKind.Man1, TileKind.Man2 };
@@ -26,9 +26,9 @@ public class TileKindList_ConstructorTests
 
         // Assert
         Assert.Equal(3, list.Count);
-        Assert.Equal(TileKind.Man3, list[0]);
-        Assert.Equal(TileKind.Man1, list[1]);
-        Assert.Equal(TileKind.Man2, list[2]);
+        Assert.Equal(TileKind.Man1, list[0]);
+        Assert.Equal(TileKind.Man2, list[1]);
+        Assert.Equal(TileKind.Man3, list[2]);
     }
 
     [Fact]
