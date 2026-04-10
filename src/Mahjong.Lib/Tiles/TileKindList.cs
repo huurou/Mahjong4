@@ -102,7 +102,7 @@ public record TileKindList() : IEnumerable<TileKind>, IComparable<TileKindList>
 
     private TileKindList(ImmutableList<TileKind> immutableList) : this()
     {
-        tileKinds_ = immutableList;
+        tileKinds_ = immutableList.Sort();
     }
 
     /// <summary>
@@ -377,7 +377,6 @@ public record TileKindList() : IEnumerable<TileKind>, IComparable<TileKindList>
         {
             var builder = ImmutableList.CreateBuilder<TileKind>();
             foreach (var value in values) { builder.Add(value); }
-            builder.Sort();
             return new TileKindList(builder.ToImmutable());
         }
     }
