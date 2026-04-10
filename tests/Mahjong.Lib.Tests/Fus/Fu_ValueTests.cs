@@ -9,7 +9,7 @@ public class Fu_ValueTests
     {
         // Arrange
         var invalidFuType = (FuType)999;
-        var fu = new Fu(invalidFuType, 0);
+        var fu = new Fu(invalidFuType);
 
         // Act
         var ex = Record.Exception(() => fu.Value);

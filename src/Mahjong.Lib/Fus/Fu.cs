@@ -3,89 +3,98 @@
 /// <summary>
 /// 符を表現するクラス
 /// </summary>
-/// <param name="Type">符種別</param>
-public record Fu(FuType Type, int Number) : IComparable<Fu>
+public record Fu : IComparable<Fu>
 {
     #region シングルトンプロパティ
 
     /// <summary>
     /// 副底
     /// </summary>
-    public static Fu Futei { get; } = new(FuType.Futei, 0);
+    public static Fu Futei { get; } = new(FuType.Futei);
     /// <summary>
     /// 面前加符
     /// </summary>
-    public static Fu Menzen { get; } = new(FuType.Menzen, 1);
+    public static Fu Menzen { get; } = new(FuType.Menzen);
     /// <summary>
     /// 七対子符
     /// </summary>
-    public static Fu Chiitoitsu { get; } = new(FuType.Chiitoitsu, 2);
+    public static Fu Chiitoitsu { get; } = new(FuType.Chiitoitsu);
     /// <summary>
     /// 副底(食い平和) ロンあがり専用
     /// </summary>
-    public static Fu FuteiOpenPinfu { get; } = new(FuType.FuteiOpenPinfu, 3);
+    public static Fu FuteiOpenPinfu { get; } = new(FuType.FuteiOpenPinfu);
     /// <summary>
     /// ツモ符
     /// </summary>
-    public static Fu Tsumo { get; } = new(FuType.Tsumo, 4);
+    public static Fu Tsumo { get; } = new(FuType.Tsumo);
     /// <summary>
     /// カンチャン待ち
     /// </summary>
-    public static Fu Kanchan { get; } = new(FuType.Kanchan, 5);
+    public static Fu Kanchan { get; } = new(FuType.Kanchan);
     /// <summary>
     /// ペンチャン待ち
     /// </summary>
-    public static Fu Penchan { get; } = new(FuType.Penchan, 6);
+    public static Fu Penchan { get; } = new(FuType.Penchan);
     /// <summary>
     /// 単騎待ち
     /// </summary>
-    public static Fu Tanki { get; } = new(FuType.Tanki, 7);
+    public static Fu Tanki { get; } = new(FuType.Tanki);
     /// <summary>
     /// 自風の雀頭
     /// </summary>
-    public static Fu JantouPlayerWind { get; } = new(FuType.JantouPlayerWind, 8);
+    public static Fu JantouPlayerWind { get; } = new(FuType.JantouPlayerWind);
     /// <summary>
     /// 場風の雀頭
     /// </summary>
-    public static Fu JantouRoundWind { get; } = new(FuType.JantouRoundWind, 9);
+    public static Fu JantouRoundWind { get; } = new(FuType.JantouRoundWind);
     /// <summary>
     /// 三元牌の雀頭
     /// </summary>
-    public static Fu JantouDragon { get; } = new(FuType.JantouDragon, 10);
+    public static Fu JantouDragon { get; } = new(FuType.JantouDragon);
     /// <summary>
     /// 中張牌の明刻
     /// </summary>
-    public static Fu MinkoChunchan { get; } = new(FuType.MinkoChunchan, 11);
+    public static Fu MinkoChunchan { get; } = new(FuType.MinkoChunchan);
     /// <summary>
     /// 么九牌の明刻
     /// </summary>
-    public static Fu MinkoYaochu { get; } = new(FuType.MinkoYaochu, 12);
+    public static Fu MinkoYaochu { get; } = new(FuType.MinkoYaochu);
     /// <summary>
     /// 中張牌の暗刻
     /// </summary>
-    public static Fu AnkoChunchan { get; } = new(FuType.AnkoChunchan, 13);
+    public static Fu AnkoChunchan { get; } = new(FuType.AnkoChunchan);
     /// <summary>
     /// 么九牌の暗刻
     /// </summary>
-    public static Fu AnkoYaochu { get; } = new(FuType.AnkoYaochu, 14);
+    public static Fu AnkoYaochu { get; } = new(FuType.AnkoYaochu);
     /// <summary>
     /// 中張牌の明槓
     /// </summary>
-    public static Fu MinkanChunchan { get; } = new(FuType.MinkanChunchan, 15);
+    public static Fu MinkanChunchan { get; } = new(FuType.MinkanChunchan);
     /// <summary>
     /// 么九牌の明槓
     /// </summary>
-    public static Fu MinkanYaochu { get; } = new(FuType.MinkanYaochu, 16);
+    public static Fu MinkanYaochu { get; } = new(FuType.MinkanYaochu);
     /// <summary>
     /// 中張牌の暗槓
     /// </summary>
-    public static Fu AnkanChunchan { get; } = new(FuType.AnkanChunchan, 17);
+    public static Fu AnkanChunchan { get; } = new(FuType.AnkanChunchan);
     /// <summary>
     /// 么九牌の暗槓
     /// </summary>
-    public static Fu AnkanYaochu { get; } = new(FuType.AnkanYaochu, 18);
+    public static Fu AnkanYaochu { get; } = new(FuType.AnkanYaochu);
 
     #endregion シングルトンプロパティ
+
+    /// <summary>
+    /// 符種別
+    /// </summary>
+    public FuType Type { get; }
+
+    internal Fu(FuType type)
+    {
+        Type = type;
+    }
 
     /// <summary>
     /// 符の値を取得します。
@@ -117,8 +126,7 @@ public record Fu(FuType Type, int Number) : IComparable<Fu>
     public int CompareTo(Fu? other)
     {
         if (other is null) { return 1; }
-        var numberComparison = Number.CompareTo(other.Number);
-        return numberComparison != 0 ? numberComparison : Type.CompareTo(other.Type);
+        return Type.CompareTo(other.Type);
     }
 
     public static bool operator <(Fu? left, Fu? right)

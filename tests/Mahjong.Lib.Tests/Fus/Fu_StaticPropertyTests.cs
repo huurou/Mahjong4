@@ -13,7 +13,6 @@ public class Fu_StaticPropertyTests
         // Assert
         Assert.Equal(FuType.Futei, fu.Type);
         Assert.Equal(20, fu.Value);
-        Assert.Equal(0, fu.Number);
     }
 
     [Fact]
@@ -25,7 +24,6 @@ public class Fu_StaticPropertyTests
         // Assert
         Assert.Equal(FuType.Menzen, fu.Type);
         Assert.Equal(10, fu.Value);
-        Assert.Equal(1, fu.Number);
     }
 
     [Fact]
@@ -37,7 +35,6 @@ public class Fu_StaticPropertyTests
         // Assert
         Assert.Equal(FuType.Chiitoitsu, fu.Type);
         Assert.Equal(25, fu.Value);
-        Assert.Equal(2, fu.Number);
     }
 
     [Fact]
@@ -49,7 +46,6 @@ public class Fu_StaticPropertyTests
         // Assert
         Assert.Equal(FuType.FuteiOpenPinfu, fu.Type);
         Assert.Equal(30, fu.Value);
-        Assert.Equal(3, fu.Number);
     }
 
     [Fact]
@@ -61,7 +57,6 @@ public class Fu_StaticPropertyTests
         // Assert
         Assert.Equal(FuType.Tsumo, fu.Type);
         Assert.Equal(2, fu.Value);
-        Assert.Equal(4, fu.Number);
     }
 
     [Fact]
@@ -73,7 +68,6 @@ public class Fu_StaticPropertyTests
         // Assert
         Assert.Equal(FuType.Kanchan, fu.Type);
         Assert.Equal(2, fu.Value);
-        Assert.Equal(5, fu.Number);
     }
 
     [Fact]
@@ -85,7 +79,6 @@ public class Fu_StaticPropertyTests
         // Assert
         Assert.Equal(FuType.Penchan, fu.Type);
         Assert.Equal(2, fu.Value);
-        Assert.Equal(6, fu.Number);
     }
 
     [Fact]
@@ -97,7 +90,6 @@ public class Fu_StaticPropertyTests
         // Assert
         Assert.Equal(FuType.Tanki, fu.Type);
         Assert.Equal(2, fu.Value);
-        Assert.Equal(7, fu.Number);
     }
 
     [Fact]
@@ -109,7 +101,6 @@ public class Fu_StaticPropertyTests
         // Assert
         Assert.Equal(FuType.JantouPlayerWind, fu.Type);
         Assert.Equal(2, fu.Value);
-        Assert.Equal(8, fu.Number);
     }
 
     [Fact]
@@ -121,7 +112,6 @@ public class Fu_StaticPropertyTests
         // Assert
         Assert.Equal(FuType.JantouRoundWind, fu.Type);
         Assert.Equal(2, fu.Value);
-        Assert.Equal(9, fu.Number);
     }
 
     [Fact]
@@ -133,7 +123,6 @@ public class Fu_StaticPropertyTests
         // Assert
         Assert.Equal(FuType.JantouDragon, fu.Type);
         Assert.Equal(2, fu.Value);
-        Assert.Equal(10, fu.Number);
     }
 
     [Fact]
@@ -145,7 +134,6 @@ public class Fu_StaticPropertyTests
         // Assert
         Assert.Equal(FuType.MinkoChunchan, fu.Type);
         Assert.Equal(2, fu.Value);
-        Assert.Equal(11, fu.Number);
     }
 
     [Fact]
@@ -157,7 +145,6 @@ public class Fu_StaticPropertyTests
         // Assert
         Assert.Equal(FuType.MinkoYaochu, fu.Type);
         Assert.Equal(4, fu.Value);
-        Assert.Equal(12, fu.Number);
     }
 
     [Fact]
@@ -169,7 +156,6 @@ public class Fu_StaticPropertyTests
         // Assert
         Assert.Equal(FuType.AnkoChunchan, fu.Type);
         Assert.Equal(4, fu.Value);
-        Assert.Equal(13, fu.Number);
     }
 
     [Fact]
@@ -181,7 +167,6 @@ public class Fu_StaticPropertyTests
         // Assert
         Assert.Equal(FuType.AnkoYaochu, fu.Type);
         Assert.Equal(8, fu.Value);
-        Assert.Equal(14, fu.Number);
     }
 
     [Fact]
@@ -193,7 +178,6 @@ public class Fu_StaticPropertyTests
         // Assert
         Assert.Equal(FuType.MinkanChunchan, fu.Type);
         Assert.Equal(8, fu.Value);
-        Assert.Equal(15, fu.Number);
     }
 
     [Fact]
@@ -205,7 +189,6 @@ public class Fu_StaticPropertyTests
         // Assert
         Assert.Equal(FuType.MinkanYaochu, fu.Type);
         Assert.Equal(16, fu.Value);
-        Assert.Equal(16, fu.Number);
     }
 
     [Fact]
@@ -217,7 +200,6 @@ public class Fu_StaticPropertyTests
         // Assert
         Assert.Equal(FuType.AnkanChunchan, fu.Type);
         Assert.Equal(16, fu.Value);
-        Assert.Equal(17, fu.Number);
     }
 
     [Fact]
@@ -229,6 +211,5 @@ public class Fu_StaticPropertyTests
         // Assert
         Assert.Equal(FuType.AnkanYaochu, fu.Type);
         Assert.Equal(32, fu.Value);
-        Assert.Equal(18, fu.Number);
     }
 }
