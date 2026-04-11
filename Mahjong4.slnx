@@ -4,17 +4,17 @@
     <Project Path="src/Mahjong.ServiceDefaults/Mahjong.ServiceDefaults.csproj" />
   </Folder>
   <Folder Name="/Lib/">
-    <Project Path="src/Mahjong.Lib/Mahjong.Lib.csproj" />
+    <Project Path="src/Mahjong.Lib.Scoring/Mahjong.Lib.Scoring.csproj" />
   </Folder>
   <Folder Name="/Samples/">
-    <Project Path="samples/Mahjong.Lib.ScoringSampleApp/Mahjong.Lib.ScoringSampleApp.csproj" />
+    <Project Path="samples/Mahjong.Lib.Scoring.SampleApp/Mahjong.Lib.Scoring.SampleApp.csproj" />
   </Folder>
   <Folder Name="/Tools/">
-    <Project Path="tools/Mahjong.Lib.ScoreCalcValidation/Mahjong.Lib.ScoreCalcValidation.csproj" />
+    <Project Path="tools/Mahjong.Lib.Scoring.TenhouPaifuValidation/Mahjong.Lib.Scoring.TenhouPaifuValidation.csproj" />
   </Folder>
   <Folder Name="/Tests/">
-    <Project Path="tests/Mahjong.Lib.Tests/Mahjong.Lib.Tests.csproj" />
-    <Project Path="tests/Mahjong.Lib.ScoreCalcValidation.Tests/Mahjong.Lib.ScoreCalcValidation.Tests.csproj" />
+    <Project Path="tests/Mahjong.Lib.Scoring.Tests/Mahjong.Lib.Scoring.Tests.csproj" />
+    <Project Path="tests/Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests/Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests.csproj" />
   </Folder>
   <Project Path="src/Mahjong.ApiService/Mahjong.ApiService.csproj" />
   <Project Path="src/Mahjong.Web/Mahjong.Web.csproj" />
