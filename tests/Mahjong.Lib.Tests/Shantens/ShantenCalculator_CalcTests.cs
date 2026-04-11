@@ -160,13 +160,15 @@ public class ShantenCalculator_CalcTests
     [Fact]
     public void 通常形_同種牌が5枚以上_例外がスローされる()
     {
-        // Arrange - Man1が5枚（不正な手牌だがCount<=14のためバリデーションを通過）
+        // Arrange - Man1が5枚（不正な手牌だがCount<=14のためCount判定は通過）
         var hand = new TileKindList("111112345", "12345", "", "");
 
         // Act
         var exception = Record.Exception(() => ShantenCalculator.Calc(hand, useRegular: true, useChiitoitsu: false, useKokushi: false));
 
         // Assert
-        Assert.IsType<InvalidOperationException>(exception);
+        var argEx = Assert.IsType<ArgumentException>(exception);
+        Assert.Contains("同じ牌種が5枚以上含まれています", argEx.Message);
+        Assert.Equal("tileKindList", argEx.ParamName);
     }
 }

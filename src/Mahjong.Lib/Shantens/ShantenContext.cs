@@ -1,5 +1,6 @@
 ﻿using Mahjong.Lib.Tiles;
 using System.Collections.Immutable;
+using System.Diagnostics;
 
 namespace Mahjong.Lib.Shantens;
 
@@ -77,6 +78,7 @@ internal record ShantenContext(TileKindList TileKindList)
                 return context.CalcShanten();
             }
         }
+
         return context.TileKindList.CountOf(context.Current) switch
         {
             1 => context.ScanNumber1(),
@@ -114,6 +116,7 @@ internal record ShantenContext(TileKindList TileKindList)
         {
             context = context with { KantsuCount = context.KantsuCount - 1 };
         }
+
         return context;
     }
 
@@ -139,13 +142,16 @@ internal record ShantenContext(TileKindList TileKindList)
                 {
                     shantens.Add(RemoveShuntsu(tile1, tile2).ScanNumber());
                 }
-                shantens.Add(RemoveKanchan(tile2).ScanNumber());
+                // 嵌張候補（Current と Current+2）
+                shantens.Add(RemoveTatsu(tile2).ScanNumber());
             }
             if (Current.TryGetAtDistance(1, out tile1) && TileKindList.CountOf(tile1) > 0)
             {
-                shantens.Add(RemoveRyanmen(tile1).ScanNumber());
+                // 両面候補（Current と Current+1）
+                shantens.Add(RemoveTatsu(tile1).ScanNumber());
             }
         }
+
         return shantens.Min();
     }
 
@@ -162,6 +168,7 @@ internal record ShantenContext(TileKindList TileKindList)
         {
             shantens.Add(RemoveShuntsu(tile1, tile2).ScanNumber());
         }
+
         return shantens.Min();
     }
 
@@ -183,11 +190,13 @@ internal record ShantenContext(TileKindList TileKindList)
         {
             if (Current.TryGetAtDistance(2, out tile2) && toitsuRemoved.TileKindList.CountOf(tile2) > 0)
             {
-                shantens.Add(toitsuRemoved.RemoveKanchan(tile2).ScanNumber());
+                // 嵌張候補（Current と Current+2）
+                shantens.Add(toitsuRemoved.RemoveTatsu(tile2).ScanNumber());
             }
             if (Current.TryGetAtDistance(1, out tile1) && toitsuRemoved.TileKindList.CountOf(tile1) > 0)
             {
-                shantens.Add(toitsuRemoved.RemoveRyanmen(tile1).ScanNumber());
+                // 両面候補（Current と Current+1）
+                shantens.Add(toitsuRemoved.RemoveTatsu(tile1).ScanNumber());
             }
         }
         if (Current.TryGetAtDistance(1, out tile1) && Current.TryGetAtDistance(2, out tile2) &&
@@ -195,6 +204,7 @@ internal record ShantenContext(TileKindList TileKindList)
         {
             shantens.Add(RemoveShuntsu(tile1, tile2).RemoveShuntsu(tile1, tile2).ScanNumber());
         }
+
         return shantens.Min();
     }
 
@@ -209,36 +219,42 @@ internal record ShantenContext(TileKindList TileKindList)
         TileKind? tile1;
         if (Current.TryGetAtDistance(2, out var tile2) && koutsuRemoved.TileKindList.CountOf(tile2) > 0)
         {
-            // +2が同スートなら+1も必ず同スート
-            Current.TryGetAtDistance(1, out tile1);
-            var tile1ForKoutsu = tile1!;
-            if (koutsuRemoved.TileKindList.CountOf(tile1ForKoutsu) > 0)
+            // +2が同スートなら+1も必ず同スート（不変条件）
+            var hasTile1 = Current.TryGetAtDistance(1, out tile1);
+            Debug.Assert(hasTile1 && tile1 is not null);
+            if (koutsuRemoved.TileKindList.CountOf(tile1) > 0)
             {
-                shantens.Add(koutsuRemoved.RemoveShuntsu(tile1ForKoutsu, tile2).ScanNumber());
+                shantens.Add(koutsuRemoved.RemoveShuntsu(tile1, tile2).ScanNumber());
             }
-            shantens.Add(koutsuRemoved.RemoveKanchan(tile2).ScanNumber());
+            // 嵌張候補（Current と Current+2）
+            shantens.Add(koutsuRemoved.RemoveTatsu(tile2).ScanNumber());
         }
         if (Current.TryGetAtDistance(1, out tile1) && koutsuRemoved.TileKindList.CountOf(tile1) > 0)
         {
-            shantens.Add(koutsuRemoved.RemoveRyanmen(tile1).ScanNumber());
+            // 両面候補（Current と Current+1）
+            shantens.Add(koutsuRemoved.RemoveTatsu(tile1).ScanNumber());
         }
         shantens.Add(koutsuRemoved.RemoveIsolation().ScanNumber());
+
         var toitsuRemoved = RemoveToitsu();
         if (Current.TryGetAtDistance(2, out tile2) && toitsuRemoved.TileKindList.CountOf(tile2) > 0)
         {
-            // +2が同スートなら+1も必ず同スート
-            Current.TryGetAtDistance(1, out tile1);
-            var tile1ForToitsu = tile1!;
-            if (toitsuRemoved.TileKindList.CountOf(tile1ForToitsu) > 0)
+            // +2が同スートなら+1も必ず同スート（不変条件）
+            var hasTile1 = Current.TryGetAtDistance(1, out tile1);
+            Debug.Assert(hasTile1 && tile1 is not null);
+            if (toitsuRemoved.TileKindList.CountOf(tile1) > 0)
             {
-                shantens.Add(toitsuRemoved.RemoveShuntsu(tile1ForToitsu, tile2).ScanNumber());
+                shantens.Add(toitsuRemoved.RemoveShuntsu(tile1, tile2).ScanNumber());
             }
-            shantens.Add(toitsuRemoved.RemoveKanchan(tile2).ScanNumber());
+            // 嵌張候補（Current と Current+2）
+            shantens.Add(toitsuRemoved.RemoveTatsu(tile2).ScanNumber());
         }
         if (Current.TryGetAtDistance(1, out tile1) && toitsuRemoved.TileKindList.CountOf(tile1) > 0)
         {
-            shantens.Add(toitsuRemoved.RemoveRyanmen(tile1).ScanNumber());
+            // 両面候補（Current と Current+1）
+            shantens.Add(toitsuRemoved.RemoveTatsu(tile1).ScanNumber());
         }
+
         return shantens.Min();
     }
 
@@ -267,6 +283,7 @@ internal record ShantenContext(TileKindList TileKindList)
         {
             shanten = KantsuCount;
         }
+
         return shanten;
     }
 
@@ -299,25 +316,11 @@ internal record ShantenContext(TileKindList TileKindList)
     }
 
     /// <summary>
-    /// 両面を除去した新しいコンテキストを返す
+    /// 塔子（両面・嵌張）を除去した新しいコンテキストを返す
     /// </summary>
-    /// <param name="tileKind">除去する牌種別</param>
+    /// <param name="tileKind">除去する相手の牌種別（Current+1 なら両面、Current+2 なら嵌張）</param>
     /// <returns>更新されたシャンテンコンテキスト</returns>
-    private ShantenContext RemoveRyanmen(TileKind tileKind)
-    {
-        return this with
-        {
-            TileKindList = TileKindList.Remove([Current, tileKind]),
-            TatsuCount = TatsuCount + 1,
-        };
-    }
-
-    /// <summary>
-    /// 嵌張を除去した新しいコンテキストを返す
-    /// </summary>
-    /// <param name="tileKind">除去する牌種別</param>
-    /// <returns>更新されたシャンテンコンテキスト</returns>
-    private ShantenContext RemoveKanchan(TileKind tileKind)
+    private ShantenContext RemoveTatsu(TileKind tileKind)
     {
         return this with
         {

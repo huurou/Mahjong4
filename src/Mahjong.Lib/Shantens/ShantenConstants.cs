@@ -1,5 +1,8 @@
 ﻿namespace Mahjong.Lib.Shantens;
 
+/// <summary>
+/// 向聴数計算で使用される定数
+/// </summary>
 public static class ShantenConstants
 {
     /// <summary>
