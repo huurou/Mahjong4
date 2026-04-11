@@ -1,4 +1,4 @@
-﻿using Mahjong.Lib.Games;
+﻿using Mahjong.Lib.Scoring.Games;
 using Mahjong.Lib.ScoreCalcValidation.Analysing.Inits;
 using Microsoft.Extensions.Logging.Abstractions;
 

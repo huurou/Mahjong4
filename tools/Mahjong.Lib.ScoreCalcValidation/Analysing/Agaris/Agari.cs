@@ -1,5 +1,5 @@
-﻿using Mahjong.Lib.Calls;
-using Mahjong.Lib.Tiles;
+﻿using Mahjong.Lib.Scoring.Calls;
+using Mahjong.Lib.Scoring.Tiles;
 
 namespace Mahjong.Lib.ScoreCalcValidation.Analysing.Agaris;
 

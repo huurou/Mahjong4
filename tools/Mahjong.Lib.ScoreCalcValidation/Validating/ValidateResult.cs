@@ -1,4 +1,4 @@
-﻿using Mahjong.Lib.HandCalculating;
+﻿using Mahjong.Lib.Scoring.HandCalculating;
 using Mahjong.Lib.ScoreCalcValidation.Analysing.AgariInfos;
 
 namespace Mahjong.Lib.ScoreCalcValidation.Validating;

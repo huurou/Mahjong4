@@ -1,4 +1,4 @@
-﻿using Mahjong.Lib.Games;
+﻿using Mahjong.Lib.Scoring.Games;
 using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
 
@@ -27,7 +27,7 @@ public partial class InitParseService(ILogger<InitParseService> logger)
         LogKyokuString(logger, kyokuString);
         var kyoku = int.Parse(kyokuString);
 
-        var roundWind = (Wind)(int.Parse(kyokuString) / 4);
+        var roundWind = (Wind)(kyoku / 4);
         LogRoundWindParsed(logger, roundWind);
 
         var honbaString = seedGroups["honba"].Value;

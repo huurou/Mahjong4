@@ -1,4 +1,4 @@
-﻿using Mahjong.Lib.Calls;
+﻿using Mahjong.Lib.Scoring.Calls;
 using Mahjong.Lib.ScoreCalcValidation.Analysing.Agaris;
 using Microsoft.Extensions.Logging.Abstractions;
 

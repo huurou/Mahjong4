@@ -1,10 +1,10 @@
-﻿using Mahjong.Lib.Games;
-using Mahjong.Lib.HandCalculating;
+﻿using Mahjong.Lib.Scoring.Games;
+using Mahjong.Lib.Scoring.HandCalculating;
 using Mahjong.Lib.ScoreCalcValidation.Analysing.AgariInfos;
 using Mahjong.Lib.ScoreCalcValidation.Analysing.Agaris;
 using Mahjong.Lib.ScoreCalcValidation.Validating;
-using Mahjong.Lib.Tiles;
-using Mahjong.Lib.Yakus;
+using Mahjong.Lib.Scoring.Tiles;
+using Mahjong.Lib.Scoring.Yakus;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Mahjong.Lib.ScoreCalcValidation.Tests.Validating;

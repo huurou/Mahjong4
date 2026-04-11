@@ -1,6 +1,6 @@
-﻿using Mahjong.Lib.Calls;
+﻿using Mahjong.Lib.Scoring.Calls;
 using Mahjong.Lib.ScoreCalcValidation.Analysing.Agaris;
-using Mahjong.Lib.Tiles;
+using Mahjong.Lib.Scoring.Tiles;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Mahjong.Lib.ScoreCalcValidation.Tests.Analysing.Agaris;

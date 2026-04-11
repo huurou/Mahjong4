@@ -1,7 +1,7 @@
-﻿using Mahjong.Lib.Games;
+﻿using Mahjong.Lib.Scoring.Games;
 using Mahjong.Lib.ScoreCalcValidation.Analysing.Agaris;
 using Mahjong.Lib.ScoreCalcValidation.Analysing.Inits;
-using Mahjong.Lib.Yakus;
+using Mahjong.Lib.Scoring.Yakus;
 
 namespace Mahjong.Lib.ScoreCalcValidation.Analysing.AgariInfos;
 

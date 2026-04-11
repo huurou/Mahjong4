@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Mahjong.Lib\Mahjong.Lib.csproj" />
+    <ProjectReference Include="..\..\src\Mahjong.Lib.Scoring\Mahjong.Lib.Scoring.csproj" />
   </ItemGroup>
 
   <ItemGroup>

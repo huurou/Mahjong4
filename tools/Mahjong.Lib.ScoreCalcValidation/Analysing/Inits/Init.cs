@@ -1,4 +1,4 @@
-﻿using Mahjong.Lib.Games;
+﻿using Mahjong.Lib.Scoring.Games;
 
 namespace Mahjong.Lib.ScoreCalcValidation.Analysing.Inits;
 
