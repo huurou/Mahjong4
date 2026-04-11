@@ -1,9 +1,9 @@
-﻿using System.Text;
-using Mahjong.Lib.Scoring.Calls;
+﻿using Mahjong.Lib.Scoring.Calls;
 using Mahjong.Lib.Scoring.Games;
 using Mahjong.Lib.Scoring.HandCalculating;
 using Mahjong.Lib.Scoring.HandCalculating.Scores;
 using Mahjong.Lib.Scoring.Tiles;
+using System.Text;
 
 Console.OutputEncoding = Encoding.UTF8;
 

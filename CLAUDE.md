@@ -24,7 +24,7 @@ dotnet run --project src/Mahjong.AppHost/Mahjong.AppHost.csproj
 dotnet run --project samples/Mahjong.Lib.Scoring.SampleApp/Mahjong.Lib.Scoring.SampleApp.csproj
 
 # 点数計算検証ツール実行（対話的にYYYYMMDDの日付を入力）
-dotnet run --project tools/Mahjong.Lib.ScoreCalcValidation/Mahjong.Lib.ScoreCalcValidation.csproj
+dotnet run --project tools/Mahjong.Lib.Scoring.TenhouPaifuValidation/Mahjong.Lib.Scoring.TenhouPaifuValidation.csproj
 
 # コードカバレッジ計測（PowerShell）
 pwsh scripts/TestCoverage.ps1
@@ -45,8 +45,8 @@ pwsh scripts/TestCoverage.ps1
 - **Mahjong.Lib.Scoring** — 麻雀の点数計算ドメインロジック。外部NuGet依存なし（追加時は慎重に判断する）
 - **Mahjong.Lib.Scoring.Tests** — Mahjong.Lib.Scoringのテスト（InternalsVisibleToで内部メンバーにアクセス可能）
 - **Mahjong.Lib.Scoring.SampleApp** — `samples/`配下のコンソールアプリ。`HandCalculator.Calc`の代表的な入力例（役牌、立直平和ツモ一発、役満、副露等）を実行して結果を表示する動作確認用サンプル
-- **Mahjong.Lib.ScoreCalcValidation**（`tools/`配下）— 天鳳牌譜をダウンロード・解析し、`HandCalculator`の点数計算結果を実データと突き合わせる検証コンソールアプリ
-- **Mahjong.Lib.ScoreCalcValidation.Tests** — 上記ツールのテスト
+- **Mahjong.Lib.Scoring.TenhouPaifuValidation**（`tools/`配下）— 天鳳牌譜をダウンロード・解析し、`HandCalculator`の点数計算結果を実データと突き合わせる検証コンソールアプリ
+- **Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests** — 上記ツールのテスト
 
 ### ソリューション構成（Mahjong4.slnx）
 
@@ -54,8 +54,8 @@ pwsh scripts/TestCoverage.ps1
 - **/Aspire/** — AppHost, ServiceDefaults
 - **/Lib/** — Mahjong.Lib.Scoring
 - **/Samples/** — Mahjong.Lib.Scoring.SampleApp
-- **/Tools/** — Mahjong.Lib.ScoreCalcValidation
-- **/Tests/** — Mahjong.Lib.Scoring.Tests, Mahjong.Lib.ScoreCalcValidation.Tests
+- **/Tools/** — Mahjong.Lib.Scoring.TenhouPaifuValidation
+- **/Tests/** — Mahjong.Lib.Scoring.Tests, Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests
 - ルート — ApiService, Web
 
 ### ドメインモデル
@@ -109,7 +109,7 @@ TileKind、Fu、Yakuはstaticプロパティによるシングルトンインス
 - **WinSituation** — 和了状況（ツモ・リーチ・一発等のフラグ、自風・場風）
 - **Wind** — 風（東南西北）。TileKindへの変換拡張メソッドあり
 
-### 点数計算検証ツール（tools/Mahjong.Lib.ScoreCalcValidation/）
+### 点数計算検証ツール（tools/Mahjong.Lib.Scoring.TenhouPaifuValidation/）
 
 `HandCalculator`の実装を天鳳の実牌譜に対して総当たり検証するためのコンソールアプリ。`Microsoft.Extensions.DependencyInjection`でサービスを組み立て、対話的に入力された日付（YYYYMMDD）の牌譜を処理する。
 
@@ -117,7 +117,7 @@ TileKind、Fu、Yakuはstaticプロパティによるシングルトンインス
 1. **AnalysisPaifu** — `PaifuDownloadService`が天鳳から牌譜をダウンロード → `RoundDataExtractService`が局単位に分解 → `InitParseService`/`AgariParseService`/`MeldParseService`がXMLタグをドメインモデルに変換 → `AgariInfoBuildService`が`AgariInfo`を生成
 2. **ValidateCalc** — `CalcValidateService`が`AgariInfo`から`HandCalculator.Calc`を呼び出し、実データの符・翻・点数と突き合わせて`ValidateResult`を返す
 
-テストデータは`tests/Mahjong.Lib.ScoreCalcValidation.Tests/TestData/`配下のXML牌譜（途中流局有無・ダブロン等のバリエーション）。
+テストデータは`tests/Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests/TestData/`配下のXML牌譜（途中流局有無・ダブロン等のバリエーション）。
 
 ## 作業上の注意
 
