@@ -6,6 +6,9 @@
   <Folder Name="/Lib/">
     <Project Path="src/Mahjong.Lib/Mahjong.Lib.csproj" />
   </Folder>
+  <Folder Name="/Samples/">
+    <Project Path="samples/Mahjong.Lib.ScoringSampleApp/Mahjong.Lib.ScoringSampleApp.csproj" />
+  </Folder>
   <Folder Name="/Tests/">
     <Project Path="tests/Mahjong.Lib.Tests/Mahjong.Lib.Tests.csproj" />
   </Folder>
