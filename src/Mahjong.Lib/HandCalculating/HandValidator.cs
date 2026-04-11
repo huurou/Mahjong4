@@ -333,7 +333,7 @@ internal static class HandValidator
 
         if (winSituation.IsRenhou && winSituation.IsTsumo)
         {
-            handResult = HandResult.Error("人和とロンアガリは両立できません。");
+            handResult = HandResult.Error("人和とツモアガリは両立できません。");
             return true;
         }
 

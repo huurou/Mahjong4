@@ -336,7 +336,7 @@ public partial class HandCalculator_CalcTests
         var actual = HandCalculator.Calc(tileKindList, winTile, winSituation: winSituation);
 
         // Assert
-        Assert.Equal("人和とロンアガリは両立できません。", actual.ErrorMessage);
+        Assert.Equal("人和とツモアガリは両立できません。", actual.ErrorMessage);
     }
 
     [Fact]
