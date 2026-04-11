@@ -1,6 +1,5 @@
 ﻿using Mahjong.Lib.Tiles;
 using System.Collections.Immutable;
-using System.Diagnostics;
 
 namespace Mahjong.Lib.Shantens;
 
@@ -84,8 +83,8 @@ internal record ShantenContext(TileKindList TileKindList)
             1 => context.ScanNumber1(),
             2 => context.ScanNumber2(),
             3 => context.ScanNumber3(),
-            4 => context.ScanNumber4(),
-            _ => throw new InvalidOperationException(),
+            // 上のwhileで0枚は除外済み、牌の最大数は4枚なので4のケースのみ
+            _ => context.ScanNumber4(),
         };
     }
 
@@ -220,11 +219,10 @@ internal record ShantenContext(TileKindList TileKindList)
         if (Current.TryGetAtDistance(2, out var tile2) && koutsuRemoved.TileKindList.CountOf(tile2) > 0)
         {
             // +2が同スートなら+1も必ず同スート（不変条件）
-            var hasTile1 = Current.TryGetAtDistance(1, out tile1);
-            Debug.Assert(hasTile1 && tile1 is not null);
-            if (koutsuRemoved.TileKindList.CountOf(tile1) > 0)
+            Current.TryGetAtDistance(1, out tile1);
+            if (koutsuRemoved.TileKindList.CountOf(tile1!) > 0)
             {
-                shantens.Add(koutsuRemoved.RemoveShuntsu(tile1, tile2).ScanNumber());
+                shantens.Add(koutsuRemoved.RemoveShuntsu(tile1!, tile2).ScanNumber());
             }
             // 嵌張候補（Current と Current+2）
             shantens.Add(koutsuRemoved.RemoveTatsu(tile2).ScanNumber());
@@ -240,11 +238,10 @@ internal record ShantenContext(TileKindList TileKindList)
         if (Current.TryGetAtDistance(2, out tile2) && toitsuRemoved.TileKindList.CountOf(tile2) > 0)
         {
             // +2が同スートなら+1も必ず同スート（不変条件）
-            var hasTile1 = Current.TryGetAtDistance(1, out tile1);
-            Debug.Assert(hasTile1 && tile1 is not null);
-            if (toitsuRemoved.TileKindList.CountOf(tile1) > 0)
+            Current.TryGetAtDistance(1, out tile1);
+            if (toitsuRemoved.TileKindList.CountOf(tile1!) > 0)
             {
-                shantens.Add(toitsuRemoved.RemoveShuntsu(tile1, tile2).ScanNumber());
+                shantens.Add(toitsuRemoved.RemoveShuntsu(tile1!, tile2).ScanNumber());
             }
             // 嵌張候補（Current と Current+2）
             shantens.Add(toitsuRemoved.RemoveTatsu(tile2).ScanNumber());

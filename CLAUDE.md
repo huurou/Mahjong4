@@ -83,6 +83,15 @@ TileKind、Fu、Yakuはstaticプロパティによるシングルトンインス
 - **ShantenCalculator** — 公開入口。`Calc(TileKindList, useRegular, useChiitoitsu, useKokushi)`で通常形・七対子・国士無双を切り替えて最小向聴数を返す。`SHANTEN_TENPAI=0`、`SHANTEN_AGARI=-1`
 - 内部ではShantenContext（再帰的な面子・塔子探索）とIsolationSet（孤立牌管理）を使用
 
+#### 和了計算（Mahjong.Lib/HandCalculating/）
+
+- **HandCalculator** — 公開入口（`static`）。`Calc(tileKindList, winTile, callList?, doraIndicators?, uradoraIndicators?, winSituation?, gameRules?)`で役・符・点数を含む`HandResult`を返す
+- 計算パイプラインは段階的に進む: `HandValidator`（入力検証・和了形チェック） → `SpecialHandEvaluator`（流し満貫・国士無双などの特殊役） → `HandDivider`で手牌を面子分解 → 各分解候補ごとに`YakuEvaluator`（役判定）・`FuCalculator`（符計算）・`ScoreCalculator`（点数計算） → **高点法**で最高点の分解候補を選択
+- **HandResult** — 結果`record`（Fu, Han, Score, YakuList, FuList, ErrorMessage）。`HandResult.Create(...)`は役が0翻のとき自動で`Error("役がありません。")`を返す
+- **Score** — `record Score(int Main, int Sub = 0)`。Main/Subは和了方（親/子、ツモ/ロン）で意味が変わる（XMLコメント参照）
+- **HandDividing/HandDivider** — 手牌を可能な面子・雀頭の組み合わせに分解。複数解を返すため高点法が必要
+- **FuCalculator**（`Mahjong.Lib/Fus/`配下）— 雀頭・面子・待ち・ベース符を組み立ててFuListを生成。七対子は常に25符固定
+
 #### ゲーム設定（Mahjong.Lib/Games/）
 
 - **GameRules** — ゲームルール設定（食いタン、ダブル役満、数え役満、切り上げ満貫等）
@@ -108,4 +117,5 @@ TileKind、Fu、Yakuはstaticプロパティによるシングルトンインス
 - 例外テストは`Record.Exception`を使用（`Assert.Throws`は使わない）
 - Fluent Assertionは使用禁止
 - テストコードにドキュメントコメントを付与しない
-- テストはfeatureドメインごとのディレクトリ（Tiles/, Calls/, Fus/, Games/, Yakus/, Shantens/）に整理する
+- テストはfeatureドメインごとのディレクトリ（Tiles/, Calls/, Fus/, Games/, Yakus/, Shantens/, HandCalculating/）に整理する
+- `HandCalculator.Calc`のテストは入力カテゴリ別にクラスを分割（例: `HandCalculator_CalcTests_Shuntsu`、`_Koutsu`、`_Kokushimusou`、`_Dora`、`_Error`、`_Formless`、`_Tenhou`、`_Others`）
