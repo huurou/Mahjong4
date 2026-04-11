@@ -23,6 +23,9 @@ dotnet run --project src/Mahjong.AppHost/Mahjong.AppHost.csproj
 # 点数計算サンプルアプリ実行（Mahjong.Libの動作確認用コンソール）
 dotnet run --project samples/Mahjong.Lib.ScoringSampleApp/Mahjong.Lib.ScoringSampleApp.csproj
 
+# 点数計算検証ツール実行（対話的にYYYYMMDDの日付を入力）
+dotnet run --project tools/Mahjong.Lib.ScoreCalcValidation/Mahjong.Lib.ScoreCalcValidation.csproj
+
 # コードカバレッジ計測（PowerShell）
 pwsh scripts/TestCoverage.ps1
 ```
@@ -42,6 +45,8 @@ pwsh scripts/TestCoverage.ps1
 - **Mahjong.Lib** — 麻雀ドメインロジック。外部NuGet依存なし（追加時は慎重に判断する）
 - **Mahjong.Lib.Tests** — Mahjong.Libのテスト（InternalsVisibleToで内部メンバーにアクセス可能）
 - **Mahjong.Lib.ScoringSampleApp** — `samples/`配下のコンソールアプリ。`HandCalculator.Calc`の代表的な入力例（役牌、立直平和ツモ一発、役満、副露等）を実行して結果を表示する動作確認用サンプル
+- **Mahjong.Lib.ScoreCalcValidation**（`tools/`配下）— 天鳳牌譜をダウンロード・解析し、`HandCalculator`の点数計算結果を実データと突き合わせる検証コンソールアプリ
+- **Mahjong.Lib.ScoreCalcValidation.Tests** — 上記ツールのテスト
 
 ### ソリューション構成（Mahjong4.slnx）
 
@@ -49,7 +54,8 @@ pwsh scripts/TestCoverage.ps1
 - **/Aspire/** — AppHost, ServiceDefaults
 - **/Lib/** — Mahjong.Lib
 - **/Samples/** — Mahjong.Lib.ScoringSampleApp
-- **/Tests/** — Mahjong.Lib.Tests
+- **/Tools/** — Mahjong.Lib.ScoreCalcValidation
+- **/Tests/** — Mahjong.Lib.Tests, Mahjong.Lib.ScoreCalcValidation.Tests
 - ルート — ApiService, Web
 
 ### ドメインモデル
@@ -102,6 +108,16 @@ TileKind、Fu、Yakuはstaticプロパティによるシングルトンインス
 - **GameRules** — ゲームルール設定（食いタン、ダブル役満、数え役満、切り上げ満貫等）
 - **WinSituation** — 和了状況（ツモ・リーチ・一発等のフラグ、自風・場風）
 - **Wind** — 風（東南西北）。TileKindへの変換拡張メソッドあり
+
+### 点数計算検証ツール（tools/Mahjong.Lib.ScoreCalcValidation/）
+
+`HandCalculator`の実装を天鳳の実牌譜に対して総当たり検証するためのコンソールアプリ。`Microsoft.Extensions.DependencyInjection`でサービスを組み立て、対話的に入力された日付（YYYYMMDD）の牌譜を処理する。
+
+パイプラインは`UseCase`を起点に2段階:
+1. **AnalysisPaifu** — `PaifuDownloadService`が天鳳から牌譜をダウンロード → `RoundDataExtractService`が局単位に分解 → `InitParseService`/`AgariParseService`/`MeldParseService`がXMLタグをドメインモデルに変換 → `AgariInfoBuildService`が`AgariInfo`を生成
+2. **ValidateCalc** — `CalcValidateService`が`AgariInfo`から`HandCalculator.Calc`を呼び出し、実データの符・翻・点数と突き合わせて`ValidateResult`を返す
+
+テストデータは`tests/Mahjong.Lib.ScoreCalcValidation.Tests/TestData/`配下のXML牌譜（途中流局有無・ダブロン等のバリエーション）。
 
 ## 作業上の注意
 

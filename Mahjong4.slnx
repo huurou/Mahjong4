@@ -9,8 +9,12 @@
   <Folder Name="/Samples/">
     <Project Path="samples/Mahjong.Lib.ScoringSampleApp/Mahjong.Lib.ScoringSampleApp.csproj" />
   </Folder>
+  <Folder Name="/Tools/">
+    <Project Path="tools/Mahjong.Lib.ScoreCalcValidation/Mahjong.Lib.ScoreCalcValidation.csproj" />
+  </Folder>
   <Folder Name="/Tests/">
     <Project Path="tests/Mahjong.Lib.Tests/Mahjong.Lib.Tests.csproj" />
+    <Project Path="tests/Mahjong.Lib.ScoreCalcValidation.Tests/Mahjong.Lib.ScoreCalcValidation.Tests.csproj" />
   </Folder>
   <Project Path="src/Mahjong.ApiService/Mahjong.ApiService.csproj" />
   <Project Path="src/Mahjong.Web/Mahjong.Web.csproj" />

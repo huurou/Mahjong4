@@ -77,9 +77,13 @@
     $allAssemblies = @("+*") + $excludeAssemblies
     $assemblyFilter = $allAssemblies -join ";"
 
+    # 生成コード（Regex Source Generator・LoggerMessage Source Generator）とエントリポイントを除外する
+    $classFilter = "+*;-System.Text.RegularExpressions.Generated.*;-Program"
+    $fileFilter = "+*;-*RegexGenerator.g.cs;-*LoggerMessage.g.cs;-*Program.cs"
+
     try {
         Write-Output "HTML レポートを生成しています..."
-        reportgenerator -reports:$coverageReportSource -targetdir:$coverageRoot -reporttypes:Html "-assemblyfilters:$assemblyFilter"
+        reportgenerator -reports:$coverageReportSource -targetdir:$coverageRoot -reporttypes:Html "-assemblyfilters:$assemblyFilter" "-classfilters:$classFilter" "-filefilters:$fileFilter"
     }
     catch {
         throw "reportgenerator の実行に失敗しました。dotnet-reportgenerator-globaltool がインストールされているか確認してください (例: dotnet tool install -g dotnet-reportgenerator-globaltool)。"

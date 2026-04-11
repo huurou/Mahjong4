@@ -432,5 +432,4 @@ public partial class HandCalculator_CalcTests
         // Assert
         Assert.Equal("同種の牌が4枚を超えています。", actual.ErrorMessage);
     }
-
 }
