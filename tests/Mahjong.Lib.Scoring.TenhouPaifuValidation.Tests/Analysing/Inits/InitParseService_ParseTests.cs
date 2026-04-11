@@ -1,5 +1,5 @@
-﻿using Mahjong.Lib.Scoring.TenhouPaifuValidation.Analysing.Inits;
-using Mahjong.Lib.Scoring.Games;
+﻿using Mahjong.Lib.Scoring.Games;
+using Mahjong.Lib.Scoring.TenhouPaifuValidation.Analysing.Inits;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests.Analysing.Inits;

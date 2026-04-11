@@ -1,8 +1,8 @@
-﻿using Mahjong.Lib.Scoring.TenhouPaifuValidation.Analysing.AgariInfos;
+﻿using Mahjong.Lib.Scoring.Games;
+using Mahjong.Lib.Scoring.HandCalculating;
+using Mahjong.Lib.Scoring.TenhouPaifuValidation.Analysing.AgariInfos;
 using Mahjong.Lib.Scoring.TenhouPaifuValidation.Analysing.Agaris;
 using Mahjong.Lib.Scoring.TenhouPaifuValidation.Validating;
-using Mahjong.Lib.Scoring.Games;
-using Mahjong.Lib.Scoring.HandCalculating;
 using Mahjong.Lib.Scoring.Tiles;
 using Mahjong.Lib.Scoring.Yakus;
 using Microsoft.Extensions.Logging.Abstractions;
