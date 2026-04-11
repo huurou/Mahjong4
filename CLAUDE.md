@@ -20,6 +20,9 @@ dotnet test --filter "FullyQualifiedName~TileKind_ConstructorTests.有効値0か
 # Aspireアプリ起動
 dotnet run --project src/Mahjong.AppHost/Mahjong.AppHost.csproj
 
+# 点数計算サンプルアプリ実行（Mahjong.Libの動作確認用コンソール）
+dotnet run --project samples/Mahjong.Lib.ScoringSampleApp/Mahjong.Lib.ScoringSampleApp.csproj
+
 # コードカバレッジ計測（PowerShell）
 pwsh scripts/TestCoverage.ps1
 ```
@@ -38,12 +41,14 @@ pwsh scripts/TestCoverage.ps1
 - **Mahjong.ServiceDefaults** — OpenTelemetry、サービスディスカバリ、レジリエンス等の共有設定
 - **Mahjong.Lib** — 麻雀ドメインロジック。外部NuGet依存なし（追加時は慎重に判断する）
 - **Mahjong.Lib.Tests** — Mahjong.Libのテスト（InternalsVisibleToで内部メンバーにアクセス可能）
+- **Mahjong.Lib.ScoringSampleApp** — `samples/`配下のコンソールアプリ。`HandCalculator.Calc`の代表的な入力例（役牌、立直平和ツモ一発、役満、副露等）を実行して結果を表示する動作確認用サンプル
 
 ### ソリューション構成（Mahjong4.slnx）
 
 ソリューションフォルダで整理されている:
 - **/Aspire/** — AppHost, ServiceDefaults
 - **/Lib/** — Mahjong.Lib
+- **/Samples/** — Mahjong.Lib.ScoringSampleApp
 - **/Tests/** — Mahjong.Lib.Tests
 - ルート — ApiService, Web
 
