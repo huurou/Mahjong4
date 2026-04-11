@@ -28,7 +28,7 @@ public static class HandDivider
         // 七対子の判定
         if (toitsuTiles.Count == 7)
         {
-            resultHands.Add(new Hand([.. toitsuTiles.Select(x => new TileKindList(Enumerable.Repeat(x, 2)))]));
+            resultHands.Add([.. toitsuTiles.Select(x => new TileKindList(Enumerable.Repeat(x, 2)))]);
         }
         // ソートして結果を返す
         var sortedResults = resultHands.OrderBy(x => x).ToList();
