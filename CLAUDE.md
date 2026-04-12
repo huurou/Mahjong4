@@ -43,7 +43,9 @@ pwsh scripts/TestCoverage.ps1
 - **Mahjong.Web** — Blazor Serverフロントエンド。ApiServiceをサービスディスカバリ経由で参照
 - **Mahjong.ServiceDefaults** — OpenTelemetry、サービスディスカバリ、レジリエンス等の共有設定
 - **Mahjong.Lib.Scoring** — 麻雀の点数計算ドメインロジック。外部NuGet依存なし（追加時は慎重に判断する）
+- **Mahjong.Lib.Game** — 麻雀の対局ロジック。Mahjong.Lib.Scoringを参照（TileKindの利用）。牌・手牌・山・河・副露・プレイヤー情報・局の状態遷移を管理する
 - **Mahjong.Lib.Scoring.Tests** — Mahjong.Lib.Scoringのテスト（InternalsVisibleToで内部メンバーにアクセス可能）
+- **Mahjong.Lib.Game.Tests** — Mahjong.Lib.Gameのテスト。状態遷移の統合テストと各状態の単体テストを含む
 - **Mahjong.Lib.Scoring.SampleApp** — `samples/`配下のコンソールアプリ。`HandCalculator.Calc`の代表的な入力例（役牌、立直平和ツモ一発、役満、副露等）を実行して結果を表示する動作確認用サンプル
 - **Mahjong.Lib.Scoring.TenhouPaifuValidation**（`tools/`配下）— 天鳳牌譜をダウンロード・解析し、`HandCalculator`の点数計算結果を実データと突き合わせる検証コンソールアプリ
 - **Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests** — 上記ツールのテスト
@@ -52,13 +54,13 @@ pwsh scripts/TestCoverage.ps1
 
 ソリューションフォルダで整理されている:
 - **/Aspire/** — AppHost, ServiceDefaults
-- **/Lib/** — Mahjong.Lib.Scoring
+- **/Lib/** — Mahjong.Lib.Scoring, Mahjong.Lib.Game
 - **/Samples/** — Mahjong.Lib.Scoring.SampleApp
 - **/Tools/** — Mahjong.Lib.Scoring.TenhouPaifuValidation
-- **/Tests/** — Mahjong.Lib.Scoring.Tests, Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests
+- **/Tests/** — Mahjong.Lib.Scoring.Tests, Mahjong.Lib.Game.Tests, Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests
 - ルート — ApiService, Web
 
-### ドメインモデル
+### 点数計算ドメインモデル（Mahjong.Lib.Scoring）
 
 全ドメイン型はイミュータブル（record + ImmutableList）で設計されている。コレクション型（TileKindList, TileKindListList, CallList, Hand, FuList, YakuList）は`[CollectionBuilder]`属性によりコレクション式`[.. ]`での生成に対応し、ネストされたBuilderクラスを持つ。
 
@@ -108,6 +110,50 @@ TileKind、Fu、Yakuはstaticプロパティによるシングルトンインス
 - **GameRules** — ゲームルール設定（食いタン、ダブル役満、数え役満、切り上げ満貫等）
 - **WinSituation** — 和了状況（ツモ・リーチ・一発等のフラグ、自風・場風）
 - **Wind** — 風（東南西北）。TileKindへの変換拡張メソッドあり
+
+### 対局ドメインモデル（Mahjong.Lib.Game）
+
+Mahjong.Lib.Scoringが点数計算に特化するのに対し、Mahjong.Lib.Gameは対局進行を担当する。Mahjong.Lib.Scoringを参照し、`TileKind`を通じて牌の種別情報を取得する。
+
+**牌種別(TileKind)と牌(Tile)の関係**: `Tile`は0-135のIDで136枚の牌を個別に識別する（`Id / 4`で`TileKind`を導出）。点数計算には`TileKind`（34種の絵柄）のみで十分だが、対局進行では同種牌の区別（赤ドラ等）が必要なため`Tile`を使用する。
+
+#### 牌・手牌・河（Mahjong.Lib.Game/Tiles/, Hands/, Rivers/）
+
+- **Tile** — 牌1枚を表すrecord（ID: 0-135）。`Kind`プロパティで`TileKind`を導出
+- **TileList** — `ImmutableList<Tile>`ベースのイミュータブルコレクション。`[CollectionBuilder]`対応
+- **Hand** — TileListを継承。未公開の手牌を表現
+- **River** — TileListを継承。河（捨て牌）を表現
+
+#### 副露（Mahjong.Lib.Game/Calls/）
+
+- **CallType** — 副露の種類を列挙（Chi, Pon, Ankan, Daiminkan, Kakan）。Lib.Scoringの副露と異なり大明槓と加槓を区別する（表示上の違いがあるため）
+- **Call** — `record Call(CallType Type, TileList TileList, PlayerIndex From, Tile CalledTile)`
+- **CallList** — Callのイミュータブルコレクション
+
+#### 山（Mahjong.Lib.Game/Walls/）
+
+- **Wall** — 山牌を表すrecord。TileListで牌の順序を保持
+- **IWallGenerator** — 山生成のインターフェース。`Generate()`で`Wall`を返す
+- **WallGeneratorTenhou** — 天鳳互換の山生成。Mersenne Twister (MT19937) + SHA512ハッシュ圧縮で牌をシャッフル
+
+#### プレイヤー（Mahjong.Lib.Game/Players/）
+
+- **PlayerIndex** — `record PlayerIndex(int Value)`。プレイヤーの席順（0-3）
+- **Point** — `record Point(int Value)`。持ち点
+
+#### 局の状態遷移（Mahjong.Lib.Game/States/RoundStates/）
+
+非同期イベント駆動のステートマシンで局の進行を管理する。`System.Threading.Channels.Channel<T>`によるイベントキューでスレッドセーフな状態遷移を実現。
+
+- **RoundState** — 状態の抽象基底クラス。`ResponseOk`/`ResponseWin`/`ResponseDahai`/`ResponseKan`/`ResponseCall`/`ResponseRyuukyoku`の仮想メソッドを持つ。`Entry`/`Exit`ライフサイクルメソッドと`Transit`ヘルパーで遷移を制御
+- **RoundEvent** — イベントの抽象基底クラス。6種の具象実装（ResponseOk, ResponseDahai, ResponseCall, ResponseWin, ResponseKan, ResponseRyuukyoku）
+- **RoundStateContext** — ステートマシン本体。`Init()`で`RoundStateHaipai`から開始。イベントをChannelに投入し、バックグラウンドタスクで順次処理。`RoundStateChanged`イベントで状態遷移を通知。`IDisposable`で5秒タイムアウト付きの安全なシャットダウン
+
+**状態遷移フロー**（詳細は`docs/Design.md`の状態遷移図を参照）:
+- 配牌(`Haipai`) → ツモ(`Tsumo`) → 打牌(`Dahai`) → ツモ（次のプレイヤー）のサイクルが基本
+- 打牌に対して副露(`Call`)・ロン和了(`Win`)・流局(`Ryuukyoku`)が分岐
+- ツモに対して暗槓/加槓(`Kan`) → 槓ツモ(`KanTsumo`) → 槓ツモ後(`AfterKanTsumo`)の槓サイクル
+- `Win`と`Ryuukyoku`が終端状態
 
 ### 点数計算検証ツール（tools/Mahjong.Lib.Scoring.TenhouPaifuValidation/）
 

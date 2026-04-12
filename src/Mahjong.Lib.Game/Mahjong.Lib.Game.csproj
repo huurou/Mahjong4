@@ -7,8 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="Mahjong.Lib.Game" />
-    <InternalsVisibleTo Include="Mahjong.Lib.Scoring.Tests" />
+    <ProjectReference Include="..\Mahjong.Lib.Scoring\Mahjong.Lib.Scoring.csproj" />
   </ItemGroup>
 
 </Project>
