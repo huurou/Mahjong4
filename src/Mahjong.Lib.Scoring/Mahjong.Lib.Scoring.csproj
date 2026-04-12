@@ -7,7 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="Mahjong.Lib.Game" />
     <InternalsVisibleTo Include="Mahjong.Lib.Scoring.Tests" />
   </ItemGroup>
 

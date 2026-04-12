@@ -54,8 +54,8 @@ stateDiagram-v2
     Call: 副露<br>河から打牌を除去し副露したプレイヤーに副露を生成
     state ChoiceCall <<choice>>
     Kan: 槓(暗槓・加槓)<br>暗槓-手牌から牌を除去し副露を生成 加槓-ツモ牌を追加してポン副露を更新<br>全プレイヤーに槓されたことを通知<br>和了>OK
-    KanTsumo: 槓ツモ<br>嶺上牌を引いて手牌に加える 全プレイヤーに槓ツモしたことを通知
-    AfterKanTsumo: 槓ツモ後
+    KanTsumo: 槓ツモ<br>嶺上牌を引いて手牌に加える 全プレイヤーに槓ツモしたことを通知<br>嶺上ツモ和了判定あり
+    AfterKanTsumo: 槓ツモ後<br>嶺上ツモ和了なし
     state ChoiceKanTsumo <<choice>>
     Win: 和了
     Ryuukyoku: 流局
@@ -76,7 +76,7 @@ stateDiagram-v2
     ChoiceCall --> KanTsumo: 槓(大明槓)
     Kan --> KanTsumo: OK応答
     Kan --> Win: 和了応答(槍槓・加槓のみ)
-    KanTsumo --> ChoiceKanTsumo: OK応答
+    KanTsumo --> ChoiceKanTsumo: OK応答(和了しない)
     KanTsumo --> Win: 和了応答(嶺上ツモ)
     ChoiceKanTsumo --> Ryuukyoku: 四槓流れ
     ChoiceKanTsumo --> AfterKanTsumo: 四槓流れでない

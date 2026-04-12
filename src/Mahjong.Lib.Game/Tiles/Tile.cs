@@ -9,7 +9,7 @@ public record Tile
 
     public int Id { get; init; }
 
-    public TileKind Kind => new(Id / 4);
+    public TileKind Kind => TileKind.All[Id / 4];
 
     public Tile(int id)
     {

@@ -16,7 +16,7 @@ public record Wall
 
     public virtual bool Equals(Wall? other)
     {
-        return other is Wall wall && tiles_.SequenceEqual(wall.tiles_);
+        return other is Wall wall && tiles_.Equals(wall.tiles_);
     }
 
     public override int GetHashCode()
