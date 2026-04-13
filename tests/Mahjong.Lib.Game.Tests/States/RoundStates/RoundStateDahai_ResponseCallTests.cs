@@ -1,0 +1,45 @@
+﻿using Mahjong.Lib.Game.States.RoundStates;
+using Mahjong.Lib.Game.States.RoundStates.Impl;
+
+namespace Mahjong.Lib.Game.Tests.States.RoundStates;
+
+public class RoundStateDahai_ResponseCallTests : IDisposable
+{
+    private readonly RoundStateContext context_ = new();
+
+    public void Dispose()
+    {
+        context_.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
+    [Fact]
+    public async Task 副露応答_副露を経由して打牌状態に遷移する()
+    {
+        // Arrange
+        context_.Init();
+        await context_.ResponseOkAsync();
+        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
+        await context_.ResponseDahaiAsync();
+        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateDahai>(context_);
+
+        var passedTypes = new List<Type>();
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        context_.RoundStateChanged += (_, e) =>
+        {
+            passedTypes.Add(e.State.GetType());
+            if (e.State is RoundStateDahai)
+            {
+                tcs.TrySetResult();
+            }
+        };
+
+        // Act
+        await context_.ResponseCallAsync();
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Contains(typeof(RoundStateCall), passedTypes);
+        Assert.IsType<RoundStateDahai>(context_.State);
+    }
+}
