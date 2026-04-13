@@ -10,6 +10,7 @@ public class WallGeneratorTenhou : IWallGenerator
 {
     private const int MTRAND_N = 624;  // Mersenne Twister のシード長
     private const int BLOCK_COUNT = 9; // SHA512でハッシュするブロック数 全部で136個の乱数が欲しいので16*9=144個MT乱数を生成する
+    private const int EXPECTED_SEED_BYTE_LENGTH = MTRAND_N * sizeof(uint); // 2496
 
     private readonly Mt19937 mt_ = new();
 
@@ -25,6 +26,12 @@ public class WallGeneratorTenhou : IWallGenerator
     public WallGeneratorTenhou(string seed)
     {
         var mtSeed = Convert.FromBase64String(seed);
+        if (mtSeed.Length != EXPECTED_SEED_BYTE_LENGTH)
+        {
+            throw new ArgumentException(
+                $"シードは {EXPECTED_SEED_BYTE_LENGTH} バイトである必要があります。実際: {mtSeed.Length} バイト",
+                nameof(seed));
+        }
         InitMt(mtSeed);
     }
 

@@ -25,6 +25,12 @@ public class RoundStateContext : IDisposable
 
     public void Init()
     {
+        ObjectDisposedException.ThrowIf(disposed_, this);
+        if (eventProcessingTask_ is not null)
+        {
+            throw new InvalidOperationException("Init() は既に呼び出されています。");
+        }
+
         State = new RoundStateHaipai();
         State.Entry(this);
 
@@ -142,6 +148,7 @@ public class RoundStateContext : IDisposable
 
     private async Task EnqueueEventAsync(RoundEvent evt)
     {
+        ObjectDisposedException.ThrowIf(disposed_, this);
         await eventChannel_.Writer.WriteAsync(evt);
     }
 
@@ -160,7 +167,7 @@ public class RoundStateContext : IDisposable
             if (eventProcessingTask_ is not null && !eventProcessingTask_.Wait(DisposeTimeout))
             {
                 cancellationTokenSource_.Cancel();
-                eventProcessingTask_.Wait();
+                eventProcessingTask_.Wait(DisposeTimeout);
             }
             cancellationTokenSource_.Dispose();
         }
