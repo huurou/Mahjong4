@@ -1,6 +1,4 @@
-﻿using Mahjong.Lib.Scoring.Tiles;
-
-namespace Mahjong.Lib.Game.Tiles;
+﻿namespace Mahjong.Lib.Game.Tiles;
 
 public record Tile
 {
@@ -8,8 +6,6 @@ public record Tile
     public const int ID_MAX = 135;
 
     public int Id { get; init; }
-
-    public TileKind Kind => TileKind.All[Id / 4];
 
     public Tile(int id)
     {

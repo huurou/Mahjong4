@@ -1,4 +1,5 @@
-﻿using Mahjong.Lib.Game.States.RoundStates;
+﻿using Mahjong.Lib.Game.Calls;
+using Mahjong.Lib.Game.States.RoundStates;
 using Mahjong.Lib.Game.States.RoundStates.Impl;
 
 namespace Mahjong.Lib.Game.Tests.States.RoundStates;
@@ -17,10 +18,10 @@ public class RoundStateDahai_ResponseCallTests : IDisposable
     public async Task 副露応答_副露を経由して打牌状態に遷移する()
     {
         // Arrange
-        context_.Init();
+        context_.Init(RoundStateContextTestHelper.CreateRound());
         await context_.ResponseOkAsync();
         await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
-        await context_.ResponseDahaiAsync();
+        await context_.ResponseDahaiAsync(RoundStateContextTestHelper.PickTileToDahai(context_));
         await RoundStateContextTestHelper.WaitForStateAsync<RoundStateDahai>(context_);
 
         var passedTypes = new List<Type>();
@@ -35,7 +36,10 @@ public class RoundStateDahai_ResponseCallTests : IDisposable
         };
 
         // Act
-        await context_.ResponseCallAsync();
+        var caller = context_.Round.Turn.Next();
+        var calledTile = context_.Round.RiverArray[context_.Round.Turn].Last();
+        RoundStateContextTestHelper.InjectChiHand(context_, caller);
+        await context_.ResponseCallAsync(caller, CallType.Chi, RoundStateContextTestHelper.DummyChiHandTiles(), calledTile);
         await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         // Assert

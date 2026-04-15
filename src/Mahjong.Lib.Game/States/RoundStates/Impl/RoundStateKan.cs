@@ -10,7 +10,7 @@ public record RoundStateKan : RoundState
     public override void ResponseOk(RoundStateContext context, RoundEventResponseOk evt)
     {
         base.ResponseOk(context, evt);
-        Transit(context, new RoundStateKanTsumo());
+        Transit(context, new RoundStateKanTsumo(), () => context.Round = context.Round.RinshanTsumo());
     }
 
     public override void ResponseWin(RoundStateContext context, RoundEventResponseWin evt)

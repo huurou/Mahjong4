@@ -17,7 +17,7 @@ public class RoundStateTsumo_ResponseWinTests : IDisposable
     public async Task 和了応答_和了状態に遷移する()
     {
         // Arrange
-        context_.Init();
+        context_.Init(RoundStateContextTestHelper.CreateRound());
         await context_.ResponseOkAsync();
         await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
 

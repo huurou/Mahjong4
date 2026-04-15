@@ -17,7 +17,7 @@ public class RoundStateTsumo_ResponseRyuukyokuTests : IDisposable
     public async Task 流局応答_流局状態に遷移する()
     {
         // Arrange
-        context_.Init();
+        context_.Init(RoundStateContextTestHelper.CreateRound());
         await context_.ResponseOkAsync();
         await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
 

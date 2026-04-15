@@ -1,4 +1,5 @@
-﻿using Mahjong.Lib.Game.States.RoundStates;
+﻿using Mahjong.Lib.Game.Calls;
+using Mahjong.Lib.Game.States.RoundStates;
 using Mahjong.Lib.Game.States.RoundStates.Impl;
 
 namespace Mahjong.Lib.Game.Tests.States.RoundStates;
@@ -17,12 +18,12 @@ public class RoundStateTsumo_ResponseKanTests : IDisposable
     public async Task 槓応答_槓状態に遷移する()
     {
         // Arrange
-        context_.Init();
+        context_.Init(RoundStateContextTestHelper.CreateRound());
         await context_.ResponseOkAsync();
         await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
 
         // Act
-        await context_.ResponseKanAsync();
+        await context_.ResponseKanAsync(CallType.Ankan, RoundStateContextTestHelper.PickAnkanTile(context_));
         await RoundStateContextTestHelper.WaitForStateAsync<RoundStateKan>(context_);
 
         // Assert

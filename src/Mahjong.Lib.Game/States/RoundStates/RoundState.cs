@@ -63,7 +63,7 @@ public abstract record RoundState
     /// <param name="context">状態遷移コンテキスト</param>
     /// <param name="nextState">遷移先状態</param>
     /// <param name="action">遷移時アクション</param>
-    protected void Transit(RoundStateContext context, RoundState nextState, Action? action = null)
+    protected static void Transit(RoundStateContext context, RoundState nextState, Action? action = null)
     {
         context.Transit(nextState, action);
     }

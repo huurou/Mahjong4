@@ -10,6 +10,6 @@ public record RoundStateHaipai : RoundState
     public override void ResponseOk(RoundStateContext context, RoundEventResponseOk evt)
     {
         base.ResponseOk(context, evt);
-        Transit(context, new RoundStateTsumo());
+        Transit(context, new RoundStateTsumo(), () => context.Round = context.Round.Tsumo());
     }
 }

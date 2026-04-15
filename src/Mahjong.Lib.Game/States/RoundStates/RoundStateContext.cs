@@ -1,4 +1,9 @@
-﻿using Mahjong.Lib.Game.States.RoundStates.Impl;
+﻿using Mahjong.Lib.Game.Calls;
+using Mahjong.Lib.Game.Players;
+using Mahjong.Lib.Game.Rounds;
+using Mahjong.Lib.Game.States.RoundStates.Impl;
+using Mahjong.Lib.Game.Tiles;
+using System.Collections.Immutable;
 using System.Threading.Channels;
 
 namespace Mahjong.Lib.Game.States.RoundStates;
@@ -21,9 +26,15 @@ public class RoundStateContext : IDisposable
         private set;
     }
 
+    public Round Round
+    {
+        get => field ?? throw new InvalidOperationException("Init() が呼び出されていません。");
+        internal set;
+    }
+
     protected virtual TimeSpan DisposeTimeout => TimeSpan.FromSeconds(5);
 
-    public void Init()
+    public void Init(Round round)
     {
         ObjectDisposedException.ThrowIf(disposed_, this);
         if (eventProcessingTask_ is not null)
@@ -32,6 +43,8 @@ public class RoundStateContext : IDisposable
         }
 
         State = new RoundStateHaipai();
+        Round = round.Haipai();
+
         State.Entry(this);
 
         eventProcessingTask_ = Task.Run(ProcessEventAsync);
@@ -56,25 +69,31 @@ public class RoundStateContext : IDisposable
     /// <summary>
     /// 打牌応答イベントを発行する
     /// </summary>
-    public async Task ResponseDahaiAsync()
+    public async Task ResponseDahaiAsync(Tile tile)
     {
-        await EnqueueEventAsync(new RoundEventResponseDahai());
+        await EnqueueEventAsync(new RoundEventResponseDahai(tile));
     }
 
     /// <summary>
     /// 槓応答イベントを発行する
     /// </summary>
-    public async Task ResponseKanAsync()
+    /// <param name="type">Ankan または Kakan</param>
+    /// <param name="tile">暗槓: 槓する牌種の牌、加槓: 追加する手牌の牌</param>
+    public async Task ResponseKanAsync(CallType type, Tile tile)
     {
-        await EnqueueEventAsync(new RoundEventResponseKan());
+        await EnqueueEventAsync(new RoundEventResponseKan(type, tile));
     }
 
     /// <summary>
     /// 副露応答イベントを発行する
     /// </summary>
-    public async Task ResponseCallAsync()
+    /// <param name="caller">副露するプレイヤー</param>
+    /// <param name="type">Chi / Pon / Daiminkan</param>
+    /// <param name="handTiles">callerの手牌から使用する牌 (Chi・Pon: 2枚、Daiminkan: 3枚)</param>
+    /// <param name="calledTile">鳴かれる牌 (直前の打牌)</param>
+    public async Task ResponseCallAsync(PlayerIndex caller, CallType type, ImmutableList<Tile> handTiles, Tile calledTile)
     {
-        await EnqueueEventAsync(new RoundEventResponseCall());
+        await EnqueueEventAsync(new RoundEventResponseCall(caller, type, handTiles, calledTile));
     }
 
     /// <summary>
@@ -139,7 +158,7 @@ public class RoundStateContext : IDisposable
                         break;
 
                     default:
-                        break;
+                        throw new NotSupportedException($"未対応のイベント種別:{evt?.GetType().Name}");
                 }
             }
         }

@@ -43,7 +43,7 @@ pwsh scripts/TestCoverage.ps1
 - **Mahjong.Web** — Blazor Serverフロントエンド。ApiServiceをサービスディスカバリ経由で参照
 - **Mahjong.ServiceDefaults** — OpenTelemetry、サービスディスカバリ、レジリエンス等の共有設定
 - **Mahjong.Lib.Scoring** — 麻雀の点数計算ドメインロジック。外部NuGet依存なし（追加時は慎重に判断する）
-- **Mahjong.Lib.Game** — 麻雀の対局ロジック。Mahjong.Lib.Scoringを参照（TileKindの利用）。牌・手牌・山・河・副露・プレイヤー情報・局の状態遷移を管理する
+- **Mahjong.Lib.Game** — 麻雀の対局ロジック。Mahjong.Lib.Scoringには依存せず、対局進行ドメインとして独立している。牌・手牌・山・河・副露・プレイヤー情報・局の状態遷移を管理する
 - **Mahjong.Lib.Scoring.Tests** — Mahjong.Lib.Scoringのテスト（InternalsVisibleToで内部メンバーにアクセス可能）
 - **Mahjong.Lib.Game.Tests** — Mahjong.Lib.Gameのテスト。状態遷移の統合テストと各状態の単体テストを含む
 - **Mahjong.Lib.Scoring.SampleApp** — `samples/`配下のコンソールアプリ。`HandCalculator.Calc`の代表的な入力例（役牌、立直平和ツモ一発、役満、副露等）を実行して結果を表示する動作確認用サンプル
@@ -113,33 +113,53 @@ TileKind、Fu、Yakuはstaticプロパティによるシングルトンインス
 
 ### 対局ドメインモデル（Mahjong.Lib.Game）
 
-Mahjong.Lib.Scoringが点数計算に特化するのに対し、Mahjong.Lib.Gameは対局進行を担当する。Mahjong.Lib.Scoringを参照し、`TileKind`を通じて牌の種別情報を取得する。
+Mahjong.Lib.Scoringが点数計算に特化するのに対し、Mahjong.Lib.Gameは対局進行を担当する。両者は独立しており、Mahjong.Lib.GameはMahjong.Lib.Scoringを参照しない（対局進行時に`TileKind`が必要になれば、牌ID (0-135) の `Id / 4` でLib.Scoring側の牌種インデックスへ変換可能）。
 
-**牌種別(TileKind)と牌(Tile)の関係**: `Tile`は0-135のIDで136枚の牌を個別に識別する（`Id / 4`で`TileKind`を導出）。点数計算には`TileKind`（34種の絵柄）のみで十分だが、対局進行では同種牌の区別（赤ドラ等）が必要なため`Tile`を使用する。
+**牌種別(TileKind)と牌(Tile)の関係**: `Tile`は0-135のIDで136枚の牌を個別に識別する。点数計算には34種の絵柄インデックスのみで十分だが、対局進行では同種牌の区別（赤ドラ等）が必要なため`Tile`を使用する。
 
 #### 牌・手牌・河（Mahjong.Lib.Game/Tiles/, Hands/, Rivers/）
 
-- **Tile** — 牌1枚を表すrecord（ID: 0-135）。`Kind`プロパティで`TileKind`を導出
-- **TileList** — `ImmutableList<Tile>`ベースのイミュータブルコレクション。`[CollectionBuilder]`対応
-- **Hand** — TileListを継承。未公開の手牌を表現
-- **River** — TileListを継承。河（捨て牌）を表現
+- **Tile** — 牌1枚を表すrecord（ID: 0-135）。`Id / 4`で`TileKind`を導出
+- **Hand** — 未公開の手牌を表現するrecord。`ImmutableList<Tile>`をラップし`IEnumerable<Tile>`を実装（`AddTile`/`RemoveTile`でイミュータブル更新）
+- **River** — 河（捨て牌）を表現するrecord。`ImmutableArray<Tile>`をラップし`IEnumerable<Tile>`を実装（`Add`/`RemoveLast`）
 
 #### 副露（Mahjong.Lib.Game/Calls/）
 
 - **CallType** — 副露の種類を列挙（Chi, Pon, Ankan, Daiminkan, Kakan）。Lib.Scoringの副露と異なり大明槓と加槓を区別する（表示上の違いがあるため）
-- **Call** — `record Call(CallType Type, TileList TileList, PlayerIndex From, Tile CalledTile)`
+- **Call** — `record Call(CallType Type, ImmutableList<Tile> Tiles, PlayerIndex From, Tile CalledTile)`
 - **CallList** — Callのイミュータブルコレクション
 
 #### 山（Mahjong.Lib.Game/Walls/）
 
-- **Wall** — 山牌を表すrecord。TileListで牌の順序を保持
+- **Wall** — 山牌を表すrecord。`Draw`/`DrawRinshan`/`RevealDora`でイミュータブルに操作
 - **IWallGenerator** — 山生成のインターフェース。`Generate()`で`Wall`を返す
 - **WallGeneratorTenhou** — 天鳳互換の山生成。Mersenne Twister (MT19937) + SHA512ハッシュ圧縮で牌をシャッフル
 
 #### プレイヤー（Mahjong.Lib.Game/Players/）
 
-- **PlayerIndex** — `record PlayerIndex(int Value)`。プレイヤーの席順（0-3）
+- **PlayerIndex** — `record PlayerIndex(int Value)`。プレイヤーの席順（0-3）。`Next()`で次家へ
 - **Point** — `record Point(int Value)`。持ち点
+
+#### プレイヤー別配列（各ドメイン配下の `*Array` 型）
+
+4プレイヤー分の状態を`ImmutableArray`で保持するイミュータブルな配列ラッパー。`PlayerIndex`でインデックス参照し、更新メソッドは新しいインスタンスを返す。
+
+- **HandArray** (`Hands/`) — 各プレイヤーの`Hand`配列（`AddTile`/`AddTiles`/`RemoveTile`）
+- **RiverArray** (`Rivers/`) — 各プレイヤーの`River`配列（`AddTile`/`RemoveLastTile`）
+- **CallListArray** (`Calls/`) — 各プレイヤーの`CallList`配列（`AddCall`/`ReplaceCall`）
+- **PointArray** (`Players/`) — 各プレイヤーの持ち点配列
+
+#### 局（Mahjong.Lib.Game/Rounds/）
+
+局全体の状態を1つのrecordに集約し、進行アクションはすべて新しい`Round`を返すイミュータブル設計。`RoundState`（状態機械）が`Round`を受け取り各アクションを呼び出す構造。
+
+- **Round** — 局の状態を保持するrecord（`RoundWind`/`RoundNumber`/`Honba`/`KyoutakuRiichiCount`/`Turn`/`PointArray`/`IWallGenerator`/`Wall`/`HandArray`/`CallListArray`/`RiverArray`/`PendingDoraReveal`）。`Haipai`/`Tsumo`/`Dahai`/`NextTurn`/`Chi`/`Pon`/`Daiminkan`/`Ankan`/`Kakan`/`RinshanTsumo`/`RevealDora`/`SetPoints`/`AddKyoutakuRiichi`/`ClearKyoutaku`の各メソッドで進行
+- **RoundWind** — 場風
+- **RoundNumber** — 局数。`ToDealer()`で親の`PlayerIndex`を返す
+- **Honba** — 本場
+- **KyoutakuRiichiCount** — 供託リーチ棒の本数
+
+**カンドラ表示のタイミング**: 暗槓は即時`RevealDora`、加槓・大明槓は`PendingDoraReveal=true`で保留し、次の`RinshanTsumo`直前にめくる
 
 #### 局の状態遷移（Mahjong.Lib.Game/States/RoundStates/）
 

@@ -1,4 +1,6 @@
-﻿namespace Mahjong.Lib.Game.States.RoundStates.Impl;
+﻿using Mahjong.Lib.Game.Calls;
+
+namespace Mahjong.Lib.Game.States.RoundStates.Impl;
 
 /// <summary>
 /// 副露
@@ -11,11 +13,10 @@ public record RoundStateCall : RoundState
     {
         base.Entry(context);
 
-        // TODO: 副露処理（河から打牌を除去、副露を生成）
-
-        if (IsDaiminkan())
+        // 副露内容の更新は RoundStateDahai.ResponseCall で完了済み
+        if (IsDaiminkan(context))
         {
-            Transit(context, new RoundStateKanTsumo());
+            Transit(context, new RoundStateKanTsumo(), () => context.Round = context.Round.RinshanTsumo());
         }
         else
         {
@@ -23,9 +24,9 @@ public record RoundStateCall : RoundState
         }
     }
 
-    private bool IsDaiminkan()
+    private static bool IsDaiminkan(RoundStateContext context)
     {
-        // TODO: 直前の副露が大明槓であるか判定
-        return false;
+        var lastCall = context.Round.CallListArray[context.Round.Turn].LastOrDefault();
+        return lastCall?.Type == CallType.Daiminkan;
     }
 }
