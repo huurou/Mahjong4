@@ -43,7 +43,7 @@ pwsh scripts/TestCoverage.ps1
 - **Mahjong.Web** — Blazor Serverフロントエンド。ApiServiceをサービスディスカバリ経由で参照
 - **Mahjong.ServiceDefaults** — OpenTelemetry、サービスディスカバリ、レジリエンス等の共有設定
 - **Mahjong.Lib.Scoring** — 麻雀の点数計算ドメインロジック。外部NuGet依存なし（追加時は慎重に判断する）
-- **Mahjong.Lib.Game** — 麻雀の対局ロジック。Mahjong.Lib.Scoringには依存せず、対局進行ドメインとして独立している。牌・手牌・山・河・副露・プレイヤー情報・局の状態遷移を管理する
+- **Mahjong.Lib.Game** — 麻雀の対局ロジック。Mahjong.Lib.Scoringには依存せず、対局進行ドメインとして独立している。牌・手牌・山・河・副露・プレイヤー情報・**対局(Game)と局(Round)の二層状態遷移**を管理する
 - **Mahjong.Lib.Scoring.Tests** — Mahjong.Lib.Scoringのテスト（InternalsVisibleToで内部メンバーにアクセス可能）
 - **Mahjong.Lib.Game.Tests** — Mahjong.Lib.Gameのテスト。状態遷移の統合テストと各状態の単体テストを含む
 - **Mahjong.Lib.Scoring.SampleApp** — `samples/`配下のコンソールアプリ。`HandCalculator.Calc`の代表的な入力例を実行して結果を表示する動作確認用サンプル
@@ -82,11 +82,16 @@ pwsh scripts/TestCoverage.ps1
 
 ### 対局ドメイン（Mahjong.Lib.Game）
 
-対局/局の状態遷移図、状態の意味、副露の扱いは [docs/Design.md](docs/Design.md) が一次情報。以下はコード上の構造のみ:
+対局/局の状態遷移図、状態の意味、副露の扱いは [docs/Design.md](docs/Design.md) が一次情報。Lib.Game は **局(Round)** と **対局(Game)** の二層構造で、対局レベル状態機械が局レベル状態機械をホストする。以下はコード上の構造のみ:
+
+#### 共通
 
 - **牌ID規約**: `Tile.Id` は 0-135、`Tile.Kind` は `Id / 4` で 0-33 の牌種ID
 - **プレイヤー別配列**: `HandArray` / `RiverArray` / `CallListArray` / `PointArray` は `ImmutableArray` + `PlayerIndex` でインデックス参照するイミュータブルラッパー。更新メソッドは新インスタンスを返す
 - **山生成**: [Mahjong.Lib.Game/Walls/IWallGenerator.cs](src/Mahjong.Lib.Game/Walls/IWallGenerator.cs) が抽象、`WallGeneratorTenhou` が Mersenne Twister(MT19937) + SHA512 の天鳳互換実装
+
+#### 局(Round)レベル
+
 - **局の集約**: [Mahjong.Lib.Game/Rounds/Round.cs](src/Mahjong.Lib.Game/Rounds/Round.cs) が局の全状態を保持するイミュータブルrecord。`Haipai` / `Tsumo` / `Dahai` / `NextTurn` / `Chi` / `Pon` / `Daiminkan` / `Ankan` / `Kakan` / `RinshanTsumo` / `RevealDora` / `SetPoints` / `AddKyoutakuRiichi` / `ClearKyoutaku` の各メソッドで進行。すべて新しい `Round` を返す
 - **カンドラ表示のタイミング**: 暗槓は即時 `RevealDora`、加槓・大明槓は `PendingDoraReveal=true` で保留し、次の `RinshanTsumo` 直前にめくる
 - **副露種類の扱い**: `CallType` は Chi/Pon/Ankan/Daiminkan/Kakan。Lib.Scoring側と違い大明槓と加槓を区別する（表示上の差があるため — 詳細は [docs/Design.md](docs/Design.md)）
@@ -95,6 +100,17 @@ pwsh scripts/TestCoverage.ps1
   - `RoundEvent` — 抽象基底。6種の具象実装（ResponseOk, ResponseDahai, ResponseCall, ResponseWin, ResponseKan, ResponseRyuukyoku）
   - `RoundStateContext` — ステートマシン本体。`Init()` で `RoundStateHaipai` から開始。`RoundStateChanged` イベントで遷移通知。`IDisposable` で 5秒タイムアウト付きシャットダウン
   - 状態遷移フローの詳細（配牌→ツモ→打牌サイクル、副露/ロン/流局の分岐、槓サイクル、終端状態）は [docs/Design.md](docs/Design.md) の状態遷移図を参照
+
+#### 対局(Game)レベル
+
+- **対局の集約**: [Mahjong.Lib.Game/Games/Game.cs](src/Mahjong.Lib.Game/Games/Game.cs) が対局全体の状態を保持するイミュータブルrecord（PlayerList/Rules/RoundWind/RoundNumber/Honba/KyoutakuRiichiCount/PointArray）。`Create` / `CreateRound` / `ApplyRoundResult` / `AdvanceToNextRound` で進行
+- **プレイヤー**: [Mahjong.Lib.Game/Players/](src/Mahjong.Lib.Game/Players/) の `Player`（`PlayerId` + 表示名）と `PlayerList`（4人固定、index 0 が**起家**。並び替えは呼び出し側責務）
+- **対局ルール**: [Mahjong.Lib.Game/Games/GameRules.cs](src/Mahjong.Lib.Game/Games/GameRules.cs) に対局形式（`GameFormat`: SingleRound/Tonpuu/Tonnan）、赤ドラ集合、初期持ち点、トビ閾値、食いタン/後付け、連荘条件（`RenchanCondition`）を集約
+- **対局終了判定**: [Mahjong.Lib.Game/Games/GameEndPolicy.cs](src/Mahjong.Lib.Game/Games/GameEndPolicy.cs) `ShouldEndAfterRound(game, event, dealerContinues)` で判定。呼び出し順は **ApplyRoundResult → ShouldEndAfterRound → (false なら AdvanceToNextRound)**
+- **対局の外部入口**: [Mahjong.Lib.Game/Games/GameManager.cs](src/Mahjong.Lib.Game/Games/GameManager.cs) が `Start()` で `GameStateContext` を生成し `IDisposable` で管理
+- **対局レベル状態機械** ([Mahjong.Lib.Game/States/GameStates/](src/Mahjong.Lib.Game/States/GameStates/)): Round層と同じ Channel ベースのイベント駆動。`GameState`（Init/RoundRunning/End）と `GameEvent`（ResponseOk/RoundEndedByWin/RoundEndedByRyuukyoku）
+  - `GameStateContext` は `RoundStateContext` をホストし、`RoundStateChanged` を購読して `RoundStateWin` / `RoundStateRyuukyoku` を検知すると `GameEventRoundEndedBy*` を内部発行して対局レベル遷移に昇格させる
+  - 和了者判定・流局種別判定は Phase 1 時点でスタブ（`BuildWinEvent` / `BuildRyuukyokuEvent`）、Phase 2 で正確化予定
 
 ### 点数計算検証ツール（tools/Mahjong.Lib.Scoring.TenhouPaifuValidation/）
 
@@ -125,5 +141,5 @@ pwsh scripts/TestCoverage.ps1
 - 例外テストは`Record.Exception`を使用（`Assert.Throws`は使わない）
 - Fluent Assertionは使用禁止
 - テストコードにドキュメントコメントを付与しない
-- テストはfeatureドメインごとのディレクトリ（Tiles/, Calls/, Fus/, Games/, Yakus/, Shantens/, HandCalculating/）に整理する
+- テストはfeatureドメインごとのディレクトリ（Tiles/, Calls/, Fus/, Games/, Players/, Yakus/, Shantens/, HandCalculating/, States/）に整理する
 - `HandCalculator.Calc`のテストは入力カテゴリ別にクラスを分割（例: `HandCalculator_CalcTests_Shuntsu`、`_Koutsu`、`_Kokushimusou`、`_Dora`、`_Error`、`_Formless`、`_Tenhou`、`_Others`）

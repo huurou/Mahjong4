@@ -168,6 +168,11 @@ public class RoundStateContext : IDisposable
     private async Task EnqueueEventAsync(RoundEvent evt)
     {
         ObjectDisposedException.ThrowIf(disposed_, this);
+        if (eventProcessingTask_ is null)
+        {
+            throw new InvalidOperationException("Init() が呼び出されていません。");
+        }
+
         await eventChannel_.Writer.WriteAsync(evt);
     }
 

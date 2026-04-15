@@ -12,27 +12,28 @@
 - 局集約: `Round` record と進行メソッド (`Haipai` / `Tsumo` / `Dahai` / `Chi` / `Pon` / `Daiminkan` / `Ankan` / `Kakan` / `RinshanTsumo` / `RevealDora` / `SetPoints` / `AddKyoutakuRiichi` / `ClearKyoutaku` / `NextTurn`)
 - 局ステートマシン: `RoundState` / `RoundEvent` / `RoundStateContext` と各具象状態(Haipai / Tsumo / Dahai / Call / Kan / KanTsumo / AfterKanTsumo / Win / Ryuukyoku)
 
-## Phase 1: 対局(Game)集約とステートマシンの器
+## Phase 1: 対局(Game)集約とステートマシンの器 (完了済み)
 
 **目的**: 対局全体を統括する「器」を用意する。点数精算ロジックと局内プレイヤー状態は Phase 2 に分離する。通知/応答の仕組みはこの時点では未着手で、テストは`GameStateContext`の直接駆動で行う。
 
-- ファイル配置 — `Mahjong.Lib.Game/Games/` フォルダを新設(既存の`Rounds/`と並列)
-- `GameRules` (仮称) — 対局前に決まるルール。対局形式(東風戦/東南戦、既定:東南戦) / 赤ドラ枚数(既定:赤五萬1/赤五筒1/赤五索1) / 初期持ち点(当面35000) / オーラス親あがり止め(1位単独確定のみ) / トビ終了点(天鳳準拠:0点未満) / 食いタン / 後付け / 連荘条件 / `IsRedDora(Tile)` 判定メソッド / 対局形式 `GameFormat.Tonpuu` / `Tonnan`(既定) / `SingleRound`
-- `GameConfig` record — 対局固有パラメータ(`PlayerList` / `GameRules` / 起家`PlayerIndex` / タイムアウト設定 等)。起家は上位層で乱数決定した`PlayerIndex`を外部注入
-- `PlayerList` record — `ImmutableArray<PlayerProfile>`(席情報のみの純データ)のラッパー、`PlayerIndex`でアクセス。**`IPlayer` 実体は保持しない**。Phase 1時点では **空の`IPlayer` interface**(マーカー)を`Players/`配下に用意し、Phase 4で本物に差し替える。`IPlayer[]` 実体は `GameManager` が別途 `IPlayerEndpoint[]` として保持する
-- `Game` record (immutable) — 対局全体の状態(`PlayerList` / 局順 / 本場 / 供託 / 持ち点 / ルール等)
-- `Round` 結果情報保持の追加 — 和了情報(誰が/誰から/役構成/符翻/点数)・流局情報(種別/テンパイ者)を`Round`に持たせる(点数計算は Phase 2 で接続)
-- `GameState` 抽象 + 具象 (`GameInit` / `RoundInit` / `RoundEnd` / `GameEnd`)
+- ファイル配置 — `Mahjong.Lib.Game/Games/` フォルダ(既存の`Rounds/`と並列) / `Mahjong.Lib.Game/States/GameStates/`
+- `GameRules` — 対局前に決まるルール。対局形式(東風戦/東南戦、既定:東南戦) / 赤ドラ枚数(既定:赤五萬1/赤五筒1/赤五索1) / 初期持ち点(当面35000) / オーラス親あがり止め(1位単独確定のみ) / トビ終了点(天鳳準拠:0点未満) / 食いタン / 後付け / 連荘条件 / `IsRedDora(Tile)` 判定メソッド / 対局形式 `GameFormat.Tonpuu` / `Tonnan`(既定) / `SingleRound`
+- `Player` abstract record — プレイヤーの共通基底(`PlayerId` / `DisplayName`)。Phase 1 では識別情報のみ、Phase 4 で通知・応答メソッド(`OnHaipaiAsync` 等)を追加する。AI / 人間の実装は Phase 4 以降で `Player` を継承する
+- `PlayerList` record — `ImmutableArray<Player>` のラッパー かつ `IEnumerable<Player>` 実装、`PlayerIndex`でアクセス。**index 0 が起家**という仕様。並び替え・起家決定は呼び出し側の責務
+- `Game` record (immutable) — 対局全体の状態を直接フィールドで保持(`PlayerList` / `GameRules` / `RoundWind` / `RoundNumber` / `Honba` / `KyoutakuRiichiCount` / `PointArray`)。`GameConfig` のような中間コンテナは作らない(局順など対局中に変動する値と固定パラメータを同じrecordに混在させないため)
+- 局終了イベント (`GameEventRoundEndedByWin` / `GameEventRoundEndedByRyuukyoku`) のフィールドとして結果情報を保持(和了者 / 放銃者 / 和了種別 / 流局種別 / 連荘判定フラグ / 本場加算フラグ)。**`Round` record は変更しない**。Phase 2 以降でフィールドを拡張して役/符/翻/点数を追加
+- `GameState` 抽象 + 具象 (`GameStateInit` / `GameStateRoundRunning` / `GameStateEnd`)。既存 `RoundStateXxx` の命名規約に揃える。Phase 1 では「局終了」を表す独立状態は持たず、局終了後の Game 更新・終了判定・次局決定は `GameStateRoundRunning.RoundEndedBy*` ハンドラ内で行い 直接 `GameStateRoundRunning`(次局)または `GameStateEnd` へ Transit する。プレイヤー向けの局終了通知(Phase 5)の実装時に必要なら `GameStateRoundEnd` 状態を再導入する
 - `GameStateContext` — `Round*`系と同じ非同期イベント駆動。内部で`RoundStateContext`を生成・破棄。Phase 1時点のテストは既存`RoundStateContext`と同様に`ResponseXxxAsync`系の直接駆動
-- `GameManager` — コンストラクタで`GameConfig` + `IWallGenerator` + (Phase 2で注入予定の `IScoreCalculator`) 等を受け取る。対局開始処理・局間の引き継ぎ・対局終了判定を統括。`IPlayer[]` 実体の保持もここが担当
+- `GameStateContext` と `RoundStateContext` の協調 — `GameStateRoundRunning.Entry` で `GameStateContext.StartRound(round)` を呼ぶ。`StartRound` は内部で RoundStateContext を生成し RoundStateChanged を購読登録してから Init を実行し、Init 完了後に `CurrentRoundContext` プロパティへ公開する(テストが初期化前の State を観測しないようにする)。購読ハンドラが `RoundStateWin` / `RoundStateRyuukyoku` を検知したら `NotifyRoundEndedAsync` で一度だけ内部イベント発行(多重抑止フラグ `roundEnded_` 付き)。Phase 5 で `RoundManager` 経由に差し替え予定
+- `GameManager` — コンストラクタで`PlayerList` + `GameRules` + `IWallGenerator` を受け取る。対局開始処理・局間の引き継ぎ・対局終了判定を統括
 - `RoundManager` / 通信・集約レイヤーは Phase 5 で導入。Phase 1 では未着手
 
 **Phase 1 完了の定義**:
 
-- テストから直接駆動で `GameInit` → `RoundInit` → (Round 既存駆動で進行) → `RoundEnd` → 次局 `RoundInit` → ... → `GameEnd` の遷移が回る
-- `GameRules` / `GameConfig` / `Game` / `PlayerList` / `GameState` / `GameStateContext` / `GameManager` が生成・破棄可能
+- テストから直接駆動で `GameStateInit` → `GameStateRoundRunning` → (Round 既存駆動で進行) → 次局 `GameStateRoundRunning` → ... → `GameStateEnd` の遷移が回る
+- `GameRules` / `Game` / `PlayerList` / `GameState` / `GameStateContext` / `GameManager` が生成・破棄可能
 - 点数精算・流局精算・連荘/本場処理は **スタブ**(固定値返却や手計算固定値)で十分。統合テストは状態遷移の流れのみ検証
-- 対局終了条件(オーラス親あがり止め / トビ / 規定局数消化)の分岐が`GameManager`で評価される(実値判定ではなくフック点が存在するレベルで可)
+- 対局終了条件(オーラス親あがり止め / トビ / 規定局数消化)の分岐が`GameEndPolicy.ShouldEndAfterRound`で評価される(実値判定ではなくフック点が存在するレベルで可)
 
 ## Phase 2: 点数精算と局内プレイヤー状態
 
@@ -52,7 +53,7 @@
 
 ## Phase 3: 通知・応答の型定義
 
-**目的**: プレイヤー通知・応答の型体系を固める。型のみだが、Phase 4 の `IPlayer` 戻り値型は本フェーズの応答型に直接依存するため、Phase 4 の API 形状もあわせて想定して型設計する。
+**目的**: プレイヤー通知・応答の型体系を固める。型のみだが、Phase 4 の `Player` 通知メソッドの戻り値型は本フェーズの応答型に直接依存するため、Phase 4 の API 形状もあわせて想定して型設計する。
 
 - `PlayerNotification` 抽象 + 種別別具象 (`HaipaiNotification` / `TsumoNotification` / `DahaiNotification` / `CallNotification` / `KanNotification` / `KanTsumoNotification` / `WinNotification` / `RyuukyokuNotification` / `DoraRevealNotification` / `GameStartNotification` / `GameEndNotification` / `RoundStartNotification` / `RoundEndNotification` …)
 - `PlayerResponse` 抽象 + 種別別具象 (`OkResponse` / `DahaiResponse(Tile, isRiichi)` / `CallResponse` / `KanResponse` / `WinResponse` / `RyuukyokuResponse`) および Wire DTO 用 envelope
@@ -61,13 +62,13 @@
 - `ResolvedRoundAction` — 優先順位適用後の採用済み結果。`ResolvedWinAction` は `Winners[]` / `Loser?` / `WinType` / `KyoutakuDistribution` / `HonbaDistribution` / `DealerContinues` を保持(詳細は Design.md 参照)
 - `PlayerRoundView` — プレイヤー視点で情報フィルタ済みの卓情報
 
-## Phase 4: IPlayer / PlayerBase 抽象
+## Phase 4: Player 拡張
 
-**目的**: プレイヤー側の抽象層を整備する。
+**目的**: プレイヤー側の抽象層を整備する。`Player` abstract record に通知・応答メソッドを追加し、`PlayerList` (= `IEnumerable<Player>`) 一本でプレイヤー情報と実体を管理する。
 
-- `IPlayer` interface — 種別ごとの通知メソッド (`OnGameStartAsync` / `OnRoundStartAsync` / `OnHaipaiAsync` / `OnTsumoAsync` / `OnDahaiAsync` / `OnCallAsync` / `OnKanAsync` / `OnKanTsumoAsync` / `OnDoraRevealAsync` / `OnWinAsync` / `OnRyuukyokuAsync` / `OnRoundEndAsync` / `OnGameEndAsync`)。各メソッドの戻り値は通知ごとに型が異なる(Phase 3 の応答型を直接戻す)
-- `PlayerBase` 抽象基底 — 視点卓情報(`PlayerRoundView`相当)の保持・更新、通知イベントの共通処理、C# API ⇔ Wire DTO 二層構造の変換基盤
-- `FakePlayer` (test用) — テストシナリオ記述用の疑似プレイヤー実装
+- `Player` に通知メソッドを追加 — 種別ごとの通知メソッド (`OnGameStartAsync` / `OnRoundStartAsync` / `OnHaipaiAsync` / `OnTsumoAsync` / `OnDahaiAsync` / `OnCallAsync` / `OnKanAsync` / `OnKanTsumoAsync` / `OnDoraRevealAsync` / `OnWinAsync` / `OnRyuukyokuAsync` / `OnRoundEndAsync` / `OnGameEndAsync`) を virtual / abstract で定義する。各メソッドの戻り値は通知ごとに型が異なる(Phase 3 の応答型を直接戻す)
+- 視点卓情報(`PlayerRoundView`相当)の保持・更新、通知イベントの共通処理、C# API ⇔ Wire DTO 二層構造の変換基盤は `Player` の共通実装として持たせる
+- `FakePlayer` (test用) — テストシナリオ記述用の疑似プレイヤー実装 (`Player` のサブタイプ)
 
 ## Phase 5: RoundManager と通信・集約レイヤー
 
@@ -100,7 +101,7 @@
 
 **目的**: 人間プレイヤーが対局に参加できるようにする。
 
-- `PlayerBase`継承の人間プレイヤー実装 (UI入力を待つ形)
+- `Player`継承の人間プレイヤー実装 (UI入力を待つ形)
 - transport adapter (WebSocket / SignalR 等)
 - `Mahjong.ApiService` / `Mahjong.Web` との統合
 - 接続断/再接続処理
