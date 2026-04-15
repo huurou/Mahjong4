@@ -12,6 +12,13 @@ public class Round_DoraRevealTimingTests
     {
         // Arrange
         var round = RoundTestHelper.CreateRound(0).Haipai().Tsumo();
+        round = RoundTestHelper.InjectHand(round, new PlayerIndex(0),
+        [
+            new Tile(132), new Tile(133), new Tile(134), new Tile(135),
+            new Tile(0), new Tile(1), new Tile(2), new Tile(3),
+            new Tile(4), new Tile(5), new Tile(6), new Tile(7),
+            new Tile(12), new Tile(13),
+        ]);
         var initialDora = round.Wall.DoraRevealedCount;
 
         // Act
@@ -27,13 +34,20 @@ public class Round_DoraRevealTimingTests
     {
         // Arrange
         var round = RoundTestHelper.CreateRound(0).Haipai().Tsumo();
+        var p1 = new PlayerIndex(1);
+        round = RoundTestHelper.InjectHand(round, p1,
+        [
+            new Tile(86),
+            new Tile(0), new Tile(1), new Tile(2), new Tile(3),
+            new Tile(4), new Tile(5), new Tile(6), new Tile(7),
+            new Tile(12), new Tile(13), new Tile(16), new Tile(17),
+        ]);
         var pon = new Call(
             CallType.Pon,
             [new Tile(84), new Tile(85), new Tile(87)],
             new PlayerIndex(0),
             new Tile(87)
         );
-        var p1 = new PlayerIndex(1);
         var callListArray = round.CallListArray.AddCall(p1, pon);
         round = round with { CallListArray = callListArray, Turn = p1 };
         var initialDora = round.Wall.DoraRevealedCount;
@@ -50,20 +64,26 @@ public class Round_DoraRevealTimingTests
     public void Daiminkan_ドラはめくられずPendingDoraRevealがtrueになる()
     {
         // Arrange
-        // P0 打牌 Tile(84) (kind 21)。 P1 の手牌に kind 21 の残り3枚 (Tile(85,86,87)) を作る。
-        // P1 の配牌には Tile(86) のみなので、テスト用に Tile(85), Tile(87) を手牌に注入する。
+        // P0 が Tile(84) (kind 21) を打牌 → P1 が kind 21 の残り3枚 (Tile 85,86,87) で大明槓
         var round = RoundTestHelper.CreateRound(0).Haipai().Tsumo();
-        round = round with
-        {
-            HandArray = round.HandArray.AddTile(new PlayerIndex(0), new Tile(84))
-        };
+        round = RoundTestHelper.InjectHand(round, new PlayerIndex(0),
+        [
+            new Tile(84),
+            new Tile(0), new Tile(1), new Tile(2), new Tile(3),
+            new Tile(16), new Tile(17), new Tile(18), new Tile(19),
+            new Tile(28), new Tile(29), new Tile(30), new Tile(31),
+            new Tile(40),
+        ]);
         round = round.Dahai(new Tile(84));
         var caller = new PlayerIndex(1);
+        round = RoundTestHelper.InjectHand(round, caller,
+        [
+            new Tile(85), new Tile(86), new Tile(87),
+            new Tile(8), new Tile(9), new Tile(10), new Tile(11),
+            new Tile(20), new Tile(21), new Tile(22), new Tile(23),
+            new Tile(32), new Tile(33),
+        ]);
         var handTiles = ImmutableList.Create(new Tile(85), new Tile(86), new Tile(87));
-        round = round with
-        {
-            HandArray = round.HandArray.AddTile(caller, new Tile(85)).AddTile(caller, new Tile(87))
-        };
         var initialDora = round.Wall.DoraRevealedCount;
 
         // Act
@@ -79,13 +99,20 @@ public class Round_DoraRevealTimingTests
     {
         // Arrange: Kakan で保留状態を作る
         var round = RoundTestHelper.CreateRound(0).Haipai().Tsumo();
+        var p1 = new PlayerIndex(1);
+        round = RoundTestHelper.InjectHand(round, p1,
+        [
+            new Tile(86),
+            new Tile(0), new Tile(1), new Tile(2), new Tile(3),
+            new Tile(4), new Tile(5), new Tile(6), new Tile(7),
+            new Tile(12), new Tile(13), new Tile(16), new Tile(17),
+        ]);
         var pon = new Call(
             CallType.Pon,
             [new Tile(84), new Tile(85), new Tile(87)],
             new PlayerIndex(0),
             new Tile(87)
         );
-        var p1 = new PlayerIndex(1);
         var callListArray = round.CallListArray.AddCall(p1, pon);
         round = (round with { CallListArray = callListArray, Turn = p1 }).Kakan(new Tile(86));
         var doraBeforeRinshan = round.Wall.DoraRevealedCount;
@@ -102,7 +129,15 @@ public class Round_DoraRevealTimingTests
     public void RinshanTsumo_PendingDoraRevealがfalseならドラはめくられない()
     {
         // Arrange: Ankan は即めくり後にフラグfalse
-        var round = RoundTestHelper.CreateRound(0).Haipai().Tsumo().Ankan(new Tile(135));
+        var round = RoundTestHelper.CreateRound(0).Haipai().Tsumo();
+        round = RoundTestHelper.InjectHand(round, new PlayerIndex(0),
+        [
+            new Tile(132), new Tile(133), new Tile(134), new Tile(135),
+            new Tile(0), new Tile(1), new Tile(2), new Tile(3),
+            new Tile(4), new Tile(5), new Tile(6), new Tile(7),
+            new Tile(12), new Tile(13),
+        ]);
+        round = round.Ankan(new Tile(135));
         var doraBeforeRinshan = round.Wall.DoraRevealedCount;
 
         // Act
@@ -116,9 +151,16 @@ public class Round_DoraRevealTimingTests
     [Fact]
     public void 連続加槓_各嶺上ツモで1枚ずつめくられる()
     {
-        // Arrange: P1 に pon を 2つ用意し、2回加槓できる状態を作る
+        // Arrange: P1 に kind 21 と kind 22 のポンを用意、手牌に加槓牌 Tile(86), Tile(90) を含める
         var round = RoundTestHelper.CreateRound(0).Haipai().Tsumo();
         var p1 = new PlayerIndex(1);
+        round = RoundTestHelper.InjectHand(round, p1,
+        [
+            new Tile(86), new Tile(90),
+            new Tile(0), new Tile(1), new Tile(2), new Tile(3),
+            new Tile(4), new Tile(5), new Tile(6), new Tile(7),
+            new Tile(12), new Tile(13), new Tile(16),
+        ]);
         var pon1 = new Call(
             CallType.Pon,
             [new Tile(84), new Tile(85), new Tile(87)],
@@ -132,13 +174,7 @@ public class Round_DoraRevealTimingTests
             new Tile(91)
         );
         var callListArray = round.CallListArray.AddCall(p1, pon1).AddCall(p1, pon2);
-        // P1 は加槓に使う Tile(86) は持つが、Tile(90) は持たないので手牌に注入する
-        round = round with
-        {
-            CallListArray = callListArray,
-            Turn = p1,
-            HandArray = round.HandArray.AddTile(p1, new Tile(90))
-        };
+        round = round with { CallListArray = callListArray, Turn = p1 };
         var initialDora = round.Wall.DoraRevealedCount;
 
         // Act: 加槓1 → 嶺上ツモ → 加槓2 → 嶺上ツモ

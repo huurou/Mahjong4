@@ -11,17 +11,19 @@ public class Round_ChiTests
     public void Chi_河の最後が除かれて副露が追加されTurnが変わる()
     {
         // Arrange
-        // P0 が Tile(83) (kind 20 = 3索) を打牌。P1 が kind 21,22 の牌で 3-4-5索 の順子を作る。
-        // P1 の配牌には kind 21 (Tile(86)) のみでチー不成立なので、テスト用に Tile(84), Tile(88) を手牌に注入する。
+        // P0 が Tile(83) (kind 20 = 3索) を打牌 → P1 が手牌 Tile(84),Tile(88) と合わせて 3-4-5索 の順子を作る
         var round = RoundTestHelper.CreateRound(0).Haipai().Tsumo();
         var discarded = new Tile(83);
         round = round.Dahai(discarded);
         var caller = new PlayerIndex(1);
-        var handTiles = ImmutableList.Create(new Tile(84), new Tile(88)); // kind 21, 22
-        round = round with
-        {
-            HandArray = round.HandArray.AddTile(caller, new Tile(84)).AddTile(caller, new Tile(88))
-        };
+        round = RoundTestHelper.InjectHand(round, caller,
+        [
+            new Tile(84), new Tile(88),
+            new Tile(0), new Tile(1), new Tile(2), new Tile(3),
+            new Tile(4), new Tile(5), new Tile(6), new Tile(7),
+            new Tile(12), new Tile(13), new Tile(16),
+        ]);
+        var handTiles = ImmutableList.Create(new Tile(84), new Tile(88));
 
         // Act
         var result = round.Chi(caller, handTiles);
@@ -42,7 +44,14 @@ public class Round_ChiTests
         var round = RoundTestHelper.CreateRound(0).Haipai().Tsumo();
         round = round.Dahai(new Tile(83));
         var caller = new PlayerIndex(1);
-        // 手牌に追加していない牌を指定
+        // P1 の手牌には Tile(84) も Tile(88) も含めない
+        round = RoundTestHelper.InjectHand(round, caller,
+        [
+            new Tile(0), new Tile(1), new Tile(2), new Tile(3),
+            new Tile(4), new Tile(5), new Tile(6), new Tile(7),
+            new Tile(12), new Tile(13), new Tile(16), new Tile(17),
+            new Tile(20),
+        ]);
         var handTiles = ImmutableList.Create(new Tile(84), new Tile(88));
 
         // Act
@@ -56,14 +65,17 @@ public class Round_ChiTests
     public void 手牌の同種枚数を超える同一牌を指定_例外を投げる()
     {
         // Arrange
-        // 手牌にはTile(84)が1枚しか無いが、handTilesにTile(84)を2枚指定するケース。
+        // 手牌には Tile(84) が1枚しか無いが、handTiles に Tile(84) を2枚指定するケース
         var round = RoundTestHelper.CreateRound(0).Haipai().Tsumo();
         round = round.Dahai(new Tile(83));
         var caller = new PlayerIndex(1);
-        round = round with
-        {
-            HandArray = round.HandArray.AddTile(caller, new Tile(84))
-        };
+        round = RoundTestHelper.InjectHand(round, caller,
+        [
+            new Tile(84),
+            new Tile(0), new Tile(1), new Tile(2), new Tile(3),
+            new Tile(4), new Tile(5), new Tile(6), new Tile(7),
+            new Tile(12), new Tile(13), new Tile(16), new Tile(17),
+        ]);
         var handTiles = ImmutableList.Create(new Tile(84), new Tile(84));
 
         // Act

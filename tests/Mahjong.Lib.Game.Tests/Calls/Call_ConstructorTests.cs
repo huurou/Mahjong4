@@ -114,10 +114,9 @@ public class Call_ConstructorTests
     }
 
     [Theory]
-    [InlineData(CallType.Ankan)]
     [InlineData(CallType.Daiminkan)]
     [InlineData(CallType.Kakan)]
-    public void 槓_同じ牌種4枚_正常に作成される(CallType type)
+    public void 大明槓_加槓_同じ牌種4枚_正常に作成される(CallType type)
     {
         // Arrange
         var tiles = ImmutableList.Create(new Tile(0), new Tile(1), new Tile(2), new Tile(3));
@@ -129,11 +128,24 @@ public class Call_ConstructorTests
         Assert.Equal(type, call.Type);
     }
 
+    [Fact]
+    public void 暗槓_同じ牌種4枚かつCalledTileがnull_正常に作成される()
+    {
+        // Arrange
+        var tiles = ImmutableList.Create(new Tile(0), new Tile(1), new Tile(2), new Tile(3));
+
+        // Act
+        var call = new Call(CallType.Ankan, tiles, new PlayerIndex(0), null);
+
+        // Assert
+        Assert.Equal(CallType.Ankan, call.Type);
+        Assert.Null(call.CalledTile);
+    }
+
     [Theory]
-    [InlineData(CallType.Ankan)]
     [InlineData(CallType.Daiminkan)]
     [InlineData(CallType.Kakan)]
-    public void 槓_異なる牌種を含む_ArgumentExceptionが発生する(CallType type)
+    public void 大明槓_加槓_異なる牌種を含む_ArgumentExceptionが発生する(CallType type)
     {
         // Arrange (kind 0, 0, 0, 1)
         var tiles = ImmutableList.Create(new Tile(0), new Tile(1), new Tile(2), new Tile(4));
@@ -145,8 +157,20 @@ public class Call_ConstructorTests
         Assert.IsType<ArgumentException>(ex);
     }
 
+    [Fact]
+    public void 暗槓_異なる牌種を含む_ArgumentExceptionが発生する()
+    {
+        // Arrange (kind 0, 0, 0, 1)
+        var tiles = ImmutableList.Create(new Tile(0), new Tile(1), new Tile(2), new Tile(4));
+
+        // Act
+        var ex = Record.Exception(() => new Call(CallType.Ankan, tiles, new PlayerIndex(0), null));
+
+        // Assert
+        Assert.IsType<ArgumentException>(ex);
+    }
+
     [Theory]
-    [InlineData(CallType.Ankan, 3)]
     [InlineData(CallType.Daiminkan, 5)]
     [InlineData(CallType.Kakan, 3)]
     [InlineData(CallType.Pon, 4)]
@@ -157,6 +181,19 @@ public class Call_ConstructorTests
 
         // Act
         var ex = Record.Exception(() => new Call(type, tiles, new PlayerIndex(0), new Tile(0)));
+
+        // Assert
+        Assert.IsType<ArgumentException>(ex);
+    }
+
+    [Fact]
+    public void 暗槓_枚数不正_ArgumentExceptionが発生する()
+    {
+        // Arrange (3枚しかない)
+        var tiles = ImmutableList.Create(new Tile(0), new Tile(1), new Tile(2));
+
+        // Act
+        var ex = Record.Exception(() => new Call(CallType.Ankan, tiles, new PlayerIndex(0), null));
 
         // Assert
         Assert.IsType<ArgumentException>(ex);
@@ -202,15 +239,36 @@ public class Call_ConstructorTests
     }
 
     [Fact]
-    public void 暗槓_CalledTileがTilesに含まれない_例外を投げない()
+    public void 暗槓_CalledTileが非null_ArgumentExceptionが発生する()
     {
-        // Arrange (暗槓は CalledTile が任意のため Tiles に含まれなくても例外にならない)
+        // Arrange (暗槓では鳴かれた牌は存在しないため null 必須)
         var tiles = ImmutableList.Create(new Tile(0), new Tile(1), new Tile(2), new Tile(3));
 
         // Act
-        var ex = Record.Exception(() => new Call(CallType.Ankan, tiles, new PlayerIndex(0), new Tile(99)));
+        var ex = Record.Exception(() => new Call(CallType.Ankan, tiles, new PlayerIndex(0), new Tile(0)));
 
         // Assert
-        Assert.Null(ex);
+        Assert.IsType<ArgumentException>(ex);
+    }
+
+    [Theory]
+    [InlineData(CallType.Chi)]
+    [InlineData(CallType.Pon)]
+    [InlineData(CallType.Daiminkan)]
+    [InlineData(CallType.Kakan)]
+    public void 暗槓以外_CalledTileがnull_ArgumentExceptionが発生する(CallType type)
+    {
+        // Arrange (Chi/Pon は3枚、大明槓/加槓は4枚)
+        var tiles = type is CallType.Chi
+            ? ImmutableList.Create(new Tile(0), new Tile(4), new Tile(8))
+            : type is CallType.Pon
+                ? ImmutableList.Create(new Tile(0), new Tile(1), new Tile(2))
+                : ImmutableList.Create(new Tile(0), new Tile(1), new Tile(2), new Tile(3));
+
+        // Act
+        var ex = Record.Exception(() => new Call(type, tiles, new PlayerIndex(0), null));
+
+        // Assert
+        Assert.IsType<ArgumentException>(ex);
     }
 }

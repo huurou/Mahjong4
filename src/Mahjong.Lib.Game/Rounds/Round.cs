@@ -218,7 +218,7 @@ public record Round(
         {
             handArray = handArray.RemoveTile(Turn, t);
         }
-        var call = new Call(CallType.Ankan, tiles, Turn, tile);
+        var call = new Call(CallType.Ankan, tiles, Turn, null);
         var callListArray = CallListArray.AddCall(Turn, call);
         return (this with { HandArray = handArray, CallListArray = callListArray }).RevealDora();
     }

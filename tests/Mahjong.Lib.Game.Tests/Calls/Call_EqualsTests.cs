@@ -59,13 +59,13 @@ public class Call_EqualsTests
             CallType.Ankan,
             ImmutableList.Create(new Tile(0), new Tile(1), new Tile(2), new Tile(3)),
             new PlayerIndex(0),
-            new Tile(0)
+            null
         );
         var b = new Call(
             CallType.Ankan,
             ImmutableList.Create(new Tile(0), new Tile(1), new Tile(2), new Tile(3)),
             new PlayerIndex(0),
-            new Tile(0)
+            null
         );
 
         // Act & Assert

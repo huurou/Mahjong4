@@ -25,11 +25,11 @@ public record Call
     public PlayerIndex From { get; init; }
 
     /// <summary>
-    /// 鳴かれた牌 (暗槓は任意、加槓は元のポンで鳴かれた牌)
+    /// 鳴かれた牌 (暗槓は鳴かれた牌が存在しないため null、加槓は元のポンで鳴かれた牌)
     /// </summary>
-    public Tile CalledTile { get; init; }
+    public Tile? CalledTile { get; init; }
 
-    public Call(CallType type, ImmutableList<Tile> tiles, PlayerIndex from, Tile calledTile)
+    public Call(CallType type, ImmutableList<Tile> tiles, PlayerIndex from, Tile? calledTile)
     {
         Validate(type, tiles, calledTile);
 
@@ -42,7 +42,7 @@ public record Call
     /// <summary>
     /// 副露種別に応じた牌リストと鳴かれた牌の整合性を検証します。不正な場合は <see cref="ArgumentException"/> を投げます。
     /// </summary>
-    public static void Validate(CallType type, ImmutableList<Tile> tiles, Tile calledTile)
+    public static void Validate(CallType type, ImmutableList<Tile> tiles, Tile? calledTile)
     {
         var expectedCount = type switch
         {
@@ -98,12 +98,32 @@ public record Call
             }
         }
 
-        if (type != CallType.Ankan && !tiles.Contains(calledTile))
+        if (type == CallType.Ankan)
         {
-            throw new ArgumentException(
-                $"{type} では鳴かれた牌が副露牌に含まれている必要があります。calledTile:{calledTile}",
-                nameof(calledTile)
-            );
+            if (calledTile is not null)
+            {
+                throw new ArgumentException(
+                    $"{type} では鳴かれた牌は存在しないため null を指定してください。calledTile:{calledTile}",
+                    nameof(calledTile)
+                );
+            }
+        }
+        else
+        {
+            if (calledTile is null)
+            {
+                throw new ArgumentException(
+                    $"{type} では鳴かれた牌を指定する必要があります。",
+                    nameof(calledTile)
+                );
+            }
+            if (!tiles.Contains(calledTile))
+            {
+                throw new ArgumentException(
+                    $"{type} では鳴かれた牌が副露牌に含まれている必要があります。calledTile:{calledTile}",
+                    nameof(calledTile)
+                );
+            }
         }
     }
 
