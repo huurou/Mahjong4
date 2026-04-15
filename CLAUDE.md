@@ -34,7 +34,7 @@ pwsh scripts/TestCoverage.ps1
 
 ## アーキテクチャ
 
-.NET 10.0 + .NET Aspire構成の麻雀アプリケーション。
+.NET 10.0 + .NET Aspire構成の麻雀アプリケーション。設計思想の一次情報は [docs/Design.md](docs/Design.md) / [docs/Requirements.md](docs/Requirements.md) を参照。
 
 ### プロジェクト構成
 
@@ -43,10 +43,10 @@ pwsh scripts/TestCoverage.ps1
 - **Mahjong.Web** — Blazor Serverフロントエンド。ApiServiceをサービスディスカバリ経由で参照
 - **Mahjong.ServiceDefaults** — OpenTelemetry、サービスディスカバリ、レジリエンス等の共有設定
 - **Mahjong.Lib.Scoring** — 麻雀の点数計算ドメインロジック。外部NuGet依存なし（追加時は慎重に判断する）
-- **Mahjong.Lib.Game** — 麻雀の対局ロジック。Mahjong.Lib.Scoringを参照（TileKindの利用）。牌・手牌・山・河・副露・プレイヤー情報・局の状態遷移を管理する
+- **Mahjong.Lib.Game** — 麻雀の対局ロジック。Mahjong.Lib.Scoringには依存せず、対局進行ドメインとして独立している。牌・手牌・山・河・副露・プレイヤー情報・局の状態遷移を管理する
 - **Mahjong.Lib.Scoring.Tests** — Mahjong.Lib.Scoringのテスト（InternalsVisibleToで内部メンバーにアクセス可能）
 - **Mahjong.Lib.Game.Tests** — Mahjong.Lib.Gameのテスト。状態遷移の統合テストと各状態の単体テストを含む
-- **Mahjong.Lib.Scoring.SampleApp** — `samples/`配下のコンソールアプリ。`HandCalculator.Calc`の代表的な入力例（役牌、立直平和ツモ一発、役満、副露等）を実行して結果を表示する動作確認用サンプル
+- **Mahjong.Lib.Scoring.SampleApp** — `samples/`配下のコンソールアプリ。`HandCalculator.Calc`の代表的な入力例を実行して結果を表示する動作確認用サンプル
 - **Mahjong.Lib.Scoring.TenhouPaifuValidation**（`tools/`配下）— 天鳳牌譜をダウンロード・解析し、`HandCalculator`の点数計算結果を実データと突き合わせる検証コンソールアプリ
 - **Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests** — 上記ツールのテスト
 
@@ -60,110 +60,51 @@ pwsh scripts/TestCoverage.ps1
 - **/Tests/** — Mahjong.Lib.Scoring.Tests, Mahjong.Lib.Game.Tests, Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests
 - ルート — ApiService, Web
 
-### 点数計算ドメインモデル（Mahjong.Lib.Scoring）
+### ドメイン分割の要点
 
-全ドメイン型はイミュータブル（record + ImmutableList）で設計されている。コレクション型（TileKindList, TileKindListList, CallList, Hand, FuList, YakuList）は`[CollectionBuilder]`属性によりコレクション式`[.. ]`での生成に対応し、ネストされたBuilderクラスを持つ。
+- **Mahjong.Lib.Scoring** は点数計算専用で、牌種別(`TileKind`、34種)のみを扱う。**Mahjong.Lib.Game** は対局進行専用で、牌1枚を個別識別する`Tile`(0-135)を扱う。両者は相互参照しない。必要なら`Tile.Kind`(= `Id/4`) 経由でLib.Scoring側の牌種インデックスへ変換する
+- 牌種別(TileKind)と牌(Tile)の設計意図、副露種類、対局/局の状態遷移図は [docs/Design.md](docs/Design.md) が一次情報
+- 両ライブラリとも record + `ImmutableList`/`ImmutableArray` のイミュータブル設計を採用
 
-TileKind、Fu、Yakuはstaticプロパティによるシングルトンインスタンスを持ち、コンストラクタはinternal。新しいインスタンスを`new`で作成せず、必ずシングルトンプロパティ（`TileKind.Man1`、`Fu.Futei`、`Yaku.Pinfu`等）経由で参照する。
+### 点数計算ドメイン（Mahjong.Lib.Scoring）
 
-**牌種別(TileKind)と牌(Tile)の区別**: TileKindは牌の絵柄（種別）を表し、点数計算にはこれのみで十分。Tileは同じ絵柄でも1枚1枚を区別する（実際のゲームや赤ドラで必要）。詳細は`docs/Design.md`参照。
+設計の全体像は [docs/Design.md](docs/Design.md) を参照。以下はコード上の横断的な約束事のみ:
 
-#### 牌（Mahjong.Lib.Scoring/Tiles/）
+- **シングルトン型**: `TileKind` / `Fu` / `Yaku` はstaticプロパティでシングルトンを公開し、コンストラクタはinternal。常に `TileKind.Man1` / `Fu.Futei` / `Yaku.Pinfu` のようにプロパティ参照で取得する（`new`禁止）
+- **コレクション式対応**: `TileKindList` / `TileKindListList` / `CallList` / `Hand` / `FuList` / `YakuList` は `[CollectionBuilder]` 属性 + ネストされた`Builder`クラスで `[.. ]` 構文に対応
+- **公開入口**:
+  - [Mahjong.Lib.Scoring/Shantens/ShantenCalculator.cs](src/Mahjong.Lib.Scoring/Shantens/ShantenCalculator.cs) — `Calc(TileKindList, useRegular, useChiitoitsu, useKokushi)` で最小向聴数を返す（`SHANTEN_TENPAI=0`, `SHANTEN_AGARI=-1`）
+  - [Mahjong.Lib.Scoring/HandCalculating/HandCalculator.cs](src/Mahjong.Lib.Scoring/HandCalculating/HandCalculator.cs) — `Calc(tileKindList, winTile, callList?, doraIndicators?, uradoraIndicators?, winSituation?, gameRules?)` で `HandResult` を返す
+- **和了計算パイプライン**: `HandValidator`（入力検証） → `SpecialHandEvaluator`（流し満貫・国士無双等） → `HandDivider`（面子分解、複数解） → 分解候補ごとに `YakuEvaluator` / `FuCalculator` / `ScoreCalculator` → **高点法**で最高点を選択
+- **結果型**: `HandResult`（Fu/Han/Score/YakuList/FuList/ErrorMessage）。`HandResult.Create` は0翻時に自動で `Error("役がありません。")` を返す。`Score(Main, Sub)` の意味は和了方（親子・ツモロン）で変わる（XMLコメント参照）
+- **役実装規約**: [Mahjong.Lib.Scoring/Yakus/Impl/](src/Mahjong.Lib.Scoring/Yakus/Impl/) 配下の具象役は `static Valid(...)` メソッドで成立判定。引数は役ごとに必要なものだけ（Hand / CallList / WinSituation / GameRules 等）
+- **符計算の特殊ケース**: 七対子は常に25符固定、それ以外は10の位に切り上げ
 
-- **TileKind** — 牌種別（0-33の値、34個のstaticシングルトン）。文字列コンストラクタ（`new TileKindList(man: "123", pin: "456")`）で手牌を簡潔に生成可能
-- **TileKindList** — 牌の集合。自動ソート済み。面子判定・牌種判定プロパティを持つ
-- **TileKindListList** — TileKindListの集合。面子グループの管理に使用
-- **Hand** — TileKindListListを継承。晒していない手牌を表現
+### 対局ドメイン（Mahjong.Lib.Game）
 
-#### 副露（Mahjong.Lib.Scoring/Calls/）
+対局/局の状態遷移図、状態の意味、副露の扱いは [docs/Design.md](docs/Design.md) が一次情報。以下はコード上の構造のみ:
 
-- **Call** — 副露を表現するrecord。ファクトリメソッド（`Call.Chi(man: "123")`等）で生成。コンストラクタで種類と牌構成の整合性を検証
-- **CallList** — 副露の集合。HasOpenで門前判定
-
-#### 符（Mahjong.Lib.Scoring/Fus/）
-
-- **Fu** — 符を表現するrecord。FuTypeごとのstaticシングルトン（`Fu.Futei`, `Fu.Tsumo`等）
-- **FuList** — 符の集合。Totalで合計符数を計算（七対子は常に25符、それ以外は10の位に切り上げ）
-
-#### 役（Mahjong.Lib.Scoring/Yakus/）
-
-- **Yaku** — 全役の抽象基底record。シングルトンプロパティ（`Yaku.Riichi`、`Yaku.Pinfu`等）で参照
-- **YakuList** — 役の集合。HanOpen/HanClosedで合計翻数を計算
-- **Yakus/Impl/** — 各役の具象実装。`static Valid()`メソッドで成立判定。引数は役ごとに異なる（Hand、CallList、WinSituation、GameRules等の必要な組み合わせ）
-
-#### 向聴数（Mahjong.Lib.Scoring/Shantens/）
-
-- **ShantenCalculator** — 公開入口。`Calc(TileKindList, useRegular, useChiitoitsu, useKokushi)`で通常形・七対子・国士無双を切り替えて最小向聴数を返す。`SHANTEN_TENPAI=0`、`SHANTEN_AGARI=-1`
-- 内部ではShantenContext（再帰的な面子・塔子探索）とIsolationSet（孤立牌管理）を使用
-
-#### 和了計算（Mahjong.Lib.Scoring/HandCalculating/）
-
-- **HandCalculator** — 公開入口（`static`）。`Calc(tileKindList, winTile, callList?, doraIndicators?, uradoraIndicators?, winSituation?, gameRules?)`で役・符・点数を含む`HandResult`を返す
-- 計算パイプラインは段階的に進む: `HandValidator`（入力検証・和了形チェック） → `SpecialHandEvaluator`（流し満貫・国士無双などの特殊役） → `HandDivider`で手牌を面子分解 → 各分解候補ごとに`YakuEvaluator`（役判定）・`FuCalculator`（符計算）・`ScoreCalculator`（点数計算） → **高点法**で最高点の分解候補を選択
-- **HandResult** — 結果`record`（Fu, Han, Score, YakuList, FuList, ErrorMessage）。`HandResult.Create(...)`は役が0翻のとき自動で`Error("役がありません。")`を返す
-- **Score** — `record Score(int Main, int Sub = 0)`。Main/Subは和了方（親/子、ツモ/ロン）で意味が変わる（XMLコメント参照）
-- **HandDividing/HandDivider** — 手牌を可能な面子・雀頭の組み合わせに分解。複数解を返すため高点法が必要
-- **FuCalculator**（`Mahjong.Lib.Scoring/Fus/`配下）— 雀頭・面子・待ち・ベース符を組み立ててFuListを生成。七対子は常に25符固定
-
-#### ゲーム設定（Mahjong.Lib.Scoring/Games/）
-
-- **GameRules** — ゲームルール設定（食いタン、ダブル役満、数え役満、切り上げ満貫等）
-- **WinSituation** — 和了状況（ツモ・リーチ・一発等のフラグ、自風・場風）
-- **Wind** — 風（東南西北）。TileKindへの変換拡張メソッドあり
-
-### 対局ドメインモデル（Mahjong.Lib.Game）
-
-Mahjong.Lib.Scoringが点数計算に特化するのに対し、Mahjong.Lib.Gameは対局進行を担当する。Mahjong.Lib.Scoringを参照し、`TileKind`を通じて牌の種別情報を取得する。
-
-**牌種別(TileKind)と牌(Tile)の関係**: `Tile`は0-135のIDで136枚の牌を個別に識別する（`Id / 4`で`TileKind`を導出）。点数計算には`TileKind`（34種の絵柄）のみで十分だが、対局進行では同種牌の区別（赤ドラ等）が必要なため`Tile`を使用する。
-
-#### 牌・手牌・河（Mahjong.Lib.Game/Tiles/, Hands/, Rivers/）
-
-- **Tile** — 牌1枚を表すrecord（ID: 0-135）。`Kind`プロパティで`TileKind`を導出
-- **TileList** — `ImmutableList<Tile>`ベースのイミュータブルコレクション。`[CollectionBuilder]`対応
-- **Hand** — TileListを継承。未公開の手牌を表現
-- **River** — TileListを継承。河（捨て牌）を表現
-
-#### 副露（Mahjong.Lib.Game/Calls/）
-
-- **CallType** — 副露の種類を列挙（Chi, Pon, Ankan, Daiminkan, Kakan）。Lib.Scoringの副露と異なり大明槓と加槓を区別する（表示上の違いがあるため）
-- **Call** — `record Call(CallType Type, TileList TileList, PlayerIndex From, Tile CalledTile)`
-- **CallList** — Callのイミュータブルコレクション
-
-#### 山（Mahjong.Lib.Game/Walls/）
-
-- **Wall** — 山牌を表すrecord。TileListで牌の順序を保持
-- **IWallGenerator** — 山生成のインターフェース。`Generate()`で`Wall`を返す
-- **WallGeneratorTenhou** — 天鳳互換の山生成。Mersenne Twister (MT19937) + SHA512ハッシュ圧縮で牌をシャッフル
-
-#### プレイヤー（Mahjong.Lib.Game/Players/）
-
-- **PlayerIndex** — `record PlayerIndex(int Value)`。プレイヤーの席順（0-3）
-- **Point** — `record Point(int Value)`。持ち点
-
-#### 局の状態遷移（Mahjong.Lib.Game/States/RoundStates/）
-
-非同期イベント駆動のステートマシンで局の進行を管理する。`System.Threading.Channels.Channel<T>`によるイベントキューでスレッドセーフな状態遷移を実現。
-
-- **RoundState** — 状態の抽象基底クラス。`ResponseOk`/`ResponseWin`/`ResponseDahai`/`ResponseKan`/`ResponseCall`/`ResponseRyuukyoku`の仮想メソッドを持つ。`Entry`/`Exit`ライフサイクルメソッドと`Transit`ヘルパーで遷移を制御
-- **RoundEvent** — イベントの抽象基底クラス。6種の具象実装（ResponseOk, ResponseDahai, ResponseCall, ResponseWin, ResponseKan, ResponseRyuukyoku）
-- **RoundStateContext** — ステートマシン本体。`Init()`で`RoundStateHaipai`から開始。イベントをChannelに投入し、バックグラウンドタスクで順次処理。`RoundStateChanged`イベントで状態遷移を通知。`IDisposable`で5秒タイムアウト付きの安全なシャットダウン
-
-**状態遷移フロー**（詳細は`docs/Design.md`の状態遷移図を参照）:
-- 配牌(`Haipai`) → ツモ(`Tsumo`) → 打牌(`Dahai`) → ツモ（次のプレイヤー）のサイクルが基本
-- 打牌に対して副露(`Call`)・ロン和了(`Win`)・流局(`Ryuukyoku`)が分岐
-- ツモに対して暗槓/加槓(`Kan`) → 槓ツモ(`KanTsumo`) → 槓ツモ後(`AfterKanTsumo`)の槓サイクル
-- `Win`と`Ryuukyoku`が終端状態
+- **牌ID規約**: `Tile.Id` は 0-135、`Tile.Kind` は `Id / 4` で 0-33 の牌種ID
+- **プレイヤー別配列**: `HandArray` / `RiverArray` / `CallListArray` / `PointArray` は `ImmutableArray` + `PlayerIndex` でインデックス参照するイミュータブルラッパー。更新メソッドは新インスタンスを返す
+- **山生成**: [Mahjong.Lib.Game/Walls/IWallGenerator.cs](src/Mahjong.Lib.Game/Walls/IWallGenerator.cs) が抽象、`WallGeneratorTenhou` が Mersenne Twister(MT19937) + SHA512 の天鳳互換実装
+- **局の集約**: [Mahjong.Lib.Game/Rounds/Round.cs](src/Mahjong.Lib.Game/Rounds/Round.cs) が局の全状態を保持するイミュータブルrecord。`Haipai` / `Tsumo` / `Dahai` / `NextTurn` / `Chi` / `Pon` / `Daiminkan` / `Ankan` / `Kakan` / `RinshanTsumo` / `RevealDora` / `SetPoints` / `AddKyoutakuRiichi` / `ClearKyoutaku` の各メソッドで進行。すべて新しい `Round` を返す
+- **カンドラ表示のタイミング**: 暗槓は即時 `RevealDora`、加槓・大明槓は `PendingDoraReveal=true` で保留し、次の `RinshanTsumo` 直前にめくる
+- **副露種類の扱い**: `CallType` は Chi/Pon/Ankan/Daiminkan/Kakan。Lib.Scoring側と違い大明槓と加槓を区別する（表示上の差があるため — 詳細は [docs/Design.md](docs/Design.md)）
+- **状態遷移の実装** ([Mahjong.Lib.Game/States/RoundStates/](src/Mahjong.Lib.Game/States/RoundStates/)): 非同期イベント駆動のステートマシン。`System.Threading.Channels.Channel<T>` によるイベントキューでスレッドセーフに状態遷移する
+  - `RoundState` — 抽象基底。`ResponseOk` / `ResponseWin` / `ResponseDahai` / `ResponseKan` / `ResponseCall` / `ResponseRyuukyoku` の仮想メソッドと `Entry` / `Exit` ライフサイクルを持つ
+  - `RoundEvent` — 抽象基底。6種の具象実装（ResponseOk, ResponseDahai, ResponseCall, ResponseWin, ResponseKan, ResponseRyuukyoku）
+  - `RoundStateContext` — ステートマシン本体。`Init()` で `RoundStateHaipai` から開始。`RoundStateChanged` イベントで遷移通知。`IDisposable` で 5秒タイムアウト付きシャットダウン
+  - 状態遷移フローの詳細（配牌→ツモ→打牌サイクル、副露/ロン/流局の分岐、槓サイクル、終端状態）は [docs/Design.md](docs/Design.md) の状態遷移図を参照
 
 ### 点数計算検証ツール（tools/Mahjong.Lib.Scoring.TenhouPaifuValidation/）
 
-`HandCalculator`の実装を天鳳の実牌譜に対して総当たり検証するためのコンソールアプリ。`Microsoft.Extensions.DependencyInjection`でサービスを組み立て、対話的に入力された日付（YYYYMMDD）の牌譜を処理する。
+`HandCalculator` の実装を天鳳の実牌譜に対して総当たり検証するコンソールアプリ。`Microsoft.Extensions.DependencyInjection` でサービスを組み立て、対話的に入力された日付（YYYYMMDD）の牌譜を処理する。
 
-パイプラインは`UseCase`を起点に2段階:
-1. **AnalysisPaifu** — `PaifuDownloadService`が天鳳から牌譜をダウンロード → `RoundDataExtractService`が局単位に分解 → `InitParseService`/`AgariParseService`/`MeldParseService`がXMLタグをドメインモデルに変換 → `AgariInfoBuildService`が`AgariInfo`を生成
-2. **ValidateCalc** — `CalcValidateService`が`AgariInfo`から`HandCalculator.Calc`を呼び出し、実データの符・翻・点数と突き合わせて`ValidateResult`を返す
+`UseCase` を起点に2段階のパイプライン:
+1. **AnalysisPaifu** — `PaifuDownloadService`（天鳳からダウンロード） → `RoundDataExtractService`（局単位に分解） → `InitParseService` / `AgariParseService` / `MeldParseService`（XMLタグ→ドメインモデル） → `AgariInfoBuildService`（`AgariInfo` 生成）
+2. **ValidateCalc** — `CalcValidateService` が `AgariInfo` から `HandCalculator.Calc` を呼び出し、実データの符・翻・点数と突き合わせて `ValidateResult` を返す
 
-テストデータは`tests/Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests/TestData/`配下のXML牌譜（途中流局有無・ダブロン等のバリエーション）。
+テストデータは [tests/Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests/TestData/](tests/Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests/TestData/) 配下のXML牌譜（途中流局有無・ダブロン等のバリエーション）。
 
 ## 作業上の注意
 

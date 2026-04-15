@@ -9,11 +9,11 @@ public class RoundStateContext_EnqueueEventAsyncTests
     {
         // Arrange
         var context = new RoundStateContext();
-        context.Init();
+        context.Init(RoundStateContextTestHelper.CreateRound());
         context.Dispose();
 
         // Act
-        var ex = await Record.ExceptionAsync(() => context.ResponseOkAsync());
+        var ex = await Record.ExceptionAsync(context.ResponseOkAsync);
 
         // Assert
         Assert.IsType<ObjectDisposedException>(ex);

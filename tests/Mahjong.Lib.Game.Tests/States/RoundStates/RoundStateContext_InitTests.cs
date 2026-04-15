@@ -16,10 +16,10 @@ public class RoundStateContext_InitTests : IDisposable
     public void 二重呼び出し_InvalidOperationExceptionが発生する()
     {
         // Arrange
-        context_.Init();
+        context_.Init(RoundStateContextTestHelper.CreateRound());
 
         // Act
-        var ex = Record.Exception(() => context_.Init());
+        var ex = Record.Exception(() => context_.Init(RoundStateContextTestHelper.CreateRound()));
 
         // Assert
         Assert.IsType<InvalidOperationException>(ex);
@@ -32,7 +32,7 @@ public class RoundStateContext_InitTests : IDisposable
         context_.Dispose();
 
         // Act
-        var ex = Record.Exception(() => context_.Init());
+        var ex = Record.Exception(() => context_.Init(RoundStateContextTestHelper.CreateRound()));
 
         // Assert
         Assert.IsType<ObjectDisposedException>(ex);

@@ -7,6 +7,7 @@ public record PlayerIndex
 {
     public const int INDEX_MIN = 0;
     public const int INDEX_MAX = 3;
+    public const int PLAYER_COUNT = 4;
 
     /// <summary>
     /// 値
@@ -21,5 +22,13 @@ public record PlayerIndex
         }
 
         Value = value;
+    }
+
+    /// <summary>
+    /// 次のプレイヤー(反時計回り)を返します。
+    /// </summary>
+    public PlayerIndex Next()
+    {
+        return new PlayerIndex((Value + 1) % PLAYER_COUNT);
     }
 }

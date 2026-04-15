@@ -1,6 +1,4 @@
-﻿using Mahjong.Lib.Scoring.Tiles;
-
-namespace Mahjong.Lib.Game.Tiles;
+﻿namespace Mahjong.Lib.Game.Tiles;
 
 public record Tile
 {
@@ -9,7 +7,10 @@ public record Tile
 
     public int Id { get; init; }
 
-    public TileKind Kind => TileKind.All[Id / 4];
+    /// <summary>
+    /// 牌種ID 0-33の範囲で、同じ牌種の4枚は同じ値を返す
+    /// </summary>
+    public int Kind => Id / 4;
 
     public Tile(int id)
     {

@@ -17,10 +17,10 @@ public class RoundStateDahai_ResponseWinTests : IDisposable
     public async Task 和了応答_和了状態に遷移する()
     {
         // Arrange
-        context_.Init();
+        context_.Init(RoundStateContextTestHelper.CreateRound());
         await context_.ResponseOkAsync();
         await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
-        await context_.ResponseDahaiAsync();
+        await context_.ResponseDahaiAsync(RoundStateContextTestHelper.PickTileToDahai(context_));
         await RoundStateContextTestHelper.WaitForStateAsync<RoundStateDahai>(context_);
 
         // Act

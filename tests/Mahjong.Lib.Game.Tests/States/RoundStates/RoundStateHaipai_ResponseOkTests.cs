@@ -17,7 +17,7 @@ public class RoundStateHaipai_ResponseOkTests : IDisposable
     public async Task OK応答_ツモ状態に遷移する()
     {
         // Arrange
-        context_.Init();
+        context_.Init(RoundStateContextTestHelper.CreateRound());
 
         // Act
         await context_.ResponseOkAsync();

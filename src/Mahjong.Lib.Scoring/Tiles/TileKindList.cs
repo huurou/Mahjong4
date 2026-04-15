@@ -218,7 +218,9 @@ public record TileKindList() : IEnumerable<TileKind>, IComparable<TileKindList>
         {
             if (!builder.Remove(tileKind)) { throw new ArgumentException($"指定牌がありません。 tile:{tileKind} count:{count}", nameof(tileKind)); }
         }
-        return [.. builder.ToImmutable()];
+#pragma warning disable IDE0028 // コレクションの初期化を簡略化します
+        return new TileKindList(builder.ToImmutable());
+#pragma warning restore IDE0028 // コレクションの初期化を簡略化します
     }
 
     /// <summary>
