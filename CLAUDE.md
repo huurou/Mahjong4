@@ -34,7 +34,7 @@ pwsh scripts/TestCoverage.ps1
 
 ## アーキテクチャ
 
-.NET 10.0 + .NET Aspire構成の麻雀アプリケーション。設計思想の一次情報は [docs/Design.md](docs/Design.md) / [docs/Requirements.md](docs/Requirements.md) を参照。
+.NET 10.0 + .NET Aspire構成の麻雀アプリケーション。設計思想の一次情報は [docs/Design.md](docs/Design.md) / [docs/Requirements.md](docs/Requirements.md)、実装フェーズ計画は [docs/Roadmap.md](docs/Roadmap.md) を参照。
 
 ### プロジェクト構成
 
