@@ -47,6 +47,21 @@ public record PointArray : IEnumerable<Point>
         return new PointArray { points_ = builder.ToImmutable() };
     }
 
+    public virtual bool Equals(PointArray? other)
+    {
+        return other is PointArray array && points_.SequenceEqual(array.points_);
+    }
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        foreach (var point in points_)
+        {
+            hash.Add(point);
+        }
+        return hash.ToHashCode();
+    }
+
     public IEnumerator<Point> GetEnumerator()
     {
         return ((IEnumerable<Point>)points_).GetEnumerator();

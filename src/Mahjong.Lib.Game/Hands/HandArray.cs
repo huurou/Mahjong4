@@ -58,6 +58,21 @@ public record HandArray : IEnumerable<Hand>
         return new HandArray { hands_ = builder.ToImmutable() };
     }
 
+    public virtual bool Equals(HandArray? other)
+    {
+        return other is HandArray array && hands_.SequenceEqual(array.hands_);
+    }
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        foreach (var hand in hands_)
+        {
+            hash.Add(hand);
+        }
+        return hash.ToHashCode();
+    }
+
     public IEnumerator<Hand> GetEnumerator()
     {
         return ((IEnumerable<Hand>)hands_).GetEnumerator();

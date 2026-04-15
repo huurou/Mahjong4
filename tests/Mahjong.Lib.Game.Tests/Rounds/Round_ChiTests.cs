@@ -34,4 +34,42 @@ public class Round_ChiTests
         Assert.Equal(discarded, call.CalledTile);
         Assert.Equal(caller, result.Turn);
     }
+
+    [Fact]
+    public void 手牌にない牌を指定_例外を投げる()
+    {
+        // Arrange
+        var round = RoundTestHelper.CreateRound(0).Haipai().Tsumo();
+        round = round.Dahai(new Tile(83));
+        var caller = new PlayerIndex(1);
+        // 手牌に追加していない牌を指定
+        var handTiles = ImmutableList.Create(new Tile(84), new Tile(88));
+
+        // Act
+        var ex = Record.Exception(() => round.Chi(caller, handTiles));
+
+        // Assert
+        Assert.IsType<ArgumentException>(ex);
+    }
+
+    [Fact]
+    public void 手牌の同種枚数を超える同一牌を指定_例外を投げる()
+    {
+        // Arrange
+        // 手牌にはTile(84)が1枚しか無いが、handTilesにTile(84)を2枚指定するケース。
+        var round = RoundTestHelper.CreateRound(0).Haipai().Tsumo();
+        round = round.Dahai(new Tile(83));
+        var caller = new PlayerIndex(1);
+        round = round with
+        {
+            HandArray = round.HandArray.AddTile(caller, new Tile(84))
+        };
+        var handTiles = ImmutableList.Create(new Tile(84), new Tile(84));
+
+        // Act
+        var ex = Record.Exception(() => round.Chi(caller, handTiles));
+
+        // Assert
+        Assert.IsType<ArgumentException>(ex);
+    }
 }

@@ -48,6 +48,21 @@ public record RiverArray : IEnumerable<River>
         }
     }
 
+    public virtual bool Equals(RiverArray? other)
+    {
+        return other is RiverArray array && rivers_.SequenceEqual(array.rivers_);
+    }
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        foreach (var river in rivers_)
+        {
+            hash.Add(river);
+        }
+        return hash.ToHashCode();
+    }
+
     public IEnumerator<River> GetEnumerator()
     {
         return ((IEnumerable<River>)rivers_).GetEnumerator();

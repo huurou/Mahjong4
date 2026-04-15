@@ -40,6 +40,21 @@ public record CallListArray : IEnumerable<CallList>
         return new CallListArray { callLists_ = builder.ToImmutable() };
     }
 
+    public virtual bool Equals(CallListArray? other)
+    {
+        return other is CallListArray array && callLists_.SequenceEqual(array.callLists_);
+    }
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        foreach (var callList in callLists_)
+        {
+            hash.Add(callList);
+        }
+        return hash.ToHashCode();
+    }
+
     public IEnumerator<CallList> GetEnumerator()
     {
         return ((IEnumerable<CallList>)callLists_).GetEnumerator();

@@ -9,7 +9,7 @@ namespace Mahjong.Lib.Game.Rivers;
 /// </summary>
 public record River : IEnumerable<Tile>
 {
-    private readonly ImmutableArray<Tile> tiles_;
+    private readonly ImmutableList<Tile> tiles_;
 
     public River() : this(Enumerable.Empty<Tile>())
     {
@@ -22,15 +22,15 @@ public record River : IEnumerable<Tile>
 
     public River AddTile(Tile tile)
     {
-        return new River(tiles_.Append(tile));
+        return new River(tiles_.Add(tile));
     }
 
     public River RemoveLastTile(out Tile? tile)
     {
-        if (tiles_.Length != 0)
+        if (tiles_.Count != 0)
         {
-            tile = tiles_.Last();
-            return new River(tiles_.RemoveAt(tiles_.Length - 1));
+            tile = tiles_[^1];
+            return new River(tiles_.RemoveAt(tiles_.Count - 1));
         }
         else
         {

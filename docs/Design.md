@@ -1,5 +1,19 @@
 ﻿# 設計
 
+## モジュール構成
+
+- **Mahjong.Lib.Scoring** — 点数計算専用ドメイン。`TileKind`(0-33、34種の絵柄)のみを扱う
+- **Mahjong.Lib.Game** — 対局進行専用ドメイン。`Tile`(0-135、136枚を個別識別)を扱う
+- 両ライブラリは相互参照しない。対局中に点数計算へ渡す際は `Tile.Kind`（= `Id / 4`）で牌種インデックスへ変換する
+- 点数計算では同種牌を区別する必要がないため `TileKind` のみで十分だが、対局では赤ドラなど同種牌の個別識別が必要なため `Tile` を使う
+
+## 設計方針
+
+- ドメインモデルはすべて `record` + `ImmutableList` / `ImmutableArray` のイミュータブル設計。状態更新は常に新インスタンスを返す
+- 局全体の状態は `Round` record に集約する。進行アクション（配牌/ツモ/打牌/副露/槓/etc.）はすべて新しい `Round` を返す
+- 4プレイヤー分の状態は `HandArray` / `RiverArray` / `CallListArray` / `PointArray` といったプレイヤー別配列型に統一し、`PlayerIndex` でアクセスする
+- 局の状態遷移は `System.Threading.Channels.Channel<T>` を使った非同期イベント駆動のステートマシンで実装する
+
 ## 牌
 
 - 牌は牌(Tile)と牌種別(TileKind)に分ける

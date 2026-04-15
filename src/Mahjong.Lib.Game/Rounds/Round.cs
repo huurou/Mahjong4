@@ -70,7 +70,7 @@ public record Round(
         // ラウンド1〜3: 各プレイヤーに4枚ずつ
         for (var i = 0; i < 3; i++)
         {
-            for (var p = 0; p < 4; p++)
+            for (var _ = 0; _ < 4; _++)
             {
                 wall = wall.Draw(4, out var tiles);
                 handArray = handArray.AddTiles(player, tiles);
@@ -78,7 +78,7 @@ public record Round(
             }
         }
         // ラウンド4: 各プレイヤーに1枚ずつ
-        for (var p = 0; p < 4; p++)
+        for (var _ = 0; _ < 4; _++)
         {
             wall = wall.Draw(out var tile);
             handArray = handArray.AddTile(player, tile);
@@ -153,17 +153,18 @@ public record Round(
     {
         var from = Turn;
         var river = RiverArray[from];
-        if (!river.Any())
-        {
-            throw new InvalidOperationException("副露対象の打牌がありません。河が空です。");
-        }
-        var calledTile = river.Last();
+        var calledTile = river.LastOrDefault()
+            ?? throw new InvalidOperationException("副露対象の打牌がありません。河が空です。");
         var callerHand = HandArray[callerIndex];
-        foreach (var tile in handTiles)
+        var handCounts = callerHand.GroupBy(x => x).ToDictionary(x => x.Key, x => x.Count());
+        foreach (var group in handTiles.GroupBy(x => x))
         {
-            if (!callerHand.Contains(tile))
+            if (!handCounts.TryGetValue(group.Key, out var available) || available < group.Count())
             {
-                throw new ArgumentException($"指定牌が手牌にありません。tile:{tile}", nameof(handTiles));
+                throw new ArgumentException(
+                    $"手牌に該当牌が不足しています。tile:{group.Key} 要求:{group.Count()}枚 保有:{available}枚",
+                    nameof(handTiles)
+                );
             }
         }
         var tiles = handTiles.Add(calledTile);
@@ -206,8 +207,8 @@ public record Round(
         {
             throw new InvalidOperationException("槓できません。嶺上牌の残数もしくはツモ山の残数がありません。");
         }
-        var kind = tile.Id / 4;
-        var tiles = HandArray[Turn].Where(x => x.Id / 4 == kind).Take(4).ToImmutableList();
+        var kind = tile.Kind;
+        var tiles = HandArray[Turn].Where(x => x.Kind == kind).Take(4).ToImmutableList();
         if (tiles.Count != 4)
         {
             throw new InvalidOperationException($"指定牌種の4枚が手牌に揃っていません。kind:{kind} count:{tiles.Count}");
@@ -236,11 +237,10 @@ public record Round(
         {
             throw new InvalidOperationException($"指定牌が手牌にありません。tile:{addedTile}");
         }
-        var kind = addedTile.Id / 4;
+        var kind = addedTile.Kind;
         var existingPon = CallListArray[Turn].FirstOrDefault(x =>
-            x.Type == CallType.Pon && x.Tiles.Any(y => y.Id / 4 == kind)
-        )
-            ?? throw new InvalidOperationException($"加槓対象のポンがありません。kind:{kind}");
+            x.Type == CallType.Pon && x.Tiles[0].Kind == kind
+        ) ?? throw new InvalidOperationException($"加槓対象のポンがありません。kind:{kind}");
         var handArray = HandArray.RemoveTile(Turn, addedTile);
         var kakan = new Call(
             CallType.Kakan,

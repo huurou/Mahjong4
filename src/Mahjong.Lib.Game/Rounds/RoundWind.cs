@@ -37,14 +37,32 @@ public record RoundWind
     /// 値
     /// 0-3の範囲で、0が東、1が南、2が西、3が北を表す
     /// </summary>
-    internal int Value { get; init; }
+    public int Value { get; }
 
-    public RoundWind(int value)
+    internal RoundWind(int value)
     {
         if (value is < WIND_MIN or > WIND_MAX)
         {
             throw new ArgumentOutOfRangeException(nameof(value), $"場風は {WIND_MIN} から {WIND_MAX} の範囲内である必要があります。");
         }
+
         Value = value;
+    }
+
+    /// <summary>
+    /// 値から対応するRoundWindのシングルトンを取得します
+    /// </summary>
+    /// <param name="value">0-3の範囲の値</param>
+    /// <returns>対応するRoundWindのシングルトン</returns>
+    public static RoundWind FromValue(int value)
+    {
+        return value switch
+        {
+            0 => East,
+            1 => South,
+            2 => West,
+            3 => North,
+            _ => throw new ArgumentOutOfRangeException(nameof(value), $"場風は {WIND_MIN} から {WIND_MAX} の範囲内である必要があります。"),
+        };
     }
 }

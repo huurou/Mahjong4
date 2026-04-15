@@ -7,6 +7,11 @@ public record Tile
 
     public int Id { get; init; }
 
+    /// <summary>
+    /// 牌種ID 0-33の範囲で、同じ牌種の4枚は同じ値を返す
+    /// </summary>
+    public int Kind => Id / 4;
+
     public Tile(int id)
     {
         if (id is < ID_MIN or > ID_MAX)

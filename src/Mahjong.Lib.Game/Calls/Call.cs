@@ -62,7 +62,7 @@ public record Call
         if (type == CallType.Chi)
         {
             // 順子: 全て数牌、同スーツ、連続する3牌
-            var kinds = tiles.Select(x => x.Id / 4).OrderBy(x => x).ToArray();
+            var kinds = tiles.Select(x => x.Kind).OrderBy(x => x).ToArray();
             if (kinds[0] >= 27)
             {
                 throw new ArgumentException(
@@ -88,8 +88,8 @@ public record Call
         else
         {
             // ポン・暗槓・大明槓・加槓: 全て同じ牌種
-            var kind = tiles[0].Id / 4;
-            if (tiles.Any(x => x.Id / 4 != kind))
+            var kind = tiles[0].Kind;
+            if (tiles.Any(x => x.Kind != kind))
             {
                 throw new ArgumentException(
                     $"{type} では全ての牌が同じ牌種である必要があります。",
