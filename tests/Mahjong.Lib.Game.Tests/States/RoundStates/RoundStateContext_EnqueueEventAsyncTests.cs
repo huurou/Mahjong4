@@ -18,4 +18,17 @@ public class RoundStateContext_EnqueueEventAsyncTests
         // Assert
         Assert.IsType<ObjectDisposedException>(ex);
     }
+
+    [Fact]
+    public async Task Init前にイベント発行_InvalidOperationExceptionが発生する()
+    {
+        // Arrange
+        using var context = new RoundStateContext();
+
+        // Act
+        var ex = await Record.ExceptionAsync(context.ResponseOkAsync);
+
+        // Assert
+        Assert.IsType<InvalidOperationException>(ex);
+    }
 }
