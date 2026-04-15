@@ -141,7 +141,12 @@ public class GameStateContext(IWallGenerator wallGenerator) : IDisposable
     }
 
     /// <summary>
-    /// Phase 1 スタブ 和了者の判定は Phase 2 で正確化
+    /// Phase 1 スタブ 和了者として常に <see cref="Round.Turn"/> を返す
+    /// ツモ和了では Turn == 和了者なので正しいが
+    /// ロン和了では Turn == 打牌者(放銃者) となるため Winners に誤った値が入る
+    /// その結果 <see cref="Impl.GameStateRoundRunning.RoundEndedByWin"/> の親連荘判定
+    /// (<c>evt.Winners.Contains(dealer)</c>) が誤判定し 親連荘/親流れが逆転するケースがある
+    /// Phase 2 で <see cref="RoundStateWin"/> に和了者情報を持たせて正確化予定
     /// </summary>
     private static GameEventRoundEndedByWin BuildWinEvent(Round round)
     {
@@ -149,7 +154,9 @@ public class GameStateContext(IWallGenerator wallGenerator) : IDisposable
     }
 
     /// <summary>
-    /// Phase 1 スタブ 流局種別の判定は Phase 2 で正確化
+    /// Phase 1 スタブ 流局種別として常に <see cref="RyuukyokuType.KouhaiHeikyoku"/> を返す
+    /// 途中流局・親テンパイ流局などの区別が付かないため
+    /// Phase 2 で <see cref="RoundStateRyuukyoku"/> に流局種別情報を持たせて正確化予定
     /// </summary>
     private static GameEventRoundEndedByRyuukyoku BuildRyuukyokuEvent(Round round)
     {
