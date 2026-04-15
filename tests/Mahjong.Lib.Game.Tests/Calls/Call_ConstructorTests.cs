@@ -161,4 +161,56 @@ public class Call_ConstructorTests
         // Assert
         Assert.IsType<ArgumentException>(ex);
     }
+
+    [Fact]
+    public void ポン_CalledTileがTilesに含まれない_ArgumentExceptionが発生する()
+    {
+        // Arrange (Tiles は 1m 3枚、CalledTile は Tiles に含まれない Tile(99))
+        var tiles = ImmutableList.Create(new Tile(0), new Tile(1), new Tile(2));
+
+        // Act
+        var ex = Record.Exception(() => new Call(CallType.Pon, tiles, new PlayerIndex(0), new Tile(99)));
+
+        // Assert
+        Assert.IsType<ArgumentException>(ex);
+    }
+
+    [Fact]
+    public void 大明槓_CalledTileがTilesに含まれない_ArgumentExceptionが発生する()
+    {
+        // Arrange
+        var tiles = ImmutableList.Create(new Tile(0), new Tile(1), new Tile(2), new Tile(3));
+
+        // Act
+        var ex = Record.Exception(() => new Call(CallType.Daiminkan, tiles, new PlayerIndex(0), new Tile(99)));
+
+        // Assert
+        Assert.IsType<ArgumentException>(ex);
+    }
+
+    [Fact]
+    public void チー_CalledTileがTilesに含まれない_ArgumentExceptionが発生する()
+    {
+        // Arrange (1m, 2m, 3m)
+        var tiles = ImmutableList.Create(new Tile(0), new Tile(4), new Tile(8));
+
+        // Act
+        var ex = Record.Exception(() => new Call(CallType.Chi, tiles, new PlayerIndex(0), new Tile(99)));
+
+        // Assert
+        Assert.IsType<ArgumentException>(ex);
+    }
+
+    [Fact]
+    public void 暗槓_CalledTileがTilesに含まれない_例外を投げない()
+    {
+        // Arrange (暗槓は CalledTile が任意のため Tiles に含まれなくても例外にならない)
+        var tiles = ImmutableList.Create(new Tile(0), new Tile(1), new Tile(2), new Tile(3));
+
+        // Act
+        var ex = Record.Exception(() => new Call(CallType.Ankan, tiles, new PlayerIndex(0), new Tile(99)));
+
+        // Assert
+        Assert.Null(ex);
+    }
 }

@@ -8,10 +8,11 @@ namespace Mahjong.Lib.Game.Players;
 /// </summary>
 public record PointArray : IEnumerable<Point>
 {
-    private ImmutableArray<Point> points_;
+    private ImmutableArray<Point> points_ = [];
 
     private PointArray()
     {
+        points_ = [.. Enumerable.Repeat(new Point(0), 4)];
     }
 
     public PointArray(Point init)

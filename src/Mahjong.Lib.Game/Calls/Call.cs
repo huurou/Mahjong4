@@ -31,7 +31,7 @@ public record Call
 
     public Call(CallType type, ImmutableList<Tile> tiles, PlayerIndex from, Tile calledTile)
     {
-        Validate(type, tiles);
+        Validate(type, tiles, calledTile);
 
         Type = type;
         Tiles = tiles;
@@ -40,9 +40,9 @@ public record Call
     }
 
     /// <summary>
-    /// 副露種別に応じた牌リストの整合性を検証します。不正な場合は <see cref="ArgumentException"/> を投げます。
+    /// 副露種別に応じた牌リストと鳴かれた牌の整合性を検証します。不正な場合は <see cref="ArgumentException"/> を投げます。
     /// </summary>
-    public static void Validate(CallType type, ImmutableList<Tile> tiles)
+    public static void Validate(CallType type, ImmutableList<Tile> tiles, Tile calledTile)
     {
         var expectedCount = type switch
         {
@@ -97,5 +97,36 @@ public record Call
                 );
             }
         }
+
+        if (type != CallType.Ankan && !tiles.Contains(calledTile))
+        {
+            throw new ArgumentException(
+                $"{type} では鳴かれた牌が副露牌に含まれている必要があります。calledTile:{calledTile}",
+                nameof(calledTile)
+            );
+        }
+    }
+
+    public virtual bool Equals(Call? other)
+    {
+        return other is not null
+            && Type == other.Type
+            && From == other.From
+            && CalledTile == other.CalledTile
+            && Tiles.SequenceEqual(other.Tiles);
+    }
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(Type);
+        hash.Add(From);
+        hash.Add(CalledTile);
+        hash.Add(Tiles.Count);
+        foreach (var tile in Tiles)
+        {
+            hash.Add(tile);
+        }
+        return hash.ToHashCode();
     }
 }

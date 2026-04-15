@@ -60,7 +60,7 @@ public record Round(
     /// <summary>
     /// 配牌を行います。親から反時計回りに4枚ずつ3周+1枚ずつ1周で各プレイヤー13枚。
     /// </summary>
-    public Round Haipai()
+    internal Round Haipai()
     {
         var wall = Wall;
         var handArray = HandArray;
@@ -96,7 +96,7 @@ public record Round(
     /// <summary>
     /// 現手番プレイヤーが山から1枚ツモります。
     /// </summary>
-    public Round Tsumo()
+    internal Round Tsumo()
     {
         var wall = Wall.Draw(out var tile);
         var handArray = HandArray.AddTile(Turn, tile);
@@ -106,7 +106,7 @@ public record Round(
     /// <summary>
     /// 現手番プレイヤーが打牌します。
     /// </summary>
-    public Round Dahai(Tile tile)
+    internal Round Dahai(Tile tile)
     {
         var handArray = HandArray.RemoveTile(Turn, tile);
         var riverArray = RiverArray.AddTile(Turn, tile);
@@ -116,7 +116,7 @@ public record Round(
     /// <summary>
     /// 次のプレイヤーに手番を進めます。
     /// </summary>
-    public Round NextTurn()
+    internal Round NextTurn()
     {
         return this with { Turn = Turn.Next() };
     }
@@ -124,7 +124,7 @@ public record Round(
     /// <summary>
     /// チーを実行します。直前の打牌 + callerの手牌2枚で順子を作ります。
     /// </summary>
-    public Round Chi(PlayerIndex callerIndex, ImmutableList<Tile> handTiles)
+    internal Round Chi(PlayerIndex callerIndex, ImmutableList<Tile> handTiles)
     {
         return ExecuteOpenCall(callerIndex, CallType.Chi, handTiles);
     }
@@ -132,7 +132,7 @@ public record Round(
     /// <summary>
     /// ポンを実行します。直前の打牌 + callerの手牌2枚で刻子を作ります。
     /// </summary>
-    public Round Pon(PlayerIndex callerIndex, ImmutableList<Tile> handTiles)
+    internal Round Pon(PlayerIndex callerIndex, ImmutableList<Tile> handTiles)
     {
         return ExecuteOpenCall(callerIndex, CallType.Pon, handTiles);
     }
@@ -140,7 +140,7 @@ public record Round(
     /// <summary>
     /// 大明槓を実行します。直前の打牌 + callerの手牌3枚で槓子を作ります。
     /// </summary>
-    public Round Daiminkan(PlayerIndex callerIndex, ImmutableList<Tile> handTiles)
+    internal Round Daiminkan(PlayerIndex callerIndex, ImmutableList<Tile> handTiles)
     {
         if (!Wall.CanKan)
         {
@@ -201,7 +201,7 @@ public record Round(
     /// 暗槓を実行します。指定の牌と同種4枚を現手番プレイヤーの手牌から除去し副露に追加します。
     /// </summary>
     /// <param name="tile">暗槓する牌種の牌 (同種4枚が手牌に揃っている必要があります)</param>
-    public Round Ankan(Tile tile)
+    internal Round Ankan(Tile tile)
     {
         if (!Wall.CanKan)
         {
@@ -227,7 +227,7 @@ public record Round(
     /// 加槓を実行します。addedTileを現手番プレイヤーの手牌から除き、既存のポンを加槓に差し替えます。
     /// </summary>
     /// <param name="addedTile">加槓で追加する手牌の牌</param>
-    public Round Kakan(Tile addedTile)
+    internal Round Kakan(Tile addedTile)
     {
         if (!Wall.CanKan)
         {
@@ -255,7 +255,7 @@ public record Round(
     /// <summary>
     /// 嶺上牌からツモします。保留中のカンドラがある場合は先にめくります。
     /// </summary>
-    public Round RinshanTsumo()
+    internal Round RinshanTsumo()
     {
         var round = PendingDoraReveal
             ? RevealDora() with { PendingDoraReveal = false }
@@ -268,7 +268,7 @@ public record Round(
     /// <summary>
     /// 新ドラを1枚表示します。
     /// </summary>
-    public Round RevealDora()
+    internal Round RevealDora()
     {
         return this with { Wall = Wall.RevealDora() };
     }
@@ -276,7 +276,7 @@ public record Round(
     /// <summary>
     /// 持ち点を更新します。
     /// </summary>
-    public Round SetPoints(PointArray pointArray)
+    internal Round SetPoints(PointArray pointArray)
     {
         return this with { PointArray = pointArray };
     }
@@ -284,7 +284,7 @@ public record Round(
     /// <summary>
     /// 供託リーチ棒を指定数だけ加算します。
     /// </summary>
-    public Round AddKyoutakuRiichi(int count)
+    internal Round AddKyoutakuRiichi(int count)
     {
         return this with { KyoutakuRiichiCount = new KyoutakuRiichiCount(KyoutakuRiichiCount.Value + count) };
     }
@@ -292,7 +292,7 @@ public record Round(
     /// <summary>
     /// 供託を0にします。
     /// </summary>
-    public Round ClearKyoutaku()
+    internal Round ClearKyoutaku()
     {
         return this with { KyoutakuRiichiCount = new KyoutakuRiichiCount(0) };
     }

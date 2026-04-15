@@ -48,6 +48,10 @@ public class WallGeneratorTenhou : IWallGenerator
     /// <summary>
     /// 牌山を生成します。
     /// </summary>
+    /// <remarks>
+    /// 本実装は内部の Mersenne Twister 状態を更新するため、スレッドセーフではありません。
+    /// 同一インスタンスの <see cref="Generate"/> を複数スレッドから同時に呼び出さないでください。
+    /// </remarks>
     /// <returns>生成された牌山</returns>
     public Wall Generate()
     {

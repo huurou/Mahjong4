@@ -41,7 +41,31 @@ public record RoundEventResponseCall : RoundEvent
                 nameof(callType)
             );
         }
-        Call.Validate(callType, handTiles.Add(calledTile));
+        var expectedHandCount = callType switch
+
+        {
+            CallType.Chi or CallType.Pon => 2,
+            CallType.Daiminkan => 3,
+            _ => throw new InvalidOperationException(),
+        };
+        if (handTiles.Count != expectedHandCount)
+
+        {
+            throw new ArgumentException(
+                $"{callType} では手牌から{expectedHandCount}枚指定する必要があります。実際:{handTiles.Count}枚",
+                nameof(handTiles)
+            );
+        }
+        if (handTiles.Contains(calledTile))
+
+        {
+            throw new ArgumentException(
+                $"鳴かれた牌は副露者の手牌から指定する牌に含めてはいけません。calledTile:{calledTile}",
+                nameof(calledTile)
+            );
+        }
+
+        Call.Validate(callType, handTiles.Add(calledTile), calledTile);
 
         Caller = caller;
         CallType = callType;
