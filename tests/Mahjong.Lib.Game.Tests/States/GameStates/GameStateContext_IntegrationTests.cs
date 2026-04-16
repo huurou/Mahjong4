@@ -77,10 +77,13 @@ public class GameStateContext_IntegrationTests : IDisposable
         // Arrange
         var scoreMock = new Mock<IScoreCalculator>();
         scoreMock.Setup(x => x.Calculate(It.IsAny<ScoreRequest>()))
-            .Returns(new ScoreResult(0, 0,
+            .Returns(new ScoreResult(
+                0, 0,
                 new PointArray(new Point(0))
                     .AddPoint(new PlayerIndex(1), 8000)
-                    .SubtractPoint(new PlayerIndex(0), 8000)));
+                    .SubtractPoint(new PlayerIndex(0), 8000),
+                []
+            ));
         using var context = new GameStateContext(GamesTestHelper.CreateWallGenerator(), scoreMock.Object, GamesTestHelper.CreateNoOpTenpaiChecker());
         var rules = new GameRules { Format = GameFormat.Tonpuu };
         var game = GameAggregate.Create(GamesTestHelper.CreatePlayerList(), rules);

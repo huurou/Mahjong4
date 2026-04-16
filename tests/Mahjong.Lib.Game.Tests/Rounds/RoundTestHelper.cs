@@ -32,7 +32,7 @@ internal static class RoundTestHelper
     {
         var mock = new Mock<IScoreCalculator>();
         mock.Setup(x => x.Calculate(It.IsAny<ScoreRequest>()))
-            .Returns(new ScoreResult(0, 0, new PointArray(new Point(0))));
+            .Returns(new ScoreResult(0, 0, new PointArray(new Point(0)), []));
         return mock.Object;
     }
 

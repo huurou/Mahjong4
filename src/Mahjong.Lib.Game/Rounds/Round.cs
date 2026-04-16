@@ -33,7 +33,6 @@ public record Round(
     Wall Wall
 )
 {
-
     /// <summary>
     /// 各プレイヤーの手牌の配列
     /// </summary>
@@ -471,8 +470,6 @@ public record Round(
             PlayerRoundStatusArray = statusArray,
         };
     }
-
-
 
     private const int HONBA_BONUS_TSUMO_EACH = 100;
     private const int HONBA_BONUS_RON = 300;

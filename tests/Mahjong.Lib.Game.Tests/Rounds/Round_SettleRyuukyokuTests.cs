@@ -8,7 +8,8 @@ public class Round_SettleRyuukyokuTests
     private static Round CreateBaseRound()
     {
         return RoundTestHelper.CreateRound().Haipai()
-             with { PointArray = new PointArray(new Point(25000)) };
+             with
+        { PointArray = new PointArray(new Point(25000)) };
     }
 
     [Fact]

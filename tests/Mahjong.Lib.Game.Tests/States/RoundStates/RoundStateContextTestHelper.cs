@@ -1,5 +1,4 @@
-﻿using System.Collections.Immutable;
-using Mahjong.Lib.Game.Calls;
+﻿using Mahjong.Lib.Game.Calls;
 using Mahjong.Lib.Game.Games.Scoring;
 using Mahjong.Lib.Game.Hands;
 using Mahjong.Lib.Game.Players;
@@ -9,6 +8,7 @@ using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Tiles;
 using Mahjong.Lib.Game.Walls;
 using Moq;
+using System.Collections.Immutable;
 
 namespace Mahjong.Lib.Game.Tests.States.RoundStates;
 
@@ -21,7 +21,7 @@ internal static class RoundStateContextTestHelper
     {
         var mock = new Mock<IScoreCalculator>();
         mock.Setup(x => x.Calculate(It.IsAny<ScoreRequest>()))
-            .Returns(new ScoreResult(0, 0, new PointArray(new Point(0))));
+            .Returns(new ScoreResult(0, 0, new PointArray(new Point(0)), []));
         return mock.Object;
     }
 

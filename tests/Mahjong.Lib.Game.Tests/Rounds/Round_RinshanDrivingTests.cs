@@ -1,5 +1,4 @@
-﻿using Mahjong.Lib.Game.Players;
-using Mahjong.Lib.Game.Tiles;
+﻿using Mahjong.Lib.Game.Tiles;
 
 namespace Mahjong.Lib.Game.Tests.Rounds;
 
