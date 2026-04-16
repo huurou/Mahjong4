@@ -17,13 +17,14 @@ public class Round_SettleWinTests
                 ? array.AddPoint(new PlayerIndex(index), delta)
                 : array.SubtractPoint(new PlayerIndex(index), -delta);
         }
-        return new ScoreResult(0, 0, array);
+        return new ScoreResult(0, 0, array, []);
     }
 
     private static Round CreateBaseRound()
     {
         return RoundTestHelper.CreateRound().Haipai()
-             with { PointArray = new PointArray(new Point(25000)) };
+             with
+        { PointArray = new PointArray(new Point(25000)) };
     }
 
     [Fact]

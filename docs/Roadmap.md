@@ -51,16 +51,18 @@
 - 和了/流局/連荘/トビの各シナリオで点数が正しく動く(仮`IScoreCalculator`と天鳳ルール準拠の流局処理)
 - 仮スコア計算器で統合テストが全パス
 
-## Phase 3: 通知・応答の型定義
+## Phase 3: 通知・応答の型定義 (完了済み)
 
 **目的**: プレイヤー通知・応答の型体系を固める。型のみだが、Phase 4 の `Player` 通知メソッドの戻り値型は本フェーズの応答型に直接依存するため、Phase 4 の API 形状もあわせて想定して型設計する。
 
-- `PlayerNotification` 抽象 + 種別別具象 (`HaipaiNotification` / `TsumoNotification` / `DahaiNotification` / `CallNotification` / `KanNotification` / `KanTsumoNotification` / `WinNotification` / `RyuukyokuNotification` / `DoraRevealNotification` / `GameStartNotification` / `GameEndNotification` / `RoundStartNotification` / `RoundEndNotification` …)
-- `PlayerResponse` 抽象 + 種別別具象 (`OkResponse` / `DahaiResponse(Tile, isRiichi)` / `CallResponse` / `KanResponse` / `WinResponse` / `RyuukyokuResponse`) および Wire DTO 用 envelope
-- `ResponseCandidate` 抽象 + 具象 (`OkCandidate` / `RonCandidate` / `ChiCandidate(HandTiles)` / `PonCandidate(HandTiles)` / `DaiminkanCandidate(HandTiles)` / `AnkanCandidate(Tile)` / `KakanCandidate(Tile)` / `TsumoCandidate` / `DahaiCandidate(Tile[], riichiAvailable)` / `KyuushuKyuuhaiCandidate`)
-- `RoundDecisionSpec` — State が返す「何を誰に聞くか」の仕様
-- `ResolvedRoundAction` — 優先順位適用後の採用済み結果。`ResolvedWinAction` は `Winners[]` / `Loser?` / `WinType` / `KyoutakuDistribution` / `HonbaDistribution` / `DealerContinues` を保持(詳細は Design.md 参照)
-- `PlayerRoundView` — プレイヤー視点で情報フィルタ済みの卓情報
+- C# API 層: `GameNotification`（対局レベル通知基底）/ `RoundNotification`（局内通知基底）+ 種別別具象 (`HaipaiNotification` / `TsumoNotification` / `OtherPlayerTsumoNotification` / `DahaiNotification` / `CallNotification` / `KanNotification` / `KanTsumoNotification` / `WinNotification` / `RyuukyokuNotification` / `DoraRevealNotification` / `GameStartNotification` / `GameEndNotification` / `RoundStartNotification` / `RoundEndNotification`)
+- Wire DTO 層: `PlayerNotification`（共通 envelope）/ `PlayerResponseEnvelope`（応答 envelope）/ `ResponseBody` 抽象 + 具象 (`OkResponseBody` / `DahaiResponseBody` / `CallResponseBody` / `KanResponseBody` / `WinResponseBody` / `RyuukyokuResponseBody`)
+- `PlayerResponse` 抽象 + **状態別中間抽象型** (`AfterDahaiResponse` / `AfterTsumoResponse` / `AfterKanResponse` / `AfterKanTsumoResponse`) + 具象 (`OkResponse` / `PassResponse` / `ChiResponse` / `PonResponse` / `DaiminkanResponse` / `RonResponse` / `DahaiResponse` / `AnkanResponse` / `KakanResponse` / `TsumoAgariResponse` / `KyuushuKyuuhaiResponse` / `ChankanRonResponse` / `KanPassResponse` / `RinshanTsumoResponse` / `KanTsumoAnkanResponse` / `KanTsumoDahaiResponse` / `KanTsumoKakanResponse`)
+- `ResponseCandidate` 抽象 + 具象 (`OkCandidate` / `RonCandidate` / `ChiCandidate(HandTiles)` / `PonCandidate(HandTiles)` / `DaiminkanCandidate(HandTiles)` / `AnkanCandidate(Tiles)` / `KakanCandidate(Tile)` / `TsumoAgariCandidate` / `DahaiCandidate(Options)` / `KyuushuKyuuhaiCandidate`)
+- `RoundDecisionSpec` / `RoundDecisionPhase` / `PlayerDecisionSpec` — State が返す「何を誰に聞くか」の仕様
+- `ResolvedRoundAction` — 優先順位適用後の採用済み結果。`ResolvedWinAction` は `WinnerIndices(ResolvedWinner[])` / `LoserIndex?` / `WinType` / `KyoutakuRiichiAward?`(供託は上家取りの単一受取者) / `Honba`(WinType+和了者情報から配分導出可能) / `DealerContinues` を保持
+- `PlayerRoundView` — プレイヤー視点で情報フィルタ済みの卓情報（`OwnRoundStatus` / `VisiblePlayerRoundStatus` で情報非対称性を表現）
+- `YakuInfo` / `ScoreResult.YakuInfos` — 和了時の役情報（表示・ログ用）
 
 ## Phase 4: Player 拡張
 

@@ -50,15 +50,7 @@ pwsh scripts/TestCoverage.ps1
 - **Mahjong.Lib.Scoring.TenhouPaifuValidation**（`tools/`配下）— 天鳳牌譜をダウンロード・解析し、`HandCalculator`の点数計算結果を実データと突き合わせる検証コンソールアプリ
 - **Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests** — 上記ツールのテスト
 
-### ソリューション構成（Mahjong4.slnx）
-
-ソリューションフォルダで整理されている:
-- **/Aspire/** — AppHost, ServiceDefaults
-- **/Lib/** — Mahjong.Lib.Scoring, Mahjong.Lib.Game
-- **/Samples/** — Mahjong.Lib.Scoring.SampleApp
-- **/Tools/** — Mahjong.Lib.Scoring.TenhouPaifuValidation
-- **/Tests/** — Mahjong.Lib.Scoring.Tests, Mahjong.Lib.Game.Tests, Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests
-- ルート — ApiService, Web
+ソリューションフォルダ構成は `Mahjong4.slnx` を参照。
 
 ### ドメイン分割の要点
 
@@ -106,6 +98,17 @@ pwsh scripts/TestCoverage.ps1
   - **不正応答**: 現状態で受け付けない応答が来た場合、例外で処理ループを止めず `InvalidEventReceived` イベントに通知して続行する
   - 状態遷移フローの詳細（配牌→ツモ→打牌サイクル、副露/ロン/流局の分岐、槓サイクル、終端状態）は [docs/Design.md](docs/Design.md) の状態遷移図を参照
 
+#### 通知・応答型（Phase 3）
+
+プレイヤーとの入出力境界は型で分離する。現時点では型定義のみであり、通知送信・応答集約・優先順位解決は後続の `RoundManager` 層（Phase 5）で扱う。
+
+- **応答候補** ([Mahjong.Lib.Game/Candidates/](src/Mahjong.Lib.Game/Candidates/)) — サーバーが提示する合法応答候補。UX/選択肢提示用であり、受信応答は必ずサーバー側で再検証する
+- **プレイヤー応答** ([Mahjong.Lib.Game/Responses/](src/Mahjong.Lib.Game/Responses/)) — C# API 層の応答型。`AfterTsumoResponse` / `AfterDahaiResponse` / `AfterKanResponse` / `AfterKanTsumoResponse` など局面ごとに戻り値型を分け、コンパイル時の型安全を優先する
+- **Wire DTO** ([Mahjong.Lib.Game/Notifications/](src/Mahjong.Lib.Game/Notifications/)) — `PlayerNotification` / `PlayerResponseEnvelope` は通知ID(UUIDv7)・局Revision・応答者を含む通信・シリアライズ用エンベロープ。C# API 層と Wire DTO 層の変換は `Player`（または adapter）が担う
+- **プレイヤー視点フィルタ** ([Mahjong.Lib.Game/Views/](src/Mahjong.Lib.Game/Views/)) — `PlayerRoundView` は自分の手牌・非公開状態（フリテン等）と、他家の公開情報を分離する情報射影
+- **決定仕様** ([Mahjong.Lib.Game/Decisions/](src/Mahjong.Lib.Game/Decisions/)) — `RoundDecisionSpec` は「誰に何を聞くか」、`ResolvedRoundAction` は応答集約・優先順位適用後の採用結果を表す
+- **点数結果型** ([Mahjong.Lib.Game/Games/Scoring/](src/Mahjong.Lib.Game/Games/Scoring/)) — `ScoreResult` / `YakuInfo` は Lib.Game が Lib.Scoring に依存しないための境界型。成立役は `Yaku` ではなく番号・名称・翻数・役満倍数の明細として保持する
+
 #### 対局(Game)レベル
 
 - **対局の集約**: [Mahjong.Lib.Game/Games/Game.cs](src/Mahjong.Lib.Game/Games/Game.cs) が対局全体の状態を保持するイミュータブルrecord（PlayerList/Rules/RoundWind/RoundNumber/Honba/KyoutakuRiichiCount/PointArray）。`Create` / `CreateRound` / `ApplyRoundResult` / `AdvanceToNextRound` で進行
@@ -146,5 +149,5 @@ pwsh scripts/TestCoverage.ps1
 - 例外テストは`Record.Exception`を使用（`Assert.Throws`は使わない）
 - Fluent Assertionは使用禁止
 - テストコードにドキュメントコメントを付与しない
-- テストはfeatureドメインごとのディレクトリに整理する（Lib.Scoring.Tests: Tiles/, Calls/, Fus/, Games/, Yakus/, Shantens/, HandCalculating/　Lib.Game.Tests: Tiles/, Calls/, Games/, Hands/, Players/, Rivers/, Rounds/, States/, Walls/）
+- テストはfeatureドメインごとのディレクトリに整理する（Lib.Scoring.Tests: Tiles/, Calls/, Fus/, Games/, Yakus/, Shantens/, HandCalculating/　Lib.Game.Tests: Tiles/, Calls/, Candidates/, Decisions/, Games/, Hands/, Notifications/, Players/, Responses/, Rivers/, Rounds/, States/, Views/, Walls/）
 - `HandCalculator.Calc`のテストは入力カテゴリ別にクラスを分割（例: `HandCalculator_CalcTests_Shuntsu`、`_Koutsu`、`_Kokushimusou`、`_Dora`、`_Error`、`_Formless`、`_Tenhou`、`_Others`）
