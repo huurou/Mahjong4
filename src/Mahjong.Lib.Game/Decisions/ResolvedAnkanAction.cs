@@ -1,4 +1,4 @@
-using Mahjong.Lib.Game.Tiles;
+﻿using Mahjong.Lib.Game.Tiles;
 using System.Collections.Immutable;
 
 namespace Mahjong.Lib.Game.Decisions;
