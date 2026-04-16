@@ -12,7 +12,9 @@ public class GameManager_StartTests
         using var manager = new GameManager(
             GamesTestHelper.CreatePlayerList(),
             new GameRules(),
-            GamesTestHelper.CreateWallGenerator()
+            GamesTestHelper.CreateWallGenerator(),
+            GamesTestHelper.CreateNoOpScoreCalculator(),
+            GamesTestHelper.CreateNoOpTenpaiChecker()
         );
 
         // Act
@@ -29,7 +31,9 @@ public class GameManager_StartTests
         using var manager = new GameManager(
             GamesTestHelper.CreatePlayerList(),
             new GameRules(),
-            GamesTestHelper.CreateWallGenerator()
+            GamesTestHelper.CreateWallGenerator(),
+            GamesTestHelper.CreateNoOpScoreCalculator(),
+            GamesTestHelper.CreateNoOpTenpaiChecker()
         );
 
         // Act
@@ -47,7 +51,9 @@ public class GameManager_StartTests
         using var manager = new GameManager(
             GamesTestHelper.CreatePlayerList(),
             new GameRules(),
-            GamesTestHelper.CreateWallGenerator()
+            GamesTestHelper.CreateWallGenerator(),
+            GamesTestHelper.CreateNoOpScoreCalculator(),
+            GamesTestHelper.CreateNoOpTenpaiChecker()
         );
         manager.Start();
 

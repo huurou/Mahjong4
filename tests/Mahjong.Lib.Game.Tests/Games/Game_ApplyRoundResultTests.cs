@@ -1,5 +1,6 @@
 ﻿using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Players;
+using Mahjong.Lib.Game.Rounds;
 
 namespace Mahjong.Lib.Game.Tests.Games;
 
@@ -10,8 +11,12 @@ public class Game_ApplyRoundResultTests
     {
         // Arrange
         var game = GameAggregate.Create(GamesTestHelper.CreatePlayerList(), new GameRules());
-        var round = game.CreateRound(GamesTestHelper.CreateWallGenerator())
-            .SetPoints(new PointArray(new Point(30000)).AddPoint(new PlayerIndex(0), 5000));
+        var round = game.CreateRound(
+            GamesTestHelper.CreateWallGenerator()
+        ) with
+        {
+            PointArray = new PointArray(new Point(30000)).AddPoint(new PlayerIndex(0), 5000),
+        };
 
         // Act
         var updated = game.ApplyRoundResult(round);
@@ -26,8 +31,12 @@ public class Game_ApplyRoundResultTests
     {
         // Arrange
         var game = GameAggregate.Create(GamesTestHelper.CreatePlayerList(), new GameRules());
-        var round = game.CreateRound(GamesTestHelper.CreateWallGenerator())
-            .AddKyoutakuRiichi(2);
+        var round = game.CreateRound(
+            GamesTestHelper.CreateWallGenerator()
+        ) with
+        {
+            KyoutakuRiichiCount = new KyoutakuRiichiCount(2),
+        };
 
         // Act
         var updated = game.ApplyRoundResult(round);

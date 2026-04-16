@@ -1,6 +1,4 @@
-﻿using Mahjong.Lib.Game.States.RoundStates;
-
-namespace Mahjong.Lib.Game.Tests.States.RoundStates;
+﻿namespace Mahjong.Lib.Game.Tests.States.RoundStates;
 
 public class RoundStateContext_EnqueueEventAsyncTests
 {
@@ -8,7 +6,7 @@ public class RoundStateContext_EnqueueEventAsyncTests
     public async Task Dispose後にイベント発行_ObjectDisposedExceptionが発生する()
     {
         // Arrange
-        var context = new RoundStateContext();
+        var context = RoundStateContextTestHelper.CreateContext();
         context.Init(RoundStateContextTestHelper.CreateRound());
         context.Dispose();
 
@@ -23,7 +21,7 @@ public class RoundStateContext_EnqueueEventAsyncTests
     public async Task Init前にイベント発行_InvalidOperationExceptionが発生する()
     {
         // Arrange
-        using var context = new RoundStateContext();
+        using var context = RoundStateContextTestHelper.CreateContext();
 
         // Act
         var ex = await Record.ExceptionAsync(context.ResponseOkAsync);

@@ -6,7 +6,7 @@ namespace Mahjong.Lib.Game.Tests.States.RoundStates;
 
 public class RoundStateDahai_ResponseCallTests : IDisposable
 {
-    private readonly RoundStateContext context_ = new();
+    private readonly RoundStateContext context_ = RoundStateContextTestHelper.CreateContext();
 
     public void Dispose()
     {

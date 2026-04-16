@@ -11,7 +11,9 @@ public class GameManager_ConstructorTests
         using var manager = new GameManager(
             GamesTestHelper.CreatePlayerList(),
             new GameRules(),
-            GamesTestHelper.CreateWallGenerator()
+            GamesTestHelper.CreateWallGenerator(),
+            GamesTestHelper.CreateNoOpScoreCalculator(),
+            GamesTestHelper.CreateNoOpTenpaiChecker()
         );
 
         // Assert

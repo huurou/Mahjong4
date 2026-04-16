@@ -1,4 +1,4 @@
-﻿namespace Mahjong.Lib.Game.States.GameStates.Impl;
+﻿namespace Mahjong.Lib.Game.Rounds;
 
 /// <summary>
 /// 和了種別

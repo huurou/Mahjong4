@@ -1,5 +1,9 @@
-﻿using Mahjong.Lib.Game.Players;
+﻿using Mahjong.Lib.Game.Calls;
+using Mahjong.Lib.Game.Games.Scoring;
+using Mahjong.Lib.Game.Hands;
+using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
+using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Tiles;
 using Mahjong.Lib.Game.Walls;
 using Moq;
@@ -8,12 +12,32 @@ namespace Mahjong.Lib.Game.Tests.Rounds;
 
 internal static class RoundTestHelper
 {
+    /// <summary>
+    /// テンパイ判定を行わない既定の <see cref="ITenpaiChecker"/> (常に false / 空集合)
+    /// </summary>
+    internal static ITenpaiChecker NoOpTenpaiChecker { get; } = CreateNoOpTenpaiChecker();
+
+    private static ITenpaiChecker CreateNoOpTenpaiChecker()
+    {
+        var mock = new Mock<ITenpaiChecker>();
+        mock.Setup(x => x.IsTenpai(It.IsAny<Hand>(), It.IsAny<CallList>())).Returns(false);
+        mock.Setup(x => x.EnumerateWaitTileKinds(It.IsAny<Hand>(), It.IsAny<CallList>()))
+            .Returns([]);
+        return mock.Object;
+    }
+
+    internal static IScoreCalculator NoOpScoreCalculator { get; } = CreateNoOpScoreCalculator();
+
+    private static IScoreCalculator CreateNoOpScoreCalculator()
+    {
+        var mock = new Mock<IScoreCalculator>();
+        mock.Setup(x => x.Calculate(It.IsAny<ScoreRequest>()))
+            .Returns(new ScoreResult(0, 0, new PointArray(new Point(0))));
+        return mock.Object;
+    }
+
     internal static Round CreateRound(int roundNumber = 0)
     {
-        var wallGeneratorMock = new Mock<IWallGenerator>();
-        wallGeneratorMock
-            .Setup(x => x.Generate())
-            .Returns(new Wall(Enumerable.Range(Tile.ID_MIN, Tile.ID_MAX + 1).Select(x => new Tile(x))));
         return new Round(
             RoundWind.East,
             new RoundNumber(roundNumber),
@@ -21,7 +45,7 @@ internal static class RoundTestHelper
             new KyoutakuRiichiCount(0),
             new PlayerIndex(roundNumber),
             new PointArray(new Point(25000)),
-            wallGeneratorMock.Object
+            new Wall(Enumerable.Range(Tile.ID_MIN, Tile.ID_MAX + 1).Select(x => new Tile(x)))
         );
     }
 

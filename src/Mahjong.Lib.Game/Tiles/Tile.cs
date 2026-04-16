@@ -12,6 +12,13 @@ public record Tile
     /// </summary>
     public int Kind => Id / 4;
 
+    /// <summary>
+    /// 幺九牌 (1/9 数牌 および 字牌) かを判定します
+    /// 流し満貫条件判定などで用います
+    /// </summary>
+    // 0=一萬, 8=九萬, 9=一筒, 17=九筒, 18=一索, 26=九索, 27-33=字牌
+    public bool IsYaochuu => Kind is 0 or 8 or 9 or 17 or 18 or 26 or >= 27;
+
     public Tile(int id)
     {
         if (id is < ID_MIN or > ID_MAX)

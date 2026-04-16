@@ -1,4 +1,6 @@
-﻿namespace Mahjong.Lib.Game.States.RoundStates.Impl;
+﻿using Mahjong.Lib.Game.Rounds;
+
+namespace Mahjong.Lib.Game.States.RoundStates.Impl;
 
 /// <summary>
 /// 槓ツモ
@@ -17,6 +19,15 @@ public record RoundStateKanTsumo : RoundState
     public override void ResponseWin(RoundStateContext context, RoundEventResponseWin evt)
     {
         base.ResponseWin(context, evt);
-        Transit(context, new RoundStateWin());
+        if (evt.WinType is not WinType.Rinshan)
+        {
+            throw new InvalidOperationException($"槓ツモ状態からの和了応答は Rinshan のみ。実際:{evt.WinType}");
+        }
+
+        // 嶺上開花 (ツモ和了、Loser は和了者自身)
+        var loserIndex = context.Round.Turn;
+        var settledRound = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, context.ScoreCalculator);
+        var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType);
+        Transit(context, new RoundStateWin(eventArgs), () => context.Round = settledRound);
     }
 }

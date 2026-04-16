@@ -26,7 +26,7 @@ public record GameRules
     /// <summary>
     /// オーラス親あがり止め (1位単独確定のみ)
     /// </summary>
-    public bool DealerWinStopAtOorasu { get; init; } = true;
+    public bool DealerWinStopAtAllLast { get; init; } = true;
 
     /// <summary>
     /// トビ終了点 この値未満で対局終了 (既定: 0)

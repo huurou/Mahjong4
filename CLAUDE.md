@@ -63,6 +63,7 @@ pwsh scripts/TestCoverage.ps1
 ### ドメイン分割の要点
 
 - **Mahjong.Lib.Scoring** は点数計算専用で、牌種別(`TileKind`、34種)のみを扱う。**Mahjong.Lib.Game** は対局進行専用で、牌1枚を個別識別する`Tile`(0-135)を扱う。両者は相互参照しない。必要なら`Tile.Kind`(= `Id/4`) 経由でLib.Scoring側の牌種インデックスへ変換する
+- **Lib.Game → Lib.Scoring の依存境界**: Lib.Game は Lib.Scoring に直接依存しない。和了点計算は `IScoreCalculator`、テンパイ/待ち判定は `ITenpaiChecker` を Lib.Game 側の抽象として定義し、Lib.Scoring をラップする実装は上位層（ApiService等）から注入する
 - 牌種別(TileKind)と牌(Tile)の設計意図、副露種類、対局/局の状態遷移図は [docs/Design.md](docs/Design.md) が一次情報
 - 両ライブラリとも record + `ImmutableList`/`ImmutableArray` のイミュータブル設計を採用
 
@@ -92,13 +93,17 @@ pwsh scripts/TestCoverage.ps1
 
 #### 局(Round)レベル
 
-- **局の集約**: [Mahjong.Lib.Game/Rounds/Round.cs](src/Mahjong.Lib.Game/Rounds/Round.cs) が局の全状態を保持するイミュータブルrecord。`Haipai` / `Tsumo` / `Dahai` / `NextTurn` / `Chi` / `Pon` / `Daiminkan` / `Ankan` / `Kakan` / `RinshanTsumo` / `RevealDora` / `SetPoints` / `AddKyoutakuRiichi` / `ClearKyoutaku` の各メソッドで進行。すべて新しい `Round` を返す
+- **局の集約**: [Mahjong.Lib.Game/Rounds/Round.cs](src/Mahjong.Lib.Game/Rounds/Round.cs) が局の全状態を保持するイミュータブルrecord。`Haipai` / `Tsumo` / `Dahai` / `NextTurn` / `Chi` / `Pon` / `Daiminkan` / `Ankan` / `Kakan` / `RinshanTsumo` / `RevealDora` / `SetPoints` / `AddKyoutakuRiichi` / `ClearKyoutaku` / `PendRiichi` / `ConfirmRiichi` / `CancelRiichi` / `EvaluateFuriten` / `SettleWin` / `SettleRyuukyoku` の各メソッドで進行。すべて新しい `Round` を返す
+- **局内プレイヤー状態**: `Round` は `PlayerRoundStatusArray` を保持し、各プレイヤーの立直保留/確定/取消、一発、門前、流し満貫資格、同巡/永久フリテン、嶺上中、第一打前(天和/地和判定用)などを進行メソッド内で更新する
+- **点数精算**: 和了時は `Round.SettleWin` が `IScoreCalculator` 経由で点数計算・移動を行い、流局時は `Round.SettleRyuukyoku` が天鳳ルール準拠でノーテン罰符・テンパイ料を計算する。いずれも終端状態への遷移アクション内で呼ばれる
 - **カンドラ表示のタイミング**: 暗槓は即時 `RevealDora`、加槓・大明槓は `PendingDoraReveal=true` で保留し、次の `RinshanTsumo` 直前にめくる
 - **副露種類の扱い**: `CallType` は Chi/Pon/Ankan/Daiminkan/Kakan。Lib.Scoring側と違い大明槓と加槓を区別する（表示上の差があるため — 詳細は [docs/Design.md](docs/Design.md)）
 - **状態遷移の実装** ([Mahjong.Lib.Game/States/RoundStates/](src/Mahjong.Lib.Game/States/RoundStates/)): 非同期イベント駆動のステートマシン。`System.Threading.Channels.Channel<T>` によるイベントキューでスレッドセーフに状態遷移する
   - `RoundState` — 抽象基底。`ResponseOk` / `ResponseWin` / `ResponseDahai` / `ResponseKan` / `ResponseCall` / `ResponseRyuukyoku` の仮想メソッドと `Entry` / `Exit` ライフサイクルを持つ
   - `RoundEvent` — 抽象基底。6種の具象実装（ResponseOk, ResponseDahai, ResponseCall, ResponseWin, ResponseKan, ResponseRyuukyoku）
-  - `RoundStateContext` — ステートマシン本体。`Init()` で `RoundStateHaipai` から開始。`RoundStateChanged` イベントで遷移通知。`IDisposable` で 5秒タイムアウト付きシャットダウン
+  - `RoundStateContext` — ステートマシン本体。コンストラクタで `ITenpaiChecker` と `IScoreCalculator` を受け取る。`Init()` で `RoundStateHaipai` から開始。`RoundStateChanged` イベントで遷移通知。`IDisposable` で 5秒タイムアウト付きシャットダウン
+  - **局終了通知**: 終端状態（`RoundStateWin` / `RoundStateRyuukyoku`）がOK応答時に `RoundStateContext.RoundEnded` イベント（`RoundEndedEventArgs`）を一度だけ発火する。`GameStateContext` はこれを購読し `GameEventRoundEndedByWin` / `GameEventRoundEndedByRyuukyoku` に変換して対局レベル遷移に昇格させる
+  - **不正応答**: 現状態で受け付けない応答が来た場合、例外で処理ループを止めず `InvalidEventReceived` イベントに通知して続行する
   - 状態遷移フローの詳細（配牌→ツモ→打牌サイクル、副露/ロン/流局の分岐、槓サイクル、終端状態）は [docs/Design.md](docs/Design.md) の状態遷移図を参照
 
 #### 対局(Game)レベル
@@ -107,10 +112,10 @@ pwsh scripts/TestCoverage.ps1
 - **プレイヤー**: [Mahjong.Lib.Game/Players/](src/Mahjong.Lib.Game/Players/) の `Player`（`PlayerId` + 表示名）と `PlayerList`（4人固定、index 0 が**起家**。並び替えは呼び出し側責務）
 - **対局ルール**: [Mahjong.Lib.Game/Games/GameRules.cs](src/Mahjong.Lib.Game/Games/GameRules.cs) に対局形式（`GameFormat`: SingleRound/Tonpuu/Tonnan）、赤ドラ集合、初期持ち点、トビ閾値、食いタン/後付け、連荘条件（`RenchanCondition`）を集約
 - **対局終了判定**: [Mahjong.Lib.Game/Games/GameEndPolicy.cs](src/Mahjong.Lib.Game/Games/GameEndPolicy.cs) `ShouldEndAfterRound(game, event, dealerContinues)` で判定。呼び出し順は **ApplyRoundResult → ShouldEndAfterRound → (false なら AdvanceToNextRound)**
-- **対局の外部入口**: [Mahjong.Lib.Game/Games/GameManager.cs](src/Mahjong.Lib.Game/Games/GameManager.cs) が `Start()` で `GameStateContext` を生成し `IDisposable` で管理
+- **対局の外部入口**: [Mahjong.Lib.Game/Games/GameManager.cs](src/Mahjong.Lib.Game/Games/GameManager.cs) が `Start()` で `GameStateContext` を生成し `IDisposable` で管理。コンストラクタで `PlayerList` / `GameRules` / `IWallGenerator` / `IScoreCalculator` / `ITenpaiChecker` を受け取る
 - **対局レベル状態機械** ([Mahjong.Lib.Game/States/GameStates/](src/Mahjong.Lib.Game/States/GameStates/)): Round層と同じ Channel ベースのイベント駆動。`GameState`（Init/RoundRunning/End）と `GameEvent`（ResponseOk/RoundEndedByWin/RoundEndedByRyuukyoku）
-  - `GameStateContext` は `RoundStateContext` をホストし、`RoundStateChanged` を購読して `RoundStateWin` / `RoundStateRyuukyoku` を検知すると `GameEventRoundEndedBy*` を内部発行して対局レベル遷移に昇格させる
-  - 和了者判定・流局種別判定は Phase 1 時点でスタブ（`BuildWinEvent` / `BuildRyuukyokuEvent`）、Phase 2 で正確化予定
+  - `GameStateContext` は `RoundStateContext` をホストし、`RoundEnded` イベントを購読して `RoundEndedEventArgs` を `GameEventRoundEndedByWin` / `GameEventRoundEndedByRyuukyoku` に変換・内部発行して対局レベル遷移に昇格させる（多重発火抑止付き）
+  - `GameStateRoundRunning` の `RoundEndedByWin` / `RoundEndedByRyuukyoku` ハンドラ内で `Game.ApplyRoundResult` → `GameEndPolicy.ShouldEndAfterRound` → （続行なら `Game.AdvanceToNextRound` + 次局 `RoundStateContext` 生成、終了なら `GameStateEnd` 遷移）の順で処理する
 
 ### 点数計算検証ツール（tools/Mahjong.Lib.Scoring.TenhouPaifuValidation/）
 
@@ -141,5 +146,5 @@ pwsh scripts/TestCoverage.ps1
 - 例外テストは`Record.Exception`を使用（`Assert.Throws`は使わない）
 - Fluent Assertionは使用禁止
 - テストコードにドキュメントコメントを付与しない
-- テストはfeatureドメインごとのディレクトリ（Tiles/, Calls/, Fus/, Games/, Players/, Yakus/, Shantens/, HandCalculating/, States/）に整理する
+- テストはfeatureドメインごとのディレクトリに整理する（Lib.Scoring.Tests: Tiles/, Calls/, Fus/, Games/, Yakus/, Shantens/, HandCalculating/　Lib.Game.Tests: Tiles/, Calls/, Games/, Hands/, Players/, Rivers/, Rounds/, States/, Walls/）
 - `HandCalculator.Calc`のテストは入力カテゴリ別にクラスを分割（例: `HandCalculator_CalcTests_Shuntsu`、`_Koutsu`、`_Kokushimusou`、`_Dora`、`_Error`、`_Formless`、`_Tenhou`、`_Others`）

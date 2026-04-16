@@ -18,14 +18,14 @@ public abstract record RoundState
     public virtual void ResponseOk(RoundStateContext context, RoundEventResponseOk evt) { }
 
     /// <summary>
-    /// 和了応答
-    /// </summary>
-    public virtual void ResponseWin(RoundStateContext context, RoundEventResponseWin evt) { }
-
-    /// <summary>
     /// 打牌応答
     /// </summary>
     public virtual void ResponseDahai(RoundStateContext context, RoundEventResponseDahai evt) { }
+
+    /// <summary>
+    /// 副露応答
+    /// </summary>
+    public virtual void ResponseCall(RoundStateContext context, RoundEventResponseCall evt) { }
 
     /// <summary>
     /// 槓応答
@@ -33,9 +33,9 @@ public abstract record RoundState
     public virtual void ResponseKan(RoundStateContext context, RoundEventResponseKan evt) { }
 
     /// <summary>
-    /// 副露応答
+    /// 和了応答
     /// </summary>
-    public virtual void ResponseCall(RoundStateContext context, RoundEventResponseCall evt) { }
+    public virtual void ResponseWin(RoundStateContext context, RoundEventResponseWin evt) { }
 
     /// <summary>
     /// 流局応答
