@@ -1,5 +1,7 @@
-﻿using Mahjong.Lib.Game.Rounds;
+﻿using Mahjong.Lib.Game.Players;
+using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.States.GameStates;
+using Mahjong.Lib.Game.States.GameStates.Impl;
 
 namespace Mahjong.Lib.Game.Games;
 
@@ -30,7 +32,7 @@ internal static class GameEndPolicy
         }
 
         // オーラス親あがり止め (Phase 1 はフックのみ Phase 2 で実装)
-        if (game.Rules.DealerWinStopAtOorasu && IsOorasuDealerWinStop(game, roundEndEvent))
+        if (game.Rules.DealerWinStopAtAllLast && IsAllLastDealerWinStop(game, roundEndEvent))
         {
             return true;
         }
@@ -39,11 +41,37 @@ internal static class GameEndPolicy
     }
 
     /// <summary>
-    /// オーラス親あがり止めの判定 (Phase 1 は未実装のため常に false)
+    /// オーラス親あがり止めの判定
+    /// (a) 対局形式の最終局 (b) 和了終了 (c) 親が和了者に含まれる (d) 親が1位単独確定
+    /// を全て満たす場合 true を返す
     /// </summary>
-    private static bool IsOorasuDealerWinStop(Game game, GameEvent roundEndEvent)
+    private static bool IsAllLastDealerWinStop(Game game, GameEvent roundEndEvent)
     {
-        return false;
+        if (!IsLastRound(game.Rules.Format, game.RoundWind, game.RoundNumber))
+        {
+            return false;
+        }
+        if (roundEndEvent is not GameEventRoundEndedByWin win)
+        {
+            return false;
+        }
+
+        var dealerIndex = game.RoundNumber.ToDealer();
+        if (!win.WinnerIndices.Contains(dealerIndex))
+        {
+            return false;
+        }
+
+        var dealerPoint = game.PointArray[dealerIndex].Value;
+        for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
+        {
+            if (i == dealerIndex.Value) { continue; }
+            if (game.PointArray[new PlayerIndex(i)].Value >= dealerPoint)
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
     /// <summary>

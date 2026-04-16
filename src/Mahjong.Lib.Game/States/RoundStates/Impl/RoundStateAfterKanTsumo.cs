@@ -11,12 +11,26 @@ public record RoundStateAfterKanTsumo : RoundState
 {
     public override string Name => "槓ツモ後";
 
+    public override void ResponseDahai(RoundStateContext context, RoundEventResponseDahai evt)
+    {
+        base.ResponseDahai(context, evt);
+        Transit(context, new RoundStateDahai(), () =>
+        {
+            var round = context.Round;
+            if (evt.IsRiichi)
+            {
+                round = round.PendRiichi(round.Turn);
+            }
+            context.Round = round.Dahai(evt.Tile, context.TenpaiChecker);
+        });
+    }
+
     public override void ResponseKan(RoundStateContext context, RoundEventResponseKan evt)
     {
         base.ResponseKan(context, evt);
         Transit(
             context,
-            new RoundStateKan(),
+            new RoundStateKan(evt.CallType),
             () => context.Round = evt.CallType switch
             {
                 CallType.Ankan => context.Round.Ankan(evt.Tile),
@@ -24,11 +38,5 @@ public record RoundStateAfterKanTsumo : RoundState
                 _ => throw new InvalidOperationException($"槓応答の副露種別は Ankan / Kakan のいずれかである必要があります。実際:{evt.CallType}")
             }
         );
-    }
-
-    public override void ResponseDahai(RoundStateContext context, RoundEventResponseDahai evt)
-    {
-        base.ResponseDahai(context, evt);
-        Transit(context, new RoundStateDahai(), () => context.Round = context.Round.Dahai(evt.Tile));
     }
 }

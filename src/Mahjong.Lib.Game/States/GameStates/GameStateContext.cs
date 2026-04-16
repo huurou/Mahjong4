@@ -1,9 +1,10 @@
-﻿using Mahjong.Lib.Game.Rounds;
+﻿using System.Diagnostics;
+using Mahjong.Lib.Game.Games.Scoring;
+using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.States.GameStates.Impl;
 using Mahjong.Lib.Game.States.RoundStates;
-using Mahjong.Lib.Game.States.RoundStates.Impl;
+using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Walls;
-using System.Collections.Immutable;
 using System.Threading.Channels;
 
 namespace Mahjong.Lib.Game.States.GameStates;
@@ -11,7 +12,11 @@ namespace Mahjong.Lib.Game.States.GameStates;
 /// <summary>
 /// 対局状態遷移コンテキスト
 /// </summary>
-public class GameStateContext(IWallGenerator wallGenerator) : IDisposable
+public class GameStateContext(
+    IWallGenerator wallGenerator,
+    IScoreCalculator scoreCalculator,
+    ITenpaiChecker tenpaiChecker
+) : IDisposable
 {
     public event EventHandler<GameStateChangedEventArgs>? GameStateChanged;
 
@@ -19,9 +24,6 @@ public class GameStateContext(IWallGenerator wallGenerator) : IDisposable
     private readonly Channel<GameEvent> eventChannel_ = Channel.CreateBounded<GameEvent>(new BoundedChannelOptions(100) { SingleReader = true });
     private readonly CancellationTokenSource cancellationTokenSource_ = new();
     private Task? eventProcessingTask_;
-
-    private EventHandler<RoundStateChangedEventArgs>? currentRoundHandler_;
-    private bool roundEnded_;
 
     public GameState State
     {
@@ -39,6 +41,16 @@ public class GameStateContext(IWallGenerator wallGenerator) : IDisposable
     /// 山牌生成機
     /// </summary>
     public IWallGenerator WallGenerator { get; } = wallGenerator;
+
+    /// <summary>
+    /// テンパイ判定機 (Round 生成時に注入され、フリテン判定・荒牌平局精算で使用される)
+    /// </summary>
+    public ITenpaiChecker TenpaiChecker { get; } = tenpaiChecker;
+
+    /// <summary>
+    /// 和了時点数計算機 (Round 生成時に注入され、和了精算で使用される)
+    /// </summary>
+    public IScoreCalculator ScoreCalculator { get; } = scoreCalculator;
 
     /// <summary>
     /// 現在進行中の局の RoundStateContext 局終了と共に破棄される
@@ -81,13 +93,14 @@ public class GameStateContext(IWallGenerator wallGenerator) : IDisposable
     {
         ObjectDisposedException.ThrowIf(disposed_, this);
 
-        roundEnded_ = false;
-        currentRoundHandler_ = OnRoundStateChanged;
+        var roundStateContext = new RoundStateContext(TenpaiChecker, ScoreCalculator);
+        roundStateContext.RoundEnded += OnRoundEnded;
+        roundStateContext.Init(round);
 
-        RoundStateContext = new RoundStateContext();
-        RoundStateContext.RoundStateChanged += currentRoundHandler_;
-
-        RoundStateContext.Init(round);
+        // Init() 完了後にプロパティへ公開する。
+        // テストの WaitForNewRoundContextAsync が非null を検出した時点で
+        // Init() (State・eventProcessingTask_ の設定) が完了していることを保証する。
+        RoundStateContext = roundStateContext;
     }
 
     /// <summary>
@@ -97,70 +110,9 @@ public class GameStateContext(IWallGenerator wallGenerator) : IDisposable
     {
         if (RoundStateContext is null) { return; }
 
-        if (currentRoundHandler_ is not null)
-        {
-            RoundStateContext.RoundStateChanged -= currentRoundHandler_;
-        }
+        RoundStateContext.RoundEnded -= OnRoundEnded;
         RoundStateContext.Dispose();
         RoundStateContext = null;
-        currentRoundHandler_ = null;
-    }
-
-    /// <summary>
-    /// Round 側の状態変化を監視し Win/Ryuukyoku 到達時に局終了イベントを内部発行します
-    /// </summary>
-    private void OnRoundStateChanged(object? sender, RoundStateChangedEventArgs args)
-    {
-        if (roundEnded_) { return; }
-        if (RoundStateContext is null) { return; }
-
-        GameEvent? evt = args.State switch
-        {
-            RoundStateWin => BuildWinEvent(RoundStateContext.Round),
-            RoundStateRyuukyoku => BuildRyuukyokuEvent(RoundStateContext.Round),
-            _ => null,
-        };
-
-        if (evt is null) { return; }
-
-        roundEnded_ = true;
-        _ = NotifyRoundEndedSafelyAsync(evt);
-    }
-
-    /// <summary>
-    /// 局終了イベントを発行します Dispose 済み等で失敗した場合は握りつぶします
-    /// </summary>
-    private async Task NotifyRoundEndedSafelyAsync(GameEvent evt)
-    {
-        try
-        {
-            await EnqueueEventAsync(evt);
-        }
-        catch (ObjectDisposedException) { }
-        catch (ChannelClosedException) { }
-    }
-
-    /// <summary>
-    /// Phase 1 スタブ 和了者として常に <see cref="Round.Turn"/> を返す
-    /// ツモ和了では Turn == 和了者なので正しいが
-    /// ロン和了では Turn == 打牌者(放銃者) となるため Winners に誤った値が入る
-    /// その結果 <see cref="Impl.GameStateRoundRunning.RoundEndedByWin"/> の親連荘判定
-    /// (<c>evt.Winners.Contains(dealer)</c>) が誤判定し 親連荘/親流れが逆転するケースがある
-    /// Phase 2 で <see cref="RoundStateWin"/> に和了者情報を持たせて正確化予定
-    /// </summary>
-    private static GameEventRoundEndedByWin BuildWinEvent(Round round)
-    {
-        return new GameEventRoundEndedByWin([round.Turn]);
-    }
-
-    /// <summary>
-    /// Phase 1 スタブ 流局種別として常に <see cref="RyuukyokuType.KouhaiHeikyoku"/> を返す
-    /// 途中流局・親テンパイ流局などの区別が付かないため
-    /// Phase 2 で <see cref="RoundStateRyuukyoku"/> に流局種別情報を持たせて正確化予定
-    /// </summary>
-    private static GameEventRoundEndedByRyuukyoku BuildRyuukyokuEvent(Round round)
-    {
-        return new GameEventRoundEndedByRyuukyoku(RyuukyokuType.KouhaiHeikyoku);
     }
 
     internal void Transit(GameState nextState, Action? action = null)
@@ -213,6 +165,23 @@ public class GameStateContext(IWallGenerator wallGenerator) : IDisposable
             }
         }
         catch (OperationCanceledException) { }
+    }
+
+    /// <summary>
+    /// Round 側の局終了イベントを受けて GameState 側の局終了イベントをキューに投入します。
+    /// 容量100の Bounded で局終了 1 件の TryWrite が full で失敗するケースは
+    /// disposed/closed 時に限られるため、戻り値は無視する (実害なし)
+    /// </summary>
+    private void OnRoundEnded(object? sender, RoundEndedEventArgs args)
+    {
+        GameEvent evt = args switch
+        {
+            RoundEndedByWinEventArgs win => new GameEventRoundEndedByWin(win.WinnerIndices, win.LoserIndex, win.WinType),
+            RoundEndedByRyuukyokuEventArgs ryuukyoku => new GameEventRoundEndedByRyuukyoku(ryuukyoku.Type, ryuukyoku.TenpaiPlayerIndices, ryuukyoku.NagashiManganPlayerIndices),
+            _ => throw new NotSupportedException($"未対応の局終了引数: {args?.GetType().Name}"),
+        };
+        var written = eventChannel_.Writer.TryWrite(evt);
+        Debug.Assert(written, "局終了イベントの投入に失敗。チャネル容量超過。");
     }
 
     protected virtual void Dispose(bool disposing)

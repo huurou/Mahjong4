@@ -48,6 +48,37 @@ public record PointArray : IEnumerable<Point>
         return new PointArray { points_ = builder.ToImmutable() };
     }
 
+    /// <summary>
+    /// 流し満貫1名分の点数移動を適用した新しい PointArray を返します (満貫ツモ相当)。
+    /// 親流し満貫: 4000オール = 12000、子流し満貫: 親4000 + 子2000 + 子2000 = 8000
+    /// </summary>
+    public PointArray ApplyNagashiMangan(PlayerIndex winnerIndex, PlayerIndex dealerIndex)
+    {
+        var result = this;
+        if (winnerIndex == dealerIndex)
+        {
+            for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
+            {
+                var p = new PlayerIndex(i);
+                if (p != winnerIndex)
+                {
+                    result = result.AddPoint(winnerIndex, 4000).SubtractPoint(p, 4000);
+                }
+            }
+        }
+        else
+        {
+            for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
+            {
+                var playerIndex = new PlayerIndex(i);
+                if (playerIndex == winnerIndex) { continue; }
+                var amount = playerIndex == dealerIndex ? 4000 : 2000;
+                result = result.AddPoint(winnerIndex, amount).SubtractPoint(playerIndex, amount);
+            }
+        }
+        return result;
+    }
+
     public virtual bool Equals(PointArray? other)
     {
         return other is PointArray array && points_.SequenceEqual(array.points_);

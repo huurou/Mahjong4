@@ -1,4 +1,5 @@
 ﻿using Mahjong.Lib.Game.Calls;
+using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.States.RoundStates;
 using Mahjong.Lib.Game.States.RoundStates.Impl;
 
@@ -6,7 +7,7 @@ namespace Mahjong.Lib.Game.Tests.States.RoundStates;
 
 public class RoundStateContext_IntegrationTests : IDisposable
 {
-    private readonly RoundStateContext context_ = new();
+    private readonly RoundStateContext context_ = RoundStateContextTestHelper.CreateContext();
 
     public void Dispose()
     {
@@ -24,7 +25,7 @@ public class RoundStateContext_IntegrationTests : IDisposable
         // Act
         await context_.ResponseOkAsync();
         await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
-        await context_.ResponseWinAsync();
+        await RoundStateContextTestHelper.ResponseTsumoWinAsync(context_);
         await RoundStateContextTestHelper.WaitForStateAsync<RoundStateWin>(context_);
 
         // Assert
@@ -42,7 +43,8 @@ public class RoundStateContext_IntegrationTests : IDisposable
         await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
         await context_.ResponseDahaiAsync(RoundStateContextTestHelper.PickTileToDahai(context_));
         await RoundStateContextTestHelper.WaitForStateAsync<RoundStateDahai>(context_);
-        await context_.ResponseWinAsync();
+        // 子(index 1)が親(index 0)からロン
+        await RoundStateContextTestHelper.ResponseRonWinAsync(context_, new PlayerIndex(1), new PlayerIndex(0));
         await RoundStateContextTestHelper.WaitForStateAsync<RoundStateWin>(context_);
 
         // Assert

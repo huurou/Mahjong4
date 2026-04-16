@@ -12,7 +12,7 @@ public class Round_DahaiTests
         var discarded = new Tile(83);
 
         // Act
-        var result = round.Dahai(discarded);
+        var result = round.Dahai(discarded, RoundTestHelper.NoOpTenpaiChecker);
 
         // Assert
         Assert.DoesNotContain(discarded, result.HandArray[round.Turn]);
@@ -27,7 +27,7 @@ public class Round_DahaiTests
         var discarded = round.HandArray[round.Turn].First();
 
         // Act
-        var result = round.Dahai(discarded);
+        var result = round.Dahai(discarded, RoundTestHelper.NoOpTenpaiChecker);
 
         // Assert
         Assert.Equal(13, result.HandArray[round.Turn].Count());

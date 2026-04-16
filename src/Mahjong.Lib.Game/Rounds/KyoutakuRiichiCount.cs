@@ -19,4 +19,20 @@ public record KyoutakuRiichiCount
 
         Value = value;
     }
+
+    /// <summary>
+    /// 指定本数だけリーチ棒を加算した新しいインスタンスを返します。
+    /// </summary>
+    public KyoutakuRiichiCount Add(int count)
+    {
+        return this with { Value = Value + count };
+    }
+
+    /// <summary>
+    /// リーチ棒を0にリセットした新しいインスタンスを返します。
+    /// </summary>
+    public KyoutakuRiichiCount Clear()
+    {
+        return this with { Value = 0 };
+    }
 }

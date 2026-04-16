@@ -54,7 +54,7 @@ public record Game(
             KyoutakuRiichiCount,
             RoundNumber.ToDealer(),
             PointArray,
-            wallGenerator
+            wallGenerator.Generate()
         );
     }
 

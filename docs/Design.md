@@ -48,7 +48,7 @@ stateDiagram-v2
     GameStateEnd: 対局終了
 
     [*] --> GameStateInit
-    GameStateInit --> GameStateRoundRunning: ResponseOk
+    GameStateInit --> GameStateRoundRunning: OK応答
     GameStateRoundRunning --> ChoiceGameEnd: 局終了 (RoundEndedBy{Win,Ryuukyoku})
     ChoiceGameEnd --> GameStateEnd: 対局終了判定=true
     ChoiceGameEnd --> GameStateRoundRunning: 対局終了判定=false (次局)
@@ -75,8 +75,8 @@ stateDiagram-v2
     KanTsumo: 槓ツモ<br>嶺上牌を引いて手牌に加える 全プレイヤーに槓ツモしたことを通知<br>嶺上ツモ和了判定あり
     AfterKanTsumo: 槓ツモ後<br>嶺上ツモ和了なし
     state ChoiceKanTsumo <<choice>>
-    Win: 和了
-    Ryuukyoku: 流局
+    Win: 和了<br>全プレイヤーに和了による局終了を通知
+    Ryuukyoku: 流局<br>全プレイヤーに流局による局終了を通知
 
     [*] --> Haipai
     Haipai --> Tsumo: OK応答
@@ -100,8 +100,8 @@ stateDiagram-v2
     ChoiceKanTsumo --> AfterKanTsumo: 四槓流れでない
     AfterKanTsumo --> Kan: 槓応答
     AfterKanTsumo --> Dahai: 打牌応答
-    Win --> [*]
-    Ryuukyoku --> [*]
+    Win --> [*]: OK応答
+    Ryuukyoku --> [*]: OK応答
 ```
 
 - プレイヤーに通知後、全プレイヤーの応答を待つ

@@ -5,7 +5,7 @@ namespace Mahjong.Lib.Game.Tests.States.RoundStates;
 
 public class RoundStateTsumo_ResponseRyuukyokuTests : IDisposable
 {
-    private readonly RoundStateContext context_ = new();
+    private readonly RoundStateContext context_ = RoundStateContextTestHelper.CreateContext();
 
     public void Dispose()
     {
@@ -22,7 +22,7 @@ public class RoundStateTsumo_ResponseRyuukyokuTests : IDisposable
         await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
 
         // Act
-        await context_.ResponseRyuukyokuAsync();
+        await RoundStateContextTestHelper.ResponseKouhaiHeikyokuAsync(context_);
         await RoundStateContextTestHelper.WaitForStateAsync<RoundStateRyuukyoku>(context_);
 
         // Assert
