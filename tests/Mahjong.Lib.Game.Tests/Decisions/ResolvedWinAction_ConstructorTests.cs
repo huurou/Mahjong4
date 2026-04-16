@@ -156,4 +156,101 @@ public class ResolvedWinAction_ConstructorTests
         // Assert
         Assert.IsType<ArgumentException>(ex);
     }
+
+    [Fact]
+    public void 槍槓和了でLoserIndexがnull_例外が発生する()
+    {
+        // Arrange
+        var winner = new ResolvedWinner(
+            new PlayerIndex(1),
+            new Tile(0),
+            new ScoreResult(1, 30, new PointArray(new Point(0)), [])
+        );
+
+        // Act
+        var ex = Record.Exception(() => new ResolvedWinAction(
+            [winner],
+            null,
+            WinType.Chankan,
+            null,
+            new Honba(0),
+            false
+        ));
+
+        // Assert
+        Assert.IsType<ArgumentException>(ex);
+    }
+
+    [Fact]
+    public void 槍槓和了_LoserIndexが保持される()
+    {
+        // Arrange
+        var winner = new ResolvedWinner(
+            new PlayerIndex(1),
+            new Tile(0),
+            new ScoreResult(1, 30, new PointArray(new Point(0)), [])
+        );
+
+        // Act
+        var action = new ResolvedWinAction(
+            [winner],
+            new PlayerIndex(0),
+            WinType.Chankan,
+            null,
+            new Honba(0),
+            false
+        );
+
+        // Assert
+        Assert.Equal(new PlayerIndex(0), action.LoserIndex);
+        Assert.Equal(WinType.Chankan, action.WinType);
+    }
+
+    [Fact]
+    public void ツモ和了でLoserIndexが指定されている_例外が発生する()
+    {
+        // Arrange
+        var winner = new ResolvedWinner(
+            new PlayerIndex(0),
+            new Tile(0),
+            new ScoreResult(1, 30, new PointArray(new Point(0)), [])
+        );
+
+        // Act
+        var ex = Record.Exception(() => new ResolvedWinAction(
+            [winner],
+            new PlayerIndex(1),
+            WinType.Tsumo,
+            null,
+            new Honba(0),
+            true
+        ));
+
+        // Assert
+        Assert.IsType<ArgumentException>(ex);
+    }
+
+    [Fact]
+    public void 嶺上和了でLoserIndexが指定されている_例外が発生する()
+    {
+        // Arrange
+        var winner = new ResolvedWinner(
+            new PlayerIndex(0),
+            new Tile(0),
+            new ScoreResult(1, 30, new PointArray(new Point(0)), [])
+        );
+
+        // Act
+        var ex = Record.Exception(() => new ResolvedWinAction(
+            [winner],
+            new PlayerIndex(1),
+            WinType.Rinshan,
+            null,
+            new Honba(0),
+            true
+        ));
+
+        // Assert
+        Assert.IsType<ArgumentException>(ex);
+    }
 }

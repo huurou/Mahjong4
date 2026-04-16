@@ -41,9 +41,17 @@ public record ResolvedWinAction : ResolvedRoundAction
             throw new ArgumentException("和了者は1人以上必要です。", nameof(winnerIndices));
         }
 
-        if (winType == WinType.Ron && loserIndex is null)
+        var requiresLoser = winType is WinType.Ron or WinType.Chankan;
+        var forbidsLoser = winType is WinType.Tsumo or WinType.Rinshan;
+
+        if (requiresLoser && loserIndex is null)
         {
-            throw new ArgumentException("ロン和了では放銃者の指定が必要です。", nameof(loserIndex));
+            throw new ArgumentException("ロン和了/槍槓では放銃者の指定が必要です。", nameof(loserIndex));
+        }
+
+        if (forbidsLoser && loserIndex is not null)
+        {
+            throw new ArgumentException("ツモ和了/嶺上開花では放銃者を指定できません。", nameof(loserIndex));
         }
 
         WinnerIndices = winnerIndices;
