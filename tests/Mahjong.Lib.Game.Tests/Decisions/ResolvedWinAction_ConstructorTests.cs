@@ -121,7 +121,7 @@ public class ResolvedWinAction_ConstructorTests
     {
         // Act
         var ex = Record.Exception(() => new ResolvedWinAction(
-            ImmutableList<ResolvedWinner>.Empty,
+            [],
             new PlayerIndex(0),
             WinType.Ron,
             null,

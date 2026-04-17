@@ -12,7 +12,7 @@ namespace Mahjong.Lib.Game.Notifications;
 /// <param name="RoundRevision">局内連番 (古い応答の検出・リプレイ用)</param>
 /// <param name="RecipientIndex">通知先プレイヤー</param>
 /// <param name="View">プレイヤー視点フィルタ済み卓情報 (局外通知では null)</param>
-/// <param name="CandidateList">合法応答候補 (OKのみの場面もある)</param>
+/// <param name="CandidateList">合法応答候補。OKのみの場面 (OK応答が暗黙に許可される通知) では空リスト</param>
 /// <param name="Timeout">応答タイムアウト</param>
 public record PlayerNotification(
     Guid NotificationId,

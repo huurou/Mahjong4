@@ -64,13 +64,32 @@
 - `PlayerRoundView` — プレイヤー視点で情報フィルタ済みの卓情報（`OwnRoundStatus` / `VisiblePlayerRoundStatus` で情報非対称性を表現）
 - `YakuInfo` / `ScoreResult.YakuInfos` — 和了時の役情報（表示・ログ用）
 
-## Phase 4: Player 拡張
+## Phase 4: Player 拡張 (完了済み)
 
-**目的**: プレイヤー側の抽象層を整備する。`Player` abstract record に通知・応答メソッドを追加し、`PlayerList` (= `IEnumerable<Player>`) 一本でプレイヤー情報と実体を管理する。
+**目的**: プレイヤー側の抽象層を整備する。`Player` abstract class に通知・応答メソッドを追加し、`PlayerList` (= `IEnumerable<Player>`) 一本でプレイヤー情報と実体を管理する。
 
-- `Player` に通知メソッドを追加 — 種別ごとの通知メソッド (`OnGameStartAsync` / `OnRoundStartAsync` / `OnHaipaiAsync` / `OnTsumoAsync` / `OnDahaiAsync` / `OnCallAsync` / `OnKanAsync` / `OnKanTsumoAsync` / `OnDoraRevealAsync` / `OnWinAsync` / `OnRyuukyokuAsync` / `OnRoundEndAsync` / `OnGameEndAsync`) を virtual / abstract で定義する。各メソッドの戻り値は通知ごとに型が異なる(Phase 3 の応答型を直接戻す)
-- 視点卓情報(`PlayerRoundView`相当)の保持・更新、通知イベントの共通処理、C# API ⇔ Wire DTO 二層構造の変換基盤は `Player` の共通実装として持たせる
-- `FakePlayer` (test用) — テストシナリオ記述用の疑似プレイヤー実装 (`Player` のサブタイプ)
+- `Player` を abstract record から **abstract class** に変更 — record + mutable property + equality の相互作用リスク回避、および人間プレイヤーと AI プレイヤーで状態保持要件が異なるため。`PlayerId` + `DisplayName` ベースのカスタム `Equals` / `GetHashCode` / `==` / `!=` を実装し `PlayerList` / `Game` の既存 value equality を維持
+- `Player` に通知メソッド 14 個を追加 — すべて `public abstract` として定義。(`OnGameStartAsync` / `OnRoundStartAsync` / `OnHaipaiAsync` / `OnTsumoAsync` / `OnOtherPlayerTsumoAsync` / `OnDahaiAsync` / `OnCallAsync` / `OnKanAsync` / `OnKanTsumoAsync` / `OnDoraRevealAsync` / `OnWinAsync` / `OnRyuukyokuAsync` / `OnRoundEndAsync` / `OnGameEndAsync`)。各メソッドの戻り値は通知ごとに型が異なる(Phase 3 の応答型を直接戻す)。全メソッドに `CancellationToken ct = default` を第2引数で付与し Phase 5 の RoundManager タイムアウト制御に備える
+- `PlayerRoundView` のキャッシュ保持は基底クラスには持たせない — 人間プレイヤーは View を UI に反映するだけで保持不要。AI プレイヤーが必要な場合は各実装で独自に保持する(または Phase 5 で `PlayerSession` に分離する余地を残す)
+- C# API ⇔ Wire DTO 二層構造の変換基盤は `this` 対象型ごとの拡張メソッドクラスに分離 — `GameNotificationExtensions.ToWire(...)` / `RoundNotificationExtensions.ToWire(...)` / `PlayerResponseEnvelopeExtensions.FromWire(RoundDecisionPhase)` / `PlayerResponseExtensions.ToBody()` を提供。Envelope 化 (`NotificationId` / `RoundRevision` / `PlayerIndex` の付与) と応答の合法性検証は Phase 5 の RoundManager 責務に残す
+- `FakePlayer` (test用) — テストシナリオ記述用の疑似プレイヤー実装。`Func<TNotification, CancellationToken, TResponse>` デリゲート群を init プロパティで受け取り、未設定時は安全な既定応答(OK / 先頭 `DahaiCandidate` を打牌 / `PassResponse` / `KanPassResponse` 等)を返す。受信通知を `ReceivedNotifications` に記録
+
+**Phase 4 完了の定義**:
+
+- `Player` が abstract class であり `PlayerId` + `DisplayName` によるカスタム値等価 (`Equals` / `GetHashCode` は `sealed override`) を持ち、14 通知メソッドすべてに `CancellationToken ct = default` が付与されている
+- `GameNotification` / `RoundNotification` / `PlayerResponseEnvelope` / `PlayerResponse` の Wire DTO 変換拡張メソッドが this 対象型ごとに分離されており、`FromWire(RoundDecisionPhase)` がフェーズ別に許可応答型のみを受理する
+- Wire DTO は「`NotificationType` / `View` / `CandidateList` を運ぶ薄いエンベロープ」に留まる(通知固有ペイロード運搬は Phase 5 で対応 — 後述)
+- `FakePlayer` が全通知に対する疑似応答と受信通知記録を提供し、Phase 5 の統合テスト記述基盤として機能する
+- Phase 4 時点で Wire 経由プレイヤー接続は未対応。`NotificationId` / `RoundRevision` / `PlayerIndex` 付与・応答合法性検証・Wire ペイロード運搬・Game レベル ACK 経路は Phase 5 責務として残されている
+
+**Phase 4 レビューで挙がり Phase 5 で対応する課題** (Codex CLI + Claude 共同レビュー由来):
+
+- **【高】`PlayerNotification` の通知固有ペイロード運搬**: 現状の `PlayerNotification` は `NotificationType` / `View` / `CandidateList` のみを保持しており、`TsumoTile` (`TsumoNotification`) / `DiscardedTile` + `DiscarderIndex` (`DahaiNotification`) / `WinResult` (`WinNotification`) / `FinalPointArray` (`GameEndNotification`) / `PlayerList` + `Rules` (`GameStartNotification`) / `RoundWind` + `RoundNumber` + `Honba` + `DealerIndex` (`RoundStartNotification`) / `RyuukyokuResult` (`RyuukyokuNotification`) / `MadeCall` + `CallerIndex` (`CallNotification`) / `NewDoraIndicator` (`DoraRevealNotification`) 等が Wire 側で復元不能。別プロセス/通信プレイヤー接続時に Wire 経由で通知内容が届かない。通知種別ごとの Wire DTO もしくは `NotificationBody` 相当の discriminated union を `PlayerNotification` に追加して解消する
+- **【高】`KanTsumo` 1 通知化に対応する RoundManager 分解契約**: `RoundStateKanTsumo` は `ResponseOk` / `ResponseWin` のみ処理し、打牌 / 暗槓 / 加槓は `RoundStateAfterKanTsumo` 側で処理する 2 段階構造。`PlayerResponseEnvelopeExtensions.FromWire(KanTsumo)` は `KanTsumoDahaiResponse` / `KanTsumoAnkanResponse` / `KanTsumoKakanResponse` を返すため、`RoundManager` が `RinshanTsumoResponse` は `RoundStateKanTsumo` に、それ以外 3 種は `RoundStateAfterKanTsumo` にディスパッチする責務を明記しテスト化する
+- **【中】`ResolvedWinAction.LoserIndex` の境界変換**: `ResolvedWinAction` はツモ/嶺上で `LoserIndex == null` を強制するが、`RoundEventResponseWin` / `RoundEndedEventArgs` / `Round.SettleWin` では和了者自身 (`self`) を入れる規約。`RoundManager` がイベント系から `ResolvedWinAction` を生成する際に `WinType` がツモ/嶺上なら `self → null` へ正規化する変換を実装する
+- **【中】Game レベル通知 ACK 経路の整備**: `PlayerResponseEnvelopeExtensions.FromWire(RoundDecisionPhase)` は局内意思決定フェーズ前提のため、`GameStartNotification` / `RoundStartNotification` / `RoundEndNotification` / `GameEndNotification` に対する Wire ACK (OK 応答) を受信する経路が無い。`NotificationType` ベースの OK 検証か `FromWireOk()` 相当を追加する
+- **【高】`ResponseBody` / `ResponseCandidate` の多態シリアライズ設計**: `ResponseBody` と `ResponseCandidate` は abstract 基底で、`PlayerResponseEnvelope.Body` / `PlayerNotification.CandidateList` はこれらの基底型を保持する。現状は object-to-object 変換のラウンドトリップしかテストされていない。JSON 等でシリアライズする際には `System.Text.Json` の `[JsonPolymorphic]` / `[JsonDerivedType]` や独自 converter 等の多態ディスパッチ設計が必須。別プロセス/通信プレイヤー接続時のブロッカーとなるため Phase 5 で対応する
+- **【中】`FakePlayer` responder の async 版追加**: 現状の `FakePlayer` は同期 `Func<TNotification, CancellationToken, TResponse>` 固定のため、Phase 5 の RoundManager で timeout/cancellation シナリオをテストする際に遅延応答・キャンセル待ち・例外発生タイミングの表現力が不足。`Func<TNotification, CancellationToken, Task<TResponse>>` も受けられる async responder を同期デリゲートと並存で追加する
 
 ## Phase 5: RoundManager と通信・集約レイヤー
 
