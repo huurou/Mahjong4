@@ -1,10 +1,83 @@
-﻿using Mahjong.Lib.Game.Players;
+﻿using Mahjong.Lib.Game.Notifications;
+using Mahjong.Lib.Game.Players;
+using Mahjong.Lib.Game.Responses;
 
 namespace Mahjong.Lib.Game.Tests.Players;
 
 internal static class PlayersTestHelper
 {
-    internal sealed record TestPlayer(PlayerId PlayerId, string DisplayName) : Player(PlayerId, DisplayName);
+    internal sealed class TestPlayer(PlayerId playerId, string displayName) : Player(playerId, displayName)
+    {
+        public override Task<OkResponse> OnGameStartAsync(GameStartNotification notification, CancellationToken ct = default)
+        {
+            return Task.FromResult(new OkResponse());
+        }
+
+        public override Task<OkResponse> OnRoundStartAsync(RoundStartNotification notification, CancellationToken ct = default)
+        {
+            return Task.FromResult(new OkResponse());
+        }
+
+        public override Task<OkResponse> OnRoundEndAsync(RoundEndNotification notification, CancellationToken ct = default)
+        {
+            return Task.FromResult(new OkResponse());
+        }
+
+        public override Task<OkResponse> OnGameEndAsync(GameEndNotification notification, CancellationToken ct = default)
+        {
+            return Task.FromResult(new OkResponse());
+        }
+
+        public override Task<OkResponse> OnHaipaiAsync(HaipaiNotification notification, CancellationToken ct = default)
+        {
+            return Task.FromResult(new OkResponse());
+        }
+
+        public override Task<OkResponse> OnOtherPlayerTsumoAsync(OtherPlayerTsumoNotification notification, CancellationToken ct = default)
+        {
+            return Task.FromResult(new OkResponse());
+        }
+
+        public override Task<OkResponse> OnCallAsync(CallNotification notification, CancellationToken ct = default)
+        {
+            return Task.FromResult(new OkResponse());
+        }
+
+        public override Task<OkResponse> OnDoraRevealAsync(DoraRevealNotification notification, CancellationToken ct = default)
+        {
+            return Task.FromResult(new OkResponse());
+        }
+
+        public override Task<OkResponse> OnWinAsync(WinNotification notification, CancellationToken ct = default)
+        {
+            return Task.FromResult(new OkResponse());
+        }
+
+        public override Task<OkResponse> OnRyuukyokuAsync(RyuukyokuNotification notification, CancellationToken ct = default)
+        {
+            return Task.FromResult(new OkResponse());
+        }
+
+        public override Task<AfterTsumoResponse> OnTsumoAsync(TsumoNotification notification, CancellationToken ct = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<AfterDahaiResponse> OnDahaiAsync(DahaiNotification notification, CancellationToken ct = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<AfterKanResponse> OnKanAsync(KanNotification notification, CancellationToken ct = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<AfterKanTsumoResponse> OnKanTsumoAsync(KanTsumoNotification notification, CancellationToken ct = default)
+        {
+            throw new NotImplementedException();
+        }
+    }
 
     internal static TestPlayer CreateTestPlayer(int index)
     {

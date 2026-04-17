@@ -98,16 +98,19 @@ pwsh scripts/TestCoverage.ps1
   - **不正応答**: 現状態で受け付けない応答が来た場合、例外で処理ループを止めず `InvalidEventReceived` イベントに通知して続行する
   - 状態遷移フローの詳細（配牌→ツモ→打牌サイクル、副露/ロン/流局の分岐、槓サイクル、終端状態）は [docs/Design.md](docs/Design.md) の状態遷移図を参照
 
-#### 通知・応答型（Phase 3）
+#### 通知・応答型・プレイヤー抽象（Phase 3-4）
 
-プレイヤーとの入出力境界は型で分離する。現時点では型定義のみであり、通知送信・応答集約・優先順位解決は後続の `RoundManager` 層（Phase 5）で扱う。
+プレイヤーとの入出力境界は型で分離する。通知送信・応答集約・優先順位解決は後続の `RoundManager` 層（Phase 5）で扱う。
 
 - **応答候補** ([Mahjong.Lib.Game/Candidates/](src/Mahjong.Lib.Game/Candidates/)) — サーバーが提示する合法応答候補。UX/選択肢提示用であり、受信応答は必ずサーバー側で再検証する
 - **プレイヤー応答** ([Mahjong.Lib.Game/Responses/](src/Mahjong.Lib.Game/Responses/)) — C# API 層の応答型。`AfterTsumoResponse` / `AfterDahaiResponse` / `AfterKanResponse` / `AfterKanTsumoResponse` など局面ごとに戻り値型を分け、コンパイル時の型安全を優先する
-- **Wire DTO** ([Mahjong.Lib.Game/Notifications/](src/Mahjong.Lib.Game/Notifications/)) — `PlayerNotification` / `PlayerResponseEnvelope` は通知ID(UUIDv7)・局Revision・応答者を含む通信・シリアライズ用エンベロープ。C# API 層と Wire DTO 層の変換は `Player`（または adapter）が担う
+- **Wire DTO** ([Mahjong.Lib.Game/Notifications/](src/Mahjong.Lib.Game/Notifications/)) — `PlayerNotification` / `PlayerResponseEnvelope` は通知ID(UUIDv7)・局Revision・応答者を含む通信・シリアライズ用エンベロープ
+- **C# API ⇔ Wire DTO 変換**: `this` 対象型ごとの拡張メソッドクラスに分離。[GameNotificationExtensions.ToWire](src/Mahjong.Lib.Game/Notifications/GameNotificationExtensions.cs) / [RoundNotificationExtensions.ToWire](src/Mahjong.Lib.Game/Notifications/RoundNotificationExtensions.cs) / [PlayerResponseEnvelopeExtensions.FromWire(RoundDecisionPhase)](src/Mahjong.Lib.Game/Notifications/PlayerResponseEnvelopeExtensions.cs) / [PlayerResponseExtensions.ToBody](src/Mahjong.Lib.Game/Notifications/PlayerResponseExtensions.cs)。`FromWire` は `RoundDecisionPhase` を引数に取り Tsumo/Dahai/Kan/KanTsumo/AfterKanTsumo 各フェーズで許可される応答本体のみを受理する。Envelope 化 (`NotificationId` / `RoundRevision` / `PlayerIndex` 付与) と合法性検証は Phase 5 の RoundManager 責務
 - **プレイヤー視点フィルタ** ([Mahjong.Lib.Game/Views/](src/Mahjong.Lib.Game/Views/)) — `PlayerRoundView` は自分の手牌・非公開状態（フリテン等）と、他家の公開情報を分離する情報射影
 - **決定仕様** ([Mahjong.Lib.Game/Decisions/](src/Mahjong.Lib.Game/Decisions/)) — `RoundDecisionSpec` は「誰に何を聞くか」、`ResolvedRoundAction` は応答集約・優先順位適用後の採用結果を表す
 - **点数結果型** ([Mahjong.Lib.Game/Games/Scoring/](src/Mahjong.Lib.Game/Games/Scoring/)) — `ScoreResult` / `YakuInfo` は Lib.Game が Lib.Scoring に依存しないための境界型。成立役は `Yaku` ではなく番号・名称・翻数・役満倍数の明細として保持する
+- **プレイヤー抽象** ([Mahjong.Lib.Game/Players/Player.cs](src/Mahjong.Lib.Game/Players/Player.cs)) — `Player` は abstract **class**（record ではない: 可変状態を持つ AI/人間実装での record + mutable property の相互作用リスク回避）。`PlayerId` + `DisplayName` ベースのカスタム `Equals` / `GetHashCode` / `==` / `!=` を実装し `PlayerList` / `Game` の value equality を維持。通知メソッド 14 種 (`OnGameStartAsync` / `OnRoundStartAsync` / `OnHaipaiAsync` / `OnTsumoAsync` / `OnOtherPlayerTsumoAsync` / `OnDahaiAsync` / `OnCallAsync` / `OnKanAsync` / `OnKanTsumoAsync` / `OnDoraRevealAsync` / `OnWinAsync` / `OnRyuukyokuAsync` / `OnRoundEndAsync` / `OnGameEndAsync`) を `public abstract` で定義し、戻り値は通知ごとに異なる応答型。全メソッドに `CancellationToken ct = default` を付与（Phase 5 の RoundManager タイムアウト制御用）
+- **テスト用疑似プレイヤー** ([tests/Mahjong.Lib.Game.Tests/Players/FakePlayer.cs](tests/Mahjong.Lib.Game.Tests/Players/FakePlayer.cs)) — `Func<TNotification, CancellationToken, TResponse>` デリゲート群を init プロパティで受け取る `Player` 実装。未設定時は安全な既定応答（OK / 先頭 `DahaiCandidate` を打牌 / `PassResponse` / `KanPassResponse` 等）を返し、受信通知を `ReceivedNotifications` に記録する
 
 #### 対局(Game)レベル
 
