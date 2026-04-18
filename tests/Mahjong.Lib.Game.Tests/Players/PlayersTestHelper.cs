@@ -6,7 +6,7 @@ namespace Mahjong.Lib.Game.Tests.Players;
 
 internal static class PlayersTestHelper
 {
-    internal sealed class TestPlayer(PlayerId playerId, string displayName) : Player(playerId, displayName)
+    internal sealed class TestPlayer(PlayerId playerId, string displayName, PlayerIndex playerIndex) : Player(playerId, displayName, playerIndex)
     {
         public override Task<OkResponse> OnGameStartAsync(GameStartNotification notification, CancellationToken ct = default)
         {
@@ -63,12 +63,12 @@ internal static class PlayersTestHelper
             throw new NotImplementedException();
         }
 
-        public override Task<AfterDahaiResponse> OnDahaiAsync(DahaiNotification notification, CancellationToken ct = default)
+        public override Task<PlayerResponse> OnDahaiAsync(DahaiNotification notification, CancellationToken ct = default)
         {
             throw new NotImplementedException();
         }
 
-        public override Task<AfterKanResponse> OnKanAsync(KanNotification notification, CancellationToken ct = default)
+        public override Task<PlayerResponse> OnKanAsync(KanNotification notification, CancellationToken ct = default)
         {
             throw new NotImplementedException();
         }
@@ -81,7 +81,7 @@ internal static class PlayersTestHelper
 
     internal static TestPlayer CreateTestPlayer(int index)
     {
-        return new TestPlayer(PlayerId.NewId(), $"P{index}");
+        return new TestPlayer(PlayerId.NewId(), $"P{index}", new PlayerIndex(index));
     }
 
     internal static TestPlayer[] CreateTestPlayers(int count)

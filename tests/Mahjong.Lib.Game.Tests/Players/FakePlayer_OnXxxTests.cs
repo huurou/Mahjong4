@@ -37,7 +37,7 @@ public class FakePlayer_OnXxxTests
     {
         // Arrange
         var expected = new TsumoAgariResponse();
-        var player = new FakePlayer(PlayerId.NewId(), "F0")
+        var player = new FakePlayer(PlayerId.NewId(), "F0", new PlayerIndex(0))
         {
             OnTsumo = (_, _) => expected,
         };
@@ -52,11 +52,11 @@ public class FakePlayer_OnXxxTests
     }
 
     [Fact]
-    public async Task OnDahai_Responder未設定_PassResponseを返す()
+    public async Task OnDahai_Responder未設定_OkResponseを返す()
     {
         var player = FakePlayer.Create(0);
         var response = await player.OnDahaiAsync(new DahaiNotification(CreateView(), new Tile(0), new PlayerIndex(1), new CandidateList([new OkCandidate()])), TestContext.Current.CancellationToken);
-        Assert.IsType<PassResponse>(response);
+        Assert.IsType<OkResponse>(response);
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public class FakePlayer_OnXxxTests
     {
         // Arrange
         var tiles = ImmutableArray.Create(new Tile(0), new Tile(1));
-        var player = new FakePlayer(PlayerId.NewId(), "F0")
+        var player = new FakePlayer(PlayerId.NewId(), "F0", new PlayerIndex(0))
         {
             OnDahai = (_, _) => new PonResponse(tiles),
         };
@@ -79,12 +79,12 @@ public class FakePlayer_OnXxxTests
     }
 
     [Fact]
-    public async Task OnKan_Responder未設定_KanPassResponseを返す()
+    public async Task OnKan_Responder未設定_OkResponseを返す()
     {
         var player = FakePlayer.Create(0);
         var call = new Call(CallType.Kakan, [new Tile(0), new Tile(1), new Tile(2), new Tile(3)], new PlayerIndex(0), new Tile(3));
         var response = await player.OnKanAsync(new KanNotification(CreateView(), call, new PlayerIndex(0), new CandidateList([new OkCandidate()])), TestContext.Current.CancellationToken);
-        Assert.IsType<KanPassResponse>(response);
+        Assert.IsType<OkResponse>(response);
     }
 
     [Fact]
@@ -145,7 +145,7 @@ public class FakePlayer_OnXxxTests
         // Arrange
         using var cts = new CancellationTokenSource();
         CancellationToken receivedCt = default;
-        var player = new FakePlayer(PlayerId.NewId(), "F0")
+        var player = new FakePlayer(PlayerId.NewId(), "F0", new PlayerIndex(0))
         {
             OnTsumo = (_, ct) => { receivedCt = ct; return new TsumoAgariResponse(); },
         };

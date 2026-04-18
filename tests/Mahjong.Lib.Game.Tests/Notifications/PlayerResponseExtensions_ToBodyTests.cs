@@ -23,20 +23,6 @@ public class PlayerResponseExtensions_ToBodyTests
     }
 
     [Fact]
-    public void PassResponse_OkResponseBodyに変換される()
-    {
-        var body = new PassResponse().ToBody();
-        Assert.IsType<OkResponseBody>(body);
-    }
-
-    [Fact]
-    public void KanPassResponse_OkResponseBodyに変換される()
-    {
-        var body = new KanPassResponse().ToBody();
-        Assert.IsType<OkResponseBody>(body);
-    }
-
-    [Fact]
     public void ChiResponse_CallResponseBodyChiに変換される()
     {
         // Arrange

@@ -20,10 +20,9 @@ public class AfterDahaiResponse_ConstructorTests
     }
 
     [Fact]
-    public void 全サブ型がAfterDahaiResponseを継承している()
+    public void 全アクション派生型がAfterDahaiResponseを継承している()
     {
         // Assert
-        Assert.IsType<AfterDahaiResponse>(new PassResponse(), exactMatch: false);
         Assert.IsType<AfterDahaiResponse>(new ChiResponse([]), exactMatch: false);
         Assert.IsType<AfterDahaiResponse>(new PonResponse([]), exactMatch: false);
         Assert.IsType<AfterDahaiResponse>(new DaiminkanResponse([]), exactMatch: false);
@@ -34,7 +33,7 @@ public class AfterDahaiResponse_ConstructorTests
     public void 全サブ型がPlayerResponseを継承している()
     {
         // Assert
-        Assert.IsType<PlayerResponse>(new PassResponse(), exactMatch: false);
+        Assert.IsType<PlayerResponse>(new ChiResponse([]), exactMatch: false);
         Assert.IsType<PlayerResponse>(new RonResponse(), exactMatch: false);
     }
 }

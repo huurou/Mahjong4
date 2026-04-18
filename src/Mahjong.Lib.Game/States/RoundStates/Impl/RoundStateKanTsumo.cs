@@ -1,4 +1,6 @@
-﻿using Mahjong.Lib.Game.Rounds;
+﻿using Mahjong.Lib.Game.Decisions;
+using Mahjong.Lib.Game.Rounds;
+using Mahjong.Lib.Game.Rounds.Managing;
 
 namespace Mahjong.Lib.Game.States.RoundStates.Impl;
 
@@ -29,5 +31,11 @@ public record RoundStateKanTsumo : RoundState
         var settledRound = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, context.ScoreCalculator);
         var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType);
         Transit(context, new RoundStateWin(eventArgs), () => context.Round = settledRound);
+    }
+
+    public override RoundDecisionSpec CreateDecisionSpec(Round round, IResponseCandidateEnumerator enumerator)
+    {
+        var spec = new PlayerDecisionSpec(round.Turn, enumerator.EnumerateForKanTsumo(round, round.Turn));
+        return new RoundDecisionSpec(RoundDecisionPhase.KanTsumo, [spec], null);
     }
 }

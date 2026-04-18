@@ -12,7 +12,7 @@ public class PlayerResponseEnvelope_ConstructorTests
     public void WireDTO_全フィールドが保持される()
     {
         // Arrange
-        var id = Guid.NewGuid();
+        var id = NotificationId.NewId();
         var body = new DahaiResponseBody(new Tile(10), IsRiichi: true);
 
         // Act

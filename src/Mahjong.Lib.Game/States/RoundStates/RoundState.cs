@@ -1,4 +1,7 @@
-﻿using Mahjong.Lib.Game.States.RoundStates.Impl;
+﻿using Mahjong.Lib.Game.Decisions;
+using Mahjong.Lib.Game.Rounds;
+using Mahjong.Lib.Game.Rounds.Managing;
+using Mahjong.Lib.Game.States.RoundStates.Impl;
 
 namespace Mahjong.Lib.Game.States.RoundStates;
 
@@ -55,6 +58,15 @@ public abstract record RoundState
     /// </summary>
     public virtual void Exit(RoundStateContext context)
     {
+    }
+
+    /// <summary>
+    /// この状態で「誰に何を聞くか」の決定仕様を返す
+    /// 意思決定不要な状態 (自動遷移 Call や終端 Win/Ryuukyoku) は null を返し、RoundManager は通知送信をスキップする
+    /// </summary>
+    public virtual RoundDecisionSpec? CreateDecisionSpec(Round round, IResponseCandidateEnumerator enumerator)
+    {
+        return null;
     }
 
     /// <summary>

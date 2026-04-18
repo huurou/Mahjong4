@@ -1,6 +1,8 @@
 ﻿using Mahjong.Lib.Game.Calls;
+using Mahjong.Lib.Game.Decisions;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
+using Mahjong.Lib.Game.Rounds.Managing;
 using Mahjong.Lib.Game.Tenpai;
 using System.Collections.Immutable;
 
@@ -69,6 +71,19 @@ public record RoundStateDahai : RoundState
         var settledRound = round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, context.ScoreCalculator);
         var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType);
         Transit(context, new RoundStateWin(eventArgs), () => context.Round = settledRound);
+    }
+
+    public override RoundDecisionSpec CreateDecisionSpec(Round round, IResponseCandidateEnumerator enumerator)
+    {
+        var discardedTile = round.RiverArray[round.Turn].Last();
+        var specs = ImmutableList.CreateBuilder<PlayerDecisionSpec>();
+        for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
+        {
+            var playerIndex = new PlayerIndex(i);
+            if (playerIndex == round.Turn) { continue; }
+            specs.Add(new PlayerDecisionSpec(playerIndex, enumerator.EnumerateForDahai(round, playerIndex, discardedTile)));
+        }
+        return new RoundDecisionSpec(RoundDecisionPhase.Dahai, specs.ToImmutable(), round.Turn);
     }
 
     private static ImmutableArray<PlayerIndex> EnumerateTenpaiPlayers(Round round, ITenpaiChecker tenpaiChecker)

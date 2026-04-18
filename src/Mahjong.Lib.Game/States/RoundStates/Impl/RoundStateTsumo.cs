@@ -1,5 +1,7 @@
 ﻿using Mahjong.Lib.Game.Calls;
+using Mahjong.Lib.Game.Decisions;
 using Mahjong.Lib.Game.Rounds;
+using Mahjong.Lib.Game.Rounds.Managing;
 
 namespace Mahjong.Lib.Game.States.RoundStates.Impl;
 
@@ -28,9 +30,15 @@ public record RoundStateTsumo : RoundState
     public override void ResponseKan(RoundStateContext context, RoundEventResponseKan evt)
     {
         base.ResponseKan(context, evt);
+        var kanTiles = evt.CallType switch
+        {
+            CallType.Ankan => context.Round.ResolveAnkanTiles(evt.Tile),
+            CallType.Kakan => context.Round.ResolveKakanTiles(evt.Tile),
+            _ => throw new InvalidOperationException($"槓応答の副露種別は Ankan / Kakan のいずれかである必要があります。実際:{evt.CallType}")
+        };
         Transit(
             context,
-            new RoundStateKan(evt.CallType),
+            new RoundStateKan(evt.CallType, kanTiles),
             () => context.Round = evt.CallType switch
             {
                 CallType.Ankan => context.Round.Ankan(evt.Tile),
@@ -62,5 +70,11 @@ public record RoundStateTsumo : RoundState
         var settledRound = context.Round.SettleRyuukyoku(evt.Type, evt.TenpaiPlayers, []);
         var eventArgs = new RoundEndedByRyuukyokuEventArgs(evt.Type, evt.TenpaiPlayers, []);
         Transit(context, new RoundStateRyuukyoku(eventArgs), () => context.Round = settledRound);
+    }
+
+    public override RoundDecisionSpec CreateDecisionSpec(Round round, IResponseCandidateEnumerator enumerator)
+    {
+        var spec = new PlayerDecisionSpec(round.Turn, enumerator.EnumerateForTsumo(round, round.Turn));
+        return new RoundDecisionSpec(RoundDecisionPhase.Tsumo, [spec], null);
     }
 }

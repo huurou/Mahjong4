@@ -19,7 +19,7 @@ public class RoundDecisionSpec_ConstructorTests
         );
 
         // Act
-        var spec = new RoundDecisionSpec(RoundDecisionPhase.Haipai, playerSpecs);
+        var spec = new RoundDecisionSpec(RoundDecisionPhase.Haipai, playerSpecs, null);
 
         // Assert
         Assert.Equal(RoundDecisionPhase.Haipai, spec.Phase);

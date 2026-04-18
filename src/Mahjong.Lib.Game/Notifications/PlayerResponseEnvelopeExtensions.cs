@@ -58,7 +58,7 @@ public static class PlayerResponseEnvelopeExtensions
     {
         return body switch
         {
-            OkResponseBody => new PassResponse(),
+            OkResponseBody => new OkResponse(),
             CallResponseBody b when b.CallType == CallType.Chi => new ChiResponse([.. b.HandTiles]),
             CallResponseBody b when b.CallType == CallType.Pon => new PonResponse([.. b.HandTiles]),
             CallResponseBody b when b.CallType == CallType.Daiminkan => new DaiminkanResponse([.. b.HandTiles]),
@@ -71,7 +71,7 @@ public static class PlayerResponseEnvelopeExtensions
     {
         return body switch
         {
-            OkResponseBody => new KanPassResponse(),
+            OkResponseBody => new OkResponse(),
             WinResponseBody => new ChankanRonResponse(),
             _ => throw InvalidBody(RoundDecisionPhase.Kan, body),
         };
@@ -103,5 +103,26 @@ public static class PlayerResponseEnvelopeExtensions
     private static ArgumentException InvalidBody(RoundDecisionPhase phase, ResponseBody body)
     {
         return new ArgumentException($"フェーズ {phase} では envelope.Body ({body.GetType().Name}) は許可されていません。", nameof(body));
+    }
+
+    /// <summary>
+    /// Game レベル通知および局内 OK 応答通知 (行動選択を伴わない通知) への Wire ACK を
+    /// C# API 応答型 (OkResponse) に変換する。
+    /// 呼び出し側は対象通知が OK 応答のみ受理する種別であることを保証する責務を持つ
+    /// (Tsumo / Dahai / Kan / KanTsumo などには FromWire(RoundDecisionPhase) を使う)。
+    /// </summary>
+    public static OkResponse FromWireOk(this PlayerResponseEnvelope envelope)
+    {
+        ArgumentNullException.ThrowIfNull(envelope);
+        ArgumentNullException.ThrowIfNull(envelope.Body);
+
+        return envelope.Body switch
+        {
+            OkResponseBody => new OkResponse(),
+            _ => throw new ArgumentException(
+                $"OK 応答通知への Wire ACK は OkResponseBody のみ受理可能です。実際:{envelope.Body.GetType().Name}",
+                nameof(envelope)
+            ),
+        };
     }
 }

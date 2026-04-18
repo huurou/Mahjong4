@@ -77,63 +77,63 @@ public class RoundStateContext(
     }
 
     /// <summary>
-    /// OK応答イベントを発行する
+    /// OK応答イベントを発行する。通常は RoundManager 経由で駆動される
     /// </summary>
-    public async Task ResponseOkAsync()
+    internal async Task ResponseOkAsync()
     {
         await EnqueueEventAsync(new RoundEventResponseOk());
     }
 
     /// <summary>
-    /// 和了応答イベントを発行する
+    /// 和了応答イベントを発行する。通常は RoundManager 経由で駆動される
     /// </summary>
     /// <param name="winnerIndices">和了者 (ダブロン/トリロンなら複数)</param>
     /// <param name="loserIndex">放銃者。ロン/槍槓では打牌者/加槓宣言者、ツモ/嶺上では <paramref name="winnerIndices"/>[0] と同値</param>
     /// <param name="winType">和了種別</param>
-    public async Task ResponseWinAsync(ImmutableArray<PlayerIndex> winnerIndices, PlayerIndex loserIndex, WinType winType)
+    internal async Task ResponseWinAsync(ImmutableArray<PlayerIndex> winnerIndices, PlayerIndex loserIndex, WinType winType)
     {
         await EnqueueEventAsync(new RoundEventResponseWin(winnerIndices, loserIndex, winType));
     }
 
     /// <summary>
-    /// 打牌応答イベントを発行する
+    /// 打牌応答イベントを発行する。通常は RoundManager 経由で駆動される
     /// </summary>
     /// <param name="tile">打牌する牌</param>
     /// <param name="isRiichi">この打牌で立直宣言するか (既定: false)。
     /// 立直宣言は打牌時に保留状態となり、後続の応答 (ロンなし=確定、ロン=不成立) で確定/破棄される</param>
-    public async Task ResponseDahaiAsync(Tile tile, bool isRiichi = false)
+    internal async Task ResponseDahaiAsync(Tile tile, bool isRiichi = false)
     {
         await EnqueueEventAsync(new RoundEventResponseDahai(tile, isRiichi));
     }
 
     /// <summary>
-    /// 槓応答イベントを発行する
+    /// 槓応答イベントを発行する。通常は RoundManager 経由で駆動される
     /// </summary>
     /// <param name="type">Ankan または Kakan</param>
     /// <param name="tile">暗槓: 槓する牌種の牌、加槓: 追加する手牌の牌</param>
-    public async Task ResponseKanAsync(CallType type, Tile tile)
+    internal async Task ResponseKanAsync(CallType type, Tile tile)
     {
         await EnqueueEventAsync(new RoundEventResponseKan(type, tile));
     }
 
     /// <summary>
-    /// 副露応答イベントを発行する
+    /// 副露応答イベントを発行する。通常は RoundManager 経由で駆動される
     /// </summary>
     /// <param name="callerIndex">副露するプレイヤー</param>
     /// <param name="type">Chi / Pon / Daiminkan</param>
     /// <param name="handTiles">callerの手牌から使用する牌 (Chi・Pon: 2枚、Daiminkan: 3枚)</param>
     /// <param name="calledTile">鳴かれる牌 (直前の打牌)</param>
-    public async Task ResponseCallAsync(PlayerIndex callerIndex, CallType type, ImmutableList<Tile> handTiles, Tile calledTile)
+    internal async Task ResponseCallAsync(PlayerIndex callerIndex, CallType type, ImmutableList<Tile> handTiles, Tile calledTile)
     {
         await EnqueueEventAsync(new RoundEventResponseCall(callerIndex, type, handTiles, calledTile));
     }
 
     /// <summary>
-    /// 流局応答イベントを発行する
+    /// 流局応答イベントを発行する。通常は RoundManager 経由で駆動される
     /// </summary>
     /// <param name="type">流局種別</param>
     /// <param name="tenpaiPlayers">テンパイ者 (荒牌平局時のみ意味を持つ、他は空配列可)</param>
-    public async Task ResponseRyuukyokuAsync(RyuukyokuType type, ImmutableArray<PlayerIndex> tenpaiPlayers)
+    internal async Task ResponseRyuukyokuAsync(RyuukyokuType type, ImmutableArray<PlayerIndex> tenpaiPlayers)
     {
         await EnqueueEventAsync(new RoundEventResponseRyuukyoku(type, tenpaiPlayers));
     }

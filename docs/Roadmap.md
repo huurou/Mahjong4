@@ -91,7 +91,7 @@
 - **【高】`ResponseBody` / `ResponseCandidate` の多態シリアライズ設計**: `ResponseBody` と `ResponseCandidate` は abstract 基底で、`PlayerResponseEnvelope.Body` / `PlayerNotification.CandidateList` はこれらの基底型を保持する。現状は object-to-object 変換のラウンドトリップしかテストされていない。JSON 等でシリアライズする際には `System.Text.Json` の `[JsonPolymorphic]` / `[JsonDerivedType]` や独自 converter 等の多態ディスパッチ設計が必須。別プロセス/通信プレイヤー接続時のブロッカーとなるため Phase 5 で対応する
 - **【中】`FakePlayer` responder の async 版追加**: 現状の `FakePlayer` は同期 `Func<TNotification, CancellationToken, TResponse>` 固定のため、Phase 5 の RoundManager で timeout/cancellation シナリオをテストする際に遅延応答・キャンセル待ち・例外発生タイミングの表現力が不足。`Func<TNotification, CancellationToken, Task<TResponse>>` も受けられる async responder を同期デリゲートと並存で追加する
 
-## Phase 5: RoundManager と通信・集約レイヤー
+## Phase 5: RoundManager と通信・集約レイヤー (実装中)
 
 **目的**: プレイヤーとの通知・応答集約を`RoundManager`に集約する。既存の`RoundStateContext.ResponseXxxAsync`を`internal`化する。
 
@@ -107,6 +107,46 @@
 - Gameレベルの通知 — 対局開始 / 局開始 / 局終了 / 対局終了をプレイヤーに通知する仕組みを追加
 - ロギング — `Microsoft.Extensions.Logging.Abstractions` を追加、`ILogger<T>`で警告/エラーを記録
 - **包(責任払い)の記録・精算**: 大三元 / 大四喜 / 四槓子の役満確定副露を振った者を責任者として記録。`Call` 履歴から事後導出もしくは `Round` に責任者フィールドを追加(方針は本フェーズで確定)。槍槓の暗槓対応可否(国士ロン)もここで確定
+
+### Phase 5 実装済み (feature/game-lib-phase5 ブランチ)
+
+- 多態シリアライズ: `ResponseCandidate` / `ResponseBody` / `PlayerResponse` / `AfterXxxResponse` / `RoundNotification` / `GameNotification` / `ResolvedRoundAction` / `ResolvedKanAction` に `[JsonDerivedType]` 付与。ディスクリミネータは `nameof(具象型)` 形式で統一
+- 通知ペイロード分離: `NotificationPayload` 抽象 + 13 派生 (`TsumoNotificationPayload` / `DahaiNotificationPayload` / `WinNotificationPayload` / `RyuukyokuNotificationPayload` / `CallNotificationPayload` / `KanNotificationPayload` / `KanTsumoNotificationPayload` / `DoraRevealNotificationPayload` / `OtherPlayerTsumoNotificationPayload` / `GameStartNotificationPayload` / `RoundStartNotificationPayload` / `RoundEndNotificationPayload` / `GameEndNotificationPayload`) を追加し、`PlayerNotification.Payload` に格納。`RoundNotificationExtensions.ToWire` / `GameNotificationExtensions.ToWire` で Payload 構築
+- `NotificationType` enum を削除 — `PlayerNotification.Payload` の具象型で通知種別を判別できるため冗長
+- `FromWireOk(envelope)` 追加 — 行動選択を伴わない Game レベル / 局内 OK 通知への Wire ACK を `OkResponse` に変換
+- `FakePlayer` に async responder (`OnXxxHandler`) を 14 種追加 (既存の同期 `OnXxx` は維持)。優先順位: Async > Sync > 既定
+- `RoundState.CreateDecisionSpec(round, enumerator)` を基底に追加 (virtual、既定 null)。6 具象状態 (`Haipai` / `Tsumo` / `Dahai` / `Kan` / `KanTsumo` / `AfterKanTsumo`) に実装。`Call` / `Win` / `Ryuukyoku` は null (自動遷移・終端)
+- 中核抽象と実装を追加 (`src/Mahjong.Lib.Game/Rounds/Managing/`):
+  - `IRoundViewProjector` + `RoundViewProjector`
+  - `IResponseCandidateEnumerator` (具象実装は未着手)
+  - `IResponsePriorityPolicy` + `TenhouResponsePriorityPolicy` (ロン > ポン/大明槓 > チー > OK、ダブロン対応、同順位衝突は PlayerIndex 小優先)
+  - `IDefaultResponseFactory` + `DefaultResponseFactory`
+  - `IGameTracer` + `NullGameTracer`
+  - `ResolvedPlayerResponse` (採用応答)
+- `RoundStateContext.ResponseOkAsync` / `ResponseDahaiAsync` / `ResponseCallAsync` / `ResponseKanAsync` / `ResponseWinAsync` / `ResponseRyuukyokuAsync` を `public` → `internal` に変更
+- 打牌/加槓フェーズのスルーは `OkResponse` に統一。`Player.OnDahaiAsync` / `OnKanAsync` の戻り値型は `Task<PlayerResponse>` (スルー時は `OkResponse`、アクション時は `AfterDahaiResponse` / `AfterKanResponse` 派生)。`AfterDahaiResponse` / `AfterKanResponse` は**アクション応答のみ**の階層。`docs/Design.md` にも明記
+
+### Phase 5 残作業
+
+- **【高】`IResponseCandidateEnumerator` の具象実装**: 合法応答候補の列挙ロジック。`ResponseCandidateEnumerator` を新規作成し、Tsumo/Dahai/Kan/KanTsumo/AfterKanTsumo 各フェーズで合法候補を `ITenpaiChecker` を利用して列挙する。暗槓からの槍槓 (国士ロン) は `GameRules.AllowAnkanChankanForKokushi` 参照
+- **【高】`RoundManager` 本体実装**: `src/Mahjong.Lib.Game/Rounds/Managing/RoundManager.cs` を新規作成。1 局ごとに `RoundStateContext` をホストし、`RoundStateChanged` を `Channel<RoundState>` で受けてメインループ駆動。各 state から `CreateDecisionSpec` を取得→全プレイヤーへ通知送信 (`Task.WhenAll` + タイムアウト) → 応答集約 → `priorityPolicy.Resolve` → `_context.ResponseXxxAsync` にディスパッチ。終端 (`RoundStateWin` / `RoundStateRyuukyoku`) では `RoundEnded` イベントを発火。通知送信時の NotificationId は `Guid.CreateVersion7()`
+- **【高】KanTsumo 1 通知化の 2 段階ディスパッチ**: `AfterKanTsumoResponse` のうち `RinshanTsumoResponse` は `RoundStateKanTsumo` へ直接ディスパッチ、それ以外 3 種 (`KanTsumoDahaiResponse` / `KanTsumoAnkanResponse` / `KanTsumoKakanResponse`) は先に `ResponseOkAsync()` で `RoundStateAfterKanTsumo` に進めてからディスパッチ。RoundManager 内の `DispatchKanTsumoResponseAsync` に閉じ込める
+- **【中】`ResolvedWinAction.LoserIndex` 境界変換**: `RoundEndedByWinEventArgs` では `WinType` がツモ/嶺上でも `LoserIndex = self` が入る。`ResolvedWinAction` に組み直す際に ツモ/嶺上で `self → null` に正規化する (RoundManager の受信側で)。現状 Phase 5 では `RoundEndedEventArgs` のまま RoundEnded を発火する設計で回避している。`ResolvedRoundAction` への正規化は Step 11 (GameManager 統合) で行う
+- **【高】包 (責任払い) の記録と精算**: 新規 `src/Mahjong.Lib.Game/Players/PlayerResponsibilityArray.cs` (和了者 → 責任者の map) と `src/Mahjong.Lib.Game/Rounds/PaoDetector.cs` (大三元 / 大四喜 / 四槓子 判定) を追加。`Round` に `PaoResponsibleArray` フィールド追加、`Round.Pon` / `Round.Daiminkan` / `Round.Kakan` で役満確定副露を判定して記録。`Round.SettleWin` で包を参照し、ツモ時は責任者が全額負担、ロン時は放銃者と責任者で折半 (天鳳ルール)
+- **【中】槍槓の暗槓対応 (国士ロン)**: `GameRules.AllowAnkanChankanForKokushi` を追加 (既定 `true`)。`RoundStateKan.cs` の暗槓分岐で国士テンパイ時のみ `ChankanRonResponse` を受理 (`IScoreCalculator` 側で国士無双以外の役を制限)
+- **【高】GameManager 統合**: `GameManager` のコンストラクタに `IRoundViewProjector` / `IResponseCandidateEnumerator` / `IResponsePriorityPolicy` / `IDefaultResponseFactory` / `IGameTracer?` / `ILoggerFactory?` / `TimeSpan? defaultTimeout` を追加。`GameStateContext.StartRound` で `RoundStateContext` 直接生成 → `RoundManager` 生成・`StartAsync` に置き換え。`RoundManager.RoundEnded` を購読して `GameEventRoundEndedBy*` に変換
+- **【中】Game レベル通知の送信経路**: `GameStateInit.Entry` で `GameStartNotification` を全員へ送信 → ACK 収集、`GameStateRoundRunning.Entry` で `RoundStartNotification` → ACK 収集 → RoundManager 起動、局終了ハンドラで `RoundEndNotification` → ACK 収集、`GameStateEnd.Entry` で `GameEndNotification` → ACK 収集。`FromWireOk` で受信
+- **【中】Microsoft.Extensions.Logging.Abstractions 依存追加**: `Mahjong.Lib.Game.csproj` に追加、`ILogger<RoundManager>` / `ILogger<GameManager>` で警告・エラーを記録
+- **【高】テスト追加**: `tests/Mahjong.Lib.Game.Tests/Rounds/Managing/` に RoundManager 統合テスト (ダブロン / 見逃し / タイムアウト / 優先順位衝突 / KanTsumo 2 段階 / 嶺上和了 / 槍槓) / `Wire/JsonRoundTripTests.cs` (全 Wire DTO ラウンドトリップ) / `Games/GameManager_IntegrationTests.cs` (4 人 FakePlayer 対局) / `PaoDetectorTests` / `RoundStateKan_ResponseWin_AnkanTests` (暗槓チャンカン)
+- **【中】既存テストの整合**: `GameManager_*Tests` の新コンストラクタ引数対応、テストヘルパに既定実装注入ヘルパ追加
+
+### Phase 5 タイムアウト既定値
+
+| 層 | 既定 |
+|---|---|
+| `RoundManager.defaultTimeout` | 10 秒 |
+| `RoundStateContext.DisposeTimeout` | 5 秒 (既存維持) |
+| `GameStateContext.DisposeTimeout` | 5 秒 (既存維持) |
 
 ## Phase 6: AI実装と自動対局
 

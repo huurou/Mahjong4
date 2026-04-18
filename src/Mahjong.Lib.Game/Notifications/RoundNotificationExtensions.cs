@@ -1,4 +1,5 @@
 ﻿using Mahjong.Lib.Game.Candidates;
+using Mahjong.Lib.Game.Notifications.Payloads;
 using Mahjong.Lib.Game.Players;
 
 namespace Mahjong.Lib.Game.Notifications;
@@ -10,11 +11,12 @@ public static class RoundNotificationExtensions
 {
     /// <summary>
     /// 局内通知を Wire DTO に変換する
-    /// RoundNotification は View を持ち 行動選択系通知は CandidateList も持つ
+    /// 通知種別固有ペイロードは NotificationPayload 派生型として Payload に格納される
+    /// OK 応答のみ許容する通知は CandidateList に OkCandidate を 1 件含める
     /// </summary>
     public static PlayerNotification ToWire(
         this RoundNotification notification,
-        Guid notificationId,
+        NotificationId notificationId,
         int roundRevision,
         PlayerIndex recipientIndex,
         TimeSpan timeout
@@ -22,28 +24,29 @@ public static class RoundNotificationExtensions
     {
         ArgumentNullException.ThrowIfNull(notification);
 
-        var (type, candidates) = notification switch
+        CandidateList okOnly = [new OkCandidate()];
+        var (candidates, payload) = notification switch
         {
-            HaipaiNotification => (NotificationType.Haipai, new CandidateList()),
-            TsumoNotification n => (NotificationType.Tsumo, n.CandidateList),
-            OtherPlayerTsumoNotification => (NotificationType.OtherPlayerTsumo, new CandidateList()),
-            DahaiNotification n => (NotificationType.Dahai, n.CandidateList),
-            CallNotification => (NotificationType.Call, new CandidateList()),
-            KanNotification n => (NotificationType.Kan, n.CandidateList),
-            KanTsumoNotification n => (NotificationType.KanTsumo, n.CandidateList),
-            DoraRevealNotification => (NotificationType.DoraReveal, new CandidateList()),
-            WinNotification => (NotificationType.Win, new CandidateList()),
-            RyuukyokuNotification => (NotificationType.Ryuukyoku, new CandidateList()),
+            HaipaiNotification => (okOnly, (NotificationPayload)new HaipaiNotificationPayload()),
+            TsumoNotification n => (n.CandidateList, new TsumoNotificationPayload(n.TsumoTile)),
+            OtherPlayerTsumoNotification n => (okOnly, new OtherPlayerTsumoNotificationPayload(n.TsumoPlayerIndex)),
+            DahaiNotification n => (n.CandidateList, new DahaiNotificationPayload(n.DiscardedTile, n.DiscarderIndex)),
+            CallNotification n => (okOnly, new CallNotificationPayload(n.MadeCall, n.CallerIndex)),
+            KanNotification n => (n.CandidateList, new KanNotificationPayload(n.KanCall, n.KanCallerIndex)),
+            KanTsumoNotification n => (n.CandidateList, new KanTsumoNotificationPayload(n.DrawnTile)),
+            DoraRevealNotification n => (okOnly, new DoraRevealNotificationPayload(n.NewDoraIndicator)),
+            WinNotification n => (okOnly, new WinNotificationPayload(n.WinResult)),
+            RyuukyokuNotification n => (okOnly, new RyuukyokuNotificationPayload(n.RyuukyokuResult)),
             _ => throw new ArgumentException($"未対応の RoundNotification です。実際:{notification.GetType().Name}", nameof(notification)),
         };
         return new PlayerNotification(
             notificationId,
-            type,
             roundRevision,
             recipientIndex,
             notification.View,
             candidates,
-            timeout
+            timeout,
+            payload
         );
     }
 }

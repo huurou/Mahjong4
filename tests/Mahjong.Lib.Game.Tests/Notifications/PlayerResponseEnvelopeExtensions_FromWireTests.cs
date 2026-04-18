@@ -13,7 +13,7 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
 {
     private const int ROUND_REVISION = 0;
 
-    private static Guid NotificationId { get; } = Guid.NewGuid();
+    private static NotificationId NotificationId { get; } = NotificationId.NewId();
     private static PlayerIndex PlayerIndex { get; } = new(0);
 
     [Fact]
@@ -66,10 +66,10 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
     }
 
     [Fact]
-    public void Dahai_OkResponseBody_PassResponseに変換される()
+    public void Dahai_OkResponseBody_OkResponseに変換される()
     {
         var response = FromWire(new OkResponseBody(), RoundDecisionPhase.Dahai);
-        Assert.IsType<PassResponse>(response);
+        Assert.IsType<OkResponse>(response);
     }
 
     [Fact]
@@ -107,10 +107,10 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
     }
 
     [Fact]
-    public void Kan_OkResponseBody_KanPassResponseに変換される()
+    public void Kan_OkResponseBody_OkResponseに変換される()
     {
         var response = FromWire(new OkResponseBody(), RoundDecisionPhase.Kan);
-        Assert.IsType<KanPassResponse>(response);
+        Assert.IsType<OkResponse>(response);
     }
 
     [Fact]

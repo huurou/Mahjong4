@@ -392,19 +392,13 @@ public record Round(
             throw new InvalidOperationException("槓できません。嶺上牌の残数もしくはツモ山の残数がありません。");
         }
 
-        var kind = tile.Kind;
-        var tiles = HandArray[Turn].Where(x => x.Kind == kind).Take(4).ToImmutableList();
-        if (tiles.Count != 4)
-        {
-            throw new InvalidOperationException($"指定牌種の4枚が手牌に揃っていません。kind:{kind} count:{tiles.Count}");
-        }
-
+        var tiles = ResolveAnkanTiles(tile);
         var handArray = HandArray;
         foreach (var t in tiles)
         {
             handArray = handArray.RemoveTile(Turn, t);
         }
-        var call = new Call(CallType.Ankan, tiles, Turn, null);
+        var call = new Call(CallType.Ankan, [.. tiles], Turn, null);
         var callListArray = CallListArray.AddCall(Turn, call);
         var statusArray = ClearFirstTurnAndIppatsuForAll(PlayerRoundStatusArray);
         return this with
@@ -414,6 +408,22 @@ public record Round(
             CallListArray = callListArray,
             PlayerRoundStatusArray = statusArray,
         };
+    }
+
+    /// <summary>
+    /// 暗槓で手牌から引き抜かれる4枚を解決します (槓実行前の状態を参照)。
+    /// CreateDecisionSpec で国士無双暗槓チャンカン候補を判定する際など、実行前に槓子4枚を知る必要がある場面で使用します。
+    /// </summary>
+    /// <param name="tile">暗槓する牌種の牌 (同種4枚が手牌に揃っている必要があります)</param>
+    internal ImmutableArray<Tile> ResolveAnkanTiles(Tile tile)
+    {
+        var kind = tile.Kind;
+        var tiles = HandArray[Turn].Where(x => x.Kind == kind).Take(4).ToImmutableArray();
+        if (tiles.Length != 4)
+        {
+            throw new InvalidOperationException($"指定牌種の4枚が手牌に揃っていません。kind:{kind} count:{tiles.Length}");
+        }
+        return tiles;
     }
 
     /// <summary>
@@ -428,17 +438,11 @@ public record Round(
             throw new InvalidOperationException("槓できません。嶺上牌の残数もしくはツモ山の残数がありません。");
         }
 
-        if (!HandArray[Turn].Contains(addedTile))
-        {
-            throw new InvalidOperationException($"指定牌が手牌にありません。tile:{addedTile}");
-        }
-
-        var kind = addedTile.Kind;
-        var existingPon = CallListArray[Turn].FirstOrDefault(x => x.Type == CallType.Pon && x.Tiles[0].Kind == kind)
-            ?? throw new InvalidOperationException($"加槓対象のポンがありません。kind:{kind}");
+        var tiles = ResolveKakanTiles(addedTile);
+        var existingPon = CallListArray[Turn].First(x => x.Type == CallType.Pon && x.Tiles[0].Kind == addedTile.Kind);
 
         var handArray = HandArray.RemoveTile(Turn, addedTile);
-        var kakan = new Call(CallType.Kakan, existingPon.Tiles.Add(addedTile), existingPon.From, existingPon.CalledTile);
+        var kakan = new Call(CallType.Kakan, [.. tiles], existingPon.From, existingPon.CalledTile);
         var callListArray = CallListArray.ReplaceCall(Turn, existingPon, kakan);
         var statusArray = ClearFirstTurnAndIppatsuForAll(PlayerRoundStatusArray);
         return this with
@@ -448,6 +452,23 @@ public record Round(
             PendingDoraReveal = true,
             PlayerRoundStatusArray = statusArray,
         };
+    }
+
+    /// <summary>
+    /// 加槓後の槓子4枚 (元ポン 3枚 + 追加牌 1枚) を解決します (槓実行前の状態を参照)。
+    /// CreateDecisionSpec で槍槓候補を判定する際に使用します。
+    /// </summary>
+    /// <param name="addedTile">加槓で追加する手牌の牌</param>
+    internal ImmutableArray<Tile> ResolveKakanTiles(Tile addedTile)
+    {
+        if (!HandArray[Turn].Contains(addedTile))
+        {
+            throw new InvalidOperationException($"指定牌が手牌にありません。tile:{addedTile}");
+        }
+        var kind = addedTile.Kind;
+        var existingPon = CallListArray[Turn].FirstOrDefault(x => x.Type == CallType.Pon && x.Tiles[0].Kind == kind)
+            ?? throw new InvalidOperationException($"加槓対象のポンがありません。kind:{kind}");
+        return [.. existingPon.Tiles, addedTile];
     }
 
     /// <summary>
