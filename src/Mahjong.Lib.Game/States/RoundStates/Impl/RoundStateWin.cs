@@ -1,6 +1,5 @@
 ﻿using Mahjong.Lib.Game.Candidates;
 using Mahjong.Lib.Game.Inquiries;
-using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Rounds.Managing;
@@ -31,6 +30,6 @@ public record RoundStateWin(RoundEndedByWinEventArgs EventArgs) : RoundState
         {
             specs.Add(new PlayerInquirySpec(new PlayerIndex(i), [new OkCandidate()]));
         }
-        return new RoundInquirySpec(RoundInquiryPhase.Win, specs.ToImmutable(), null);
+        return new RoundInquirySpec(RoundInquiryPhase.Win, specs.ToImmutable(), [], round.Turn);
     }
 }

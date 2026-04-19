@@ -68,24 +68,35 @@ public abstract record RoundState
     public abstract RoundInquirySpec CreateInquirySpec(Round round, IResponseCandidateEnumerator enumerator);
 
     /// <summary>
-    /// 指定された状態に遷移します
+    /// 指定された状態に遷移します (Round の更新なし)
     /// </summary>
     /// <param name="context">状態遷移コンテキスト</param>
     /// <param name="nextState">遷移先状態</param>
-    /// <param name="action">遷移時アクション</param>
-    protected static void Transit(RoundStateContext context, RoundState nextState, Action? action = null)
+    protected static void Transit(RoundStateContext context, RoundState nextState)
     {
-        context.Transit(nextState, action);
+        context.Transit(nextState);
     }
 
     /// <summary>
-    /// 遷移時アクション実行後に遷移先状態を生成して遷移します
+    /// Round を <paramref name="updateRound"/> で更新してから指定された状態へ遷移します。
+    /// イミュータブル集約 <see cref="Round"/> の外部書き換えを防ぐため、状態遷移時の Round 更新はこの経路のみで行う
     /// </summary>
     /// <param name="context">状態遷移コンテキスト</param>
-    /// <param name="nextStateFactory">action 実行後に評価される遷移先状態ファクトリ</param>
-    /// <param name="action">遷移時アクション</param>
-    protected static void Transit(RoundStateContext context, Func<RoundState> nextStateFactory, Action? action = null)
+    /// <param name="nextState">遷移先状態</param>
+    /// <param name="updateRound">遷移時 Round 更新関数 (現 Round を受け取り新 Round を返す)</param>
+    protected static void Transit(RoundStateContext context, RoundState nextState, Func<Round, Round> updateRound)
     {
-        context.Transit(nextStateFactory, action);
+        context.Transit(nextState, updateRound);
+    }
+
+    /// <summary>
+    /// Round を <paramref name="updateRound"/> で更新後に遷移先状態を生成して遷移します
+    /// </summary>
+    /// <param name="context">状態遷移コンテキスト</param>
+    /// <param name="nextStateFactory">更新後に評価される遷移先状態ファクトリ</param>
+    /// <param name="updateRound">遷移時 Round 更新関数</param>
+    protected static void Transit(RoundStateContext context, Func<RoundState> nextStateFactory, Func<Round, Round> updateRound)
+    {
+        context.Transit(nextStateFactory, updateRound);
     }
 }

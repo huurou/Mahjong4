@@ -30,7 +30,7 @@ public record RoundStateCall : RoundState
         base.ResponseOk(context, evt);
         if (IsDaiminkan(context))
         {
-            Transit(context, new RoundStateKanTsumo(), () => context.Round = context.Round.RinshanTsumo());
+            Transit(context, new RoundStateKanTsumo(), round => round.RinshanTsumo());
         }
         else
         {
@@ -45,7 +45,7 @@ public record RoundStateCall : RoundState
         {
             specs.Add(new PlayerInquirySpec(new PlayerIndex(i), [new OkCandidate()]));
         }
-        return new RoundInquirySpec(RoundInquiryPhase.Call, specs.ToImmutable(), null);
+        return new RoundInquirySpec(RoundInquiryPhase.Call, specs.ToImmutable(), [], round.Turn);
     }
 
     private static bool IsDaiminkan(RoundStateContext context)

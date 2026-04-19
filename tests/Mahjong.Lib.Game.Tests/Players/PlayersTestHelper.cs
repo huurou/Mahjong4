@@ -77,6 +77,11 @@ internal static class PlayersTestHelper
         {
             throw new NotImplementedException();
         }
+
+        public override Task<OkResponse> OnOtherPlayerKanTsumoAsync(OtherPlayerKanTsumoNotification notification, CancellationToken ct = default)
+        {
+            return Task.FromResult(new OkResponse());
+        }
     }
 
     internal static TestPlayer CreateTestPlayer(int index)

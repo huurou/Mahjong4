@@ -54,7 +54,16 @@ public class RoundStateContext(
     public Round Round
     {
         get => field ?? throw new InvalidOperationException("Init() が呼び出されていません。");
-        internal set;
+        private set;
+    }
+
+    /// <summary>
+    /// テスト用の Round 直接注入フック。本番コードからは使用せず、<see cref="Transit(RoundState, Func{Round, Round})"/> 経由で Round を更新すること。
+    /// 単体テストで「特殊な CallList 構成を持つ Round を事前に仕込みたい」ようなケースで <see cref="InternalsVisibleTo"/> 経由でのみ利用する
+    /// </summary>
+    internal void InjectRoundForTest(Round round)
+    {
+        Round = round;
     }
 
     protected virtual TimeSpan DisposeTimeout => TimeSpan.FromSeconds(5);
@@ -82,6 +91,23 @@ public class RoundStateContext(
     internal async Task ResponseOkAsync()
     {
         await EnqueueEventAsync(new RoundEventResponseOk());
+    }
+
+    /// <summary>
+    /// 状態遷移を伴わない <see cref="Round"/> の局所更新として、同巡フリテンを指定プレイヤーに適用する。
+    /// RoundManager が応答集約後・Ok/Call ディスパッチ前に呼び出す想定。
+    /// <para>
+    /// 本メソッドは <see cref="Transit(RoundState, Func{Round, Round})"/> を介さない明示的な例外経路。
+    /// 状態遷移を伴わないが <see cref="Round"/> を更新する必要がある局所修正 (同巡フリテン) のみで使用し、
+    /// その他の <see cref="Round"/> 更新は必ず Transit 経由で行う。
+    /// イベントキュー (<c>Channel&lt;RoundEvent&gt;</c>) は介さず同期的に <see cref="Round"/> を更新する
+    /// </para>
+    /// </summary>
+    internal void ApplyTemporaryFuriten(ImmutableArray<PlayerIndex> playerIndices)
+    {
+        if (playerIndices.IsDefaultOrEmpty) { return; }
+
+        Round = Round.ApplyTemporaryFuriten(playerIndices);
     }
 
     /// <summary>
@@ -123,7 +149,12 @@ public class RoundStateContext(
     /// <param name="type">Chi / Pon / Daiminkan</param>
     /// <param name="handTiles">callerの手牌から使用する牌 (Chi・Pon: 2枚、Daiminkan: 3枚)</param>
     /// <param name="calledTile">鳴かれる牌 (直前の打牌)</param>
-    internal async Task ResponseCallAsync(PlayerIndex callerIndex, CallType type, ImmutableList<Tile> handTiles, Tile calledTile)
+    internal async Task ResponseCallAsync(
+        PlayerIndex callerIndex,
+        CallType type,
+        ImmutableList<Tile> handTiles,
+        Tile calledTile
+    )
     {
         await EnqueueEventAsync(new RoundEventResponseCall(callerIndex, type, handTiles, calledTile));
     }
@@ -139,29 +170,46 @@ public class RoundStateContext(
     }
 
     /// <summary>
-    /// 指定された状態に遷移します。
+    /// 指定された状態に遷移します (Round の更新なし)。
     /// </summary>
     /// <param name="nextState">遷移先状態</param>
-    /// <param name="action">遷移時アクション</param>
-    internal void Transit(RoundState nextState, Action? action = null)
+    internal void Transit(RoundState nextState)
     {
         State.Exit(this);
-        action?.Invoke();
         State = nextState;
         State.Entry(this);
     }
 
     /// <summary>
-    /// 遷移時アクション実行後に遷移先状態を生成して遷移します。
-    /// アクションで更新した <see cref="Round"/> を遷移先状態のプロパティへ封入したい場合に使用します
-    /// (例: 副露直後の <see cref="Round"/> を <see cref="Impl.RoundStateCall.SnapshotRound"/> に入れる)。
+    /// Round を <paramref name="updateRound"/> で更新してから指定された状態へ遷移します。
+    /// 状態遷移を伴う Round 更新は本経路で行う。
+    /// <para>
+    /// <see cref="Round"/> は <c>private setter</c> を介して本クラス内部だけで差し替えられる。
+    /// 状態遷移を伴わない局所更新 (同巡フリテン等) は
+    /// <see cref="ApplyTemporaryFuriten(ImmutableArray{PlayerIndex})"/> が例外的に同期直接更新する
+    /// </para>
     /// </summary>
-    /// <param name="nextStateFactory">action 実行後に評価される遷移先状態ファクトリ</param>
-    /// <param name="action">遷移時アクション</param>
-    internal void Transit(Func<RoundState> nextStateFactory, Action? action = null)
+    /// <param name="nextState">遷移先状態</param>
+    /// <param name="updateRound">遷移時 Round 更新関数 (現 Round を受け取り新 Round を返す)</param>
+    internal void Transit(RoundState nextState, Func<Round, Round> updateRound)
     {
         State.Exit(this);
-        action?.Invoke();
+        Round = updateRound(Round);
+        State = nextState;
+        State.Entry(this);
+    }
+
+    /// <summary>
+    /// Round を <paramref name="updateRound"/> で更新後に遷移先状態を生成して遷移します。
+    /// 更新後の <see cref="Round"/> を遷移先状態のプロパティへ封入したい場合に使用します
+    /// (例: 副露直後の <see cref="Round"/> を <see cref="Impl.RoundStateCall.SnapshotRound"/> に入れる)。
+    /// </summary>
+    /// <param name="nextStateFactory">更新後に評価される遷移先状態ファクトリ</param>
+    /// <param name="updateRound">遷移時 Round 更新関数</param>
+    internal void Transit(Func<RoundState> nextStateFactory, Func<Round, Round> updateRound)
+    {
+        State.Exit(this);
+        Round = updateRound(Round);
         State = nextStateFactory();
         State.Entry(this);
     }

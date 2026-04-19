@@ -1,6 +1,6 @@
 ﻿using Mahjong.Lib.Game.Calls;
+using Mahjong.Lib.Game.Candidates;
 using Mahjong.Lib.Game.Inquiries;
-using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Rounds.Managing;
@@ -25,7 +25,7 @@ public record RoundStateKan(CallType KanType, ImmutableArray<Tile> KanTiles) : R
     public override void ResponseOk(RoundStateContext context, RoundEventResponseOk evt)
     {
         base.ResponseOk(context, evt);
-        Transit(context, new RoundStateKanTsumo(), () => context.Round = context.Round.RinshanTsumo());
+        Transit(context, new RoundStateKanTsumo(), round => round.RinshanTsumo());
     }
 
     public override void ResponseWin(RoundStateContext context, RoundEventResponseWin evt)
@@ -39,9 +39,12 @@ public record RoundStateKan(CallType KanType, ImmutableArray<Tile> KanTiles) : R
         // 放銃者は現手番 (= 槓宣言者)。
         // 暗槓チャンカンは国士無双のみ成立可能。役判定は ScoreCalculator に委譲する。
         var loserIndex = context.Round.Turn;
-        var settledRound = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, context.ScoreCalculator, out var details);
+        // Chankan の和了牌 = 槓で追加された牌 (加槓: addedTile / 暗槓: 国士対応時の槓子末尾)。
+        // 副露リスト末尾ではなく KanTiles 末尾を参照するため、過去の加槓/ポン等と混同しない
+        var winTile = KanTiles[^1];
+        var (settledRound, details) = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, winTile, context.ScoreCalculator);
         var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType, details.Winners, details.Honba, details.KyoutakuRiichiAward);
-        Transit(context, new RoundStateWin(eventArgs), () => context.Round = settledRound);
+        Transit(context, new RoundStateWin(eventArgs), _ => settledRound);
     }
 
     public override RoundInquirySpec CreateInquirySpec(Round round, IResponseCandidateEnumerator enumerator)
@@ -52,13 +55,20 @@ public record RoundStateKan(CallType KanType, ImmutableArray<Tile> KanTiles) : R
         }
 
         var specs = ImmutableList.CreateBuilder<PlayerInquirySpec>();
+        var inquiredBuilder = ImmutableArray.CreateBuilder<PlayerIndex>();
         for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
         {
             var playerIndex = new PlayerIndex(i);
-            if (playerIndex == round.Turn) { continue; }
-
-            specs.Add(new PlayerInquirySpec(playerIndex, enumerator.EnumerateForKan(round, playerIndex, KanTiles, KanType)));
+            if (playerIndex == round.Turn)
+            {
+                specs.Add(new PlayerInquirySpec(playerIndex, new CandidateList([new OkCandidate()])));
+            }
+            else
+            {
+                specs.Add(new PlayerInquirySpec(playerIndex, enumerator.EnumerateForKan(round, playerIndex, KanTiles, KanType)));
+                inquiredBuilder.Add(playerIndex);
+            }
         }
-        return new RoundInquirySpec(RoundInquiryPhase.Kan, specs.ToImmutable(), round.Turn);
+        return new RoundInquirySpec(RoundInquiryPhase.Kan, specs.ToImmutable(), inquiredBuilder.ToImmutable(), round.Turn);
     }
 }

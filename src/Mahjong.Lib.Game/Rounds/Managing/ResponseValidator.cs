@@ -21,9 +21,6 @@ internal static class ResponseValidator
     /// </summary>
     public static bool IsResponseInCandidates(PlayerResponse response, CandidateList candidates)
     {
-        ArgumentNullException.ThrowIfNull(response);
-        ArgumentNullException.ThrowIfNull(candidates);
-
         return response switch
         {
             OkResponse => candidates.HasCandidate<OkCandidate>(),

@@ -17,9 +17,6 @@ public static class PlayerResponseEnvelopeExtensions
     /// </summary>
     public static PlayerResponse FromWire(this PlayerResponseEnvelope envelope, RoundInquiryPhase phase)
     {
-        ArgumentNullException.ThrowIfNull(envelope);
-        ArgumentNullException.ThrowIfNull(envelope.Body);
-
         var body = envelope.Body;
         return phase switch
         {
@@ -114,9 +111,6 @@ public static class PlayerResponseEnvelopeExtensions
     /// </summary>
     public static OkResponse FromWireOk(this PlayerResponseEnvelope envelope)
     {
-        ArgumentNullException.ThrowIfNull(envelope);
-        ArgumentNullException.ThrowIfNull(envelope.Body);
-
         return envelope.Body switch
         {
             OkResponseBody => new OkResponse(),

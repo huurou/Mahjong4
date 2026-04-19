@@ -20,8 +20,6 @@ public static class PlayerResponseExtensions
     /// </summary>
     public static ResponseBody ToBody(this PlayerResponse response)
     {
-        ArgumentNullException.ThrowIfNull(response);
-
         return response switch
         {
             OkResponse => new OkResponseBody(),

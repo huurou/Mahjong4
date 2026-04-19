@@ -77,11 +77,27 @@ internal static class GamesTestHelper
     }
 
     /// <summary>
+    /// Phase 5 RoundManager 経路用の通知ビルダーの既定実装を返す
+    /// </summary>
+    internal static IRoundNotificationBuilder CreateNotificationBuilder()
+    {
+        return new RoundNotificationBuilder();
+    }
+
+    /// <summary>
+    /// Phase 5 RoundManager 経路用の応答ディスパッチャの既定実装を返す
+    /// </summary>
+    internal static IResponseDispatcher CreateDispatcher()
+    {
+        return new ResponseDispatcher();
+    }
+
+    /// <summary>
     /// Phase 5 RoundManager 経路用の no-op トレーサーを返す
     /// </summary>
     internal static IGameTracer CreateTracer()
     {
-        return new NullGameTracer();
+        return NullGameTracer.Instance;
     }
 
     /// <summary>
@@ -107,6 +123,35 @@ internal static class GamesTestHelper
             CreateEnumerator(rules),
             CreatePriorityPolicy(),
             CreateDefaultFactory(),
+            CreateNotificationBuilder(),
+            CreateDispatcher(),
+            CreateTracer(),
+            CreateLoggerFactory()
+        );
+    }
+
+    /// <summary>
+    /// 既定のサービス群で <see cref="Mahjong.Lib.Game.States.GameStates.GameStateContext"/> を生成する
+    /// </summary>
+    internal static Mahjong.Lib.Game.States.GameStates.GameStateContext CreateContext(
+        IWallGenerator? wallGenerator = null,
+        IScoreCalculator? scoreCalculator = null,
+        ITenpaiChecker? tenpaiChecker = null,
+        PlayerList? playerList = null,
+        GameRules? rules = null
+    )
+    {
+        return new Mahjong.Lib.Game.States.GameStates.GameStateContext(
+            wallGenerator ?? CreateWallGenerator(),
+            scoreCalculator ?? CreateNoOpScoreCalculator(),
+            tenpaiChecker ?? CreateNoOpTenpaiChecker(),
+            playerList ?? CreatePlayerList(),
+            CreateProjector(),
+            CreateEnumerator(rules),
+            CreatePriorityPolicy(),
+            CreateDefaultFactory(),
+            CreateNotificationBuilder(),
+            CreateDispatcher(),
             CreateTracer(),
             CreateLoggerFactory()
         );

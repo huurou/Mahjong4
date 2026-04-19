@@ -7,33 +7,23 @@ namespace Mahjong.Lib.Game.Players;
 /// プレイヤー
 /// 対局/局の各通知を受け取り応答を返す抽象基底
 /// </summary>
-public abstract class Player
+public abstract class Player(PlayerId playerId, string displayName, PlayerIndex playerIndex)
 {
-    protected Player(PlayerId playerId, string displayName, PlayerIndex playerIndex)
-    {
-        ArgumentNullException.ThrowIfNull(playerId);
-        ArgumentNullException.ThrowIfNull(displayName);
-        ArgumentNullException.ThrowIfNull(playerIndex);
-
-        PlayerId = playerId;
-        DisplayName = displayName;
-        PlayerIndex = playerIndex;
-    }
 
     /// <summary>
     /// プレイヤー識別子
     /// </summary>
-    public PlayerId PlayerId { get; }
+    public PlayerId PlayerId { get; } = playerId;
 
     /// <summary>
     /// 表示名
     /// </summary>
-    public string DisplayName { get; }
+    public string DisplayName { get; } = displayName;
 
     /// <summary>
     /// 席順 (0 = 起家)。PlayerList 内の位置と一致する
     /// </summary>
-    public PlayerIndex PlayerIndex { get; }
+    public PlayerIndex PlayerIndex { get; } = playerIndex;
 
     /// <summary>
     /// 対局開始通知 (各プレイヤー個別)
@@ -106,4 +96,9 @@ public abstract class Player
     /// 嶺上ツモ通知 (手番プレイヤー) 嶺上開花ツモ和了/打牌/暗槓/加槓のいずれかを応答
     /// </summary>
     public abstract Task<AfterKanTsumoResponse> OnKanTsumoAsync(KanTsumoNotification notification, CancellationToken ct = default);
+
+    /// <summary>
+    /// 他家嶺上ツモ通知 (非手番プレイヤー用)
+    /// </summary>
+    public abstract Task<OkResponse> OnOtherPlayerKanTsumoAsync(OtherPlayerKanTsumoNotification notification, CancellationToken ct = default);
 }

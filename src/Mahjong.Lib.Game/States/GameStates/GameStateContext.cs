@@ -17,25 +17,22 @@ namespace Mahjong.Lib.Game.States.GameStates;
 
 /// <summary>
 /// 対局状態遷移コンテキスト
+/// 通知・応答集約経路で動作する (<see cref="StartRound"/> で <see cref="RoundManager"/> を生成する)
 /// </summary>
-/// <remarks>
-/// 通知・応答集約経路を有効化するコンストラクタ
-/// players / projector / enumerator / priorityPolicy / defaultFactory を揃えると
-/// <see cref="StartRound"/> で RoundManager を生成し、通知・応答集約経路で動作する。
-/// いずれかが null の場合は RoundStateContext 直接駆動経路にフォールバックする
-/// </remarks>
 public class GameStateContext(
     IWallGenerator wallGenerator,
     IScoreCalculator scoreCalculator,
     ITenpaiChecker tenpaiChecker,
-    PlayerList? players,
-    IRoundViewProjector? projector,
-    IResponseCandidateEnumerator? enumerator,
-    IResponsePriorityPolicy? priorityPolicy,
-    IDefaultResponseFactory? defaultFactory,
-    IGameTracer? tracer = null,
-    ILoggerFactory? loggerFactory = null
-    ) : IDisposable
+    PlayerList players,
+    IRoundViewProjector projector,
+    IResponseCandidateEnumerator enumerator,
+    IResponsePriorityPolicy priorityPolicy,
+    IDefaultResponseFactory defaultFactory,
+    IRoundNotificationBuilder notificationBuilder,
+    IResponseDispatcher dispatcher,
+    IGameTracer tracer,
+    ILoggerFactory loggerFactory
+) : IDisposable
 {
     public event EventHandler<GameStateChangedEventArgs>? GameStateChanged;
 
@@ -43,8 +40,6 @@ public class GameStateContext(
     private readonly Channel<GameEvent> eventChannel_ = Channel.CreateBounded<GameEvent>(new BoundedChannelOptions(100) { SingleReader = true });
     private readonly CancellationTokenSource cancellationTokenSource_ = new();
     private Task? eventProcessingTask_;
-    private readonly IGameTracer tracer_ = tracer ?? new NullGameTracer();
-    private readonly ILoggerFactory loggerFactory_ = loggerFactory ?? NullLoggerFactory.Instance;
 
     public GameState State
     {
@@ -80,7 +75,6 @@ public class GameStateContext(
 
     /// <summary>
     /// 現在進行中の局の RoundManager (通知・応答集約経路)
-    /// players / projector / enumerator / priorityPolicy / defaultFactory がすべて与えられた場合に生成される
     /// </summary>
     public RoundManager? RoundManager { get; private set; }
 
@@ -92,40 +86,8 @@ public class GameStateContext(
     protected virtual TimeSpan NotificationTimeout => TimeSpan.FromSeconds(10);
 
     /// <summary>
-    /// RoundManager 経路 (通知・応答集約) が有効かどうか
-    /// </summary>
-    internal bool IsRoundManagerAvailable =>
-        players is not null
-        && projector is not null
-        && enumerator is not null
-        && priorityPolicy is not null
-        && defaultFactory is not null;
-
-    /// <summary>
-    /// RoundStateContext 直接駆動経路のみで動作するコンストラクタ (通知・応答集約は行わない)
-    /// </summary>
-    public GameStateContext(
-        IWallGenerator wallGenerator,
-        IScoreCalculator scoreCalculator,
-        ITenpaiChecker tenpaiChecker
-    ) : this(
-        wallGenerator,
-        scoreCalculator,
-        tenpaiChecker,
-        players: null,
-        projector: null,
-        enumerator: null,
-        priorityPolicy: null,
-        defaultFactory: null,
-        tracer: null,
-        loggerFactory: null
-    )
-    {
-    }
-
-    /// <summary>
     /// 指定された対局で状態遷移を開始します
-    /// 対局開始通知 → 局開始通知 → StartRound までを await で完了させる (通知・応答集約経路が有効な場合)
+    /// 対局開始通知 → 局開始通知 → StartRound までを await で完了させる
     /// </summary>
     public async Task InitAsync(Games.Game game, CancellationToken ct = default)
     {
@@ -141,8 +103,6 @@ public class GameStateContext(
         eventProcessingTask_ = Task.Run(ProcessEventAsync, ct);
 
         await State.EntryAsync(this, ct);
-
-        if (!IsRoundManagerAvailable) { return; }
 
         await BroadcastGameNotificationAsync(
             x => new GameStartNotification(Game.PlayerList, Game.Rules, x),
@@ -177,41 +137,30 @@ public class GameStateContext(
     }
 
     /// <summary>
-    /// 新しい RoundStateContext (および RoundManager 経路が有効なら RoundManager) を生成し 指定の Round で初期化します。
-    /// RoundManager 経路が有効なときは RoundManager が RoundStateContext をホストし、通知・応答集約を担う。
-    /// そうでないとき (旧コンストラクタ経由) は RoundStateContext を直接駆動する。
-    /// いずれの経路でも <see cref="RoundStateContext"/> プロパティが現行の RoundStateContext を返すため
-    /// <see cref="GameStateRoundRunning"/> などが <c>RoundStateContext.Round</c> を参照できる
+    /// 新しい <see cref="RoundManager"/> を生成し指定の Round で初期化します。
+    /// RoundManager が内部で <see cref="RoundStateContext"/> を生成・保持し、通知・応答集約を担う
     /// </summary>
     internal void StartRound(Round round)
     {
         ObjectDisposedException.ThrowIf(disposed_, this);
 
-        if (IsRoundManagerAvailable)
-        {
-            var manager = new RoundManager(
-                players!,
-                projector!,
-                enumerator!,
-                priorityPolicy!,
-                defaultFactory!,
-                TenpaiChecker,
-                ScoreCalculator,
-                tracer_,
-                loggerFactory_.CreateLogger<RoundManager>()
-            );
-            manager.RoundEnded += OnRoundEnded;
-            _ = manager.StartAsync(round);
-            RoundManager = manager;
-            RoundStateContext = manager.InternalContext;
-            return;
-        }
-
-        var roundStateContext = new RoundStateContext(TenpaiChecker, ScoreCalculator);
-        roundStateContext.RoundEnded += OnRoundEnded;
-        roundStateContext.Init(round);
-
-        RoundStateContext = roundStateContext;
+        var manager = new RoundManager(
+            players,
+            projector,
+            enumerator,
+            priorityPolicy,
+            defaultFactory,
+            notificationBuilder,
+            dispatcher,
+            TenpaiChecker,
+            ScoreCalculator,
+            tracer,
+            loggerFactory.CreateLogger<RoundManager>()
+        );
+        manager.RoundEnded += OnRoundEnded;
+        _ = manager.StartAsync(round);
+        RoundManager = manager;
+        RoundStateContext = manager.InternalContext;
     }
 
     /// <summary>
@@ -278,8 +227,6 @@ public class GameStateContext(
         CancellationToken ct = default
     )
     {
-        if (!IsRoundManagerAvailable) { return; }
-
         var tasks = Enumerable.Range(0, PlayerIndex.PLAYER_COUNT)
             .Select(i => new PlayerIndex(i))
             .Select(x => InvokeGameNotificationAsync(notificationFactory(x), x, ct))
@@ -289,7 +236,7 @@ public class GameStateContext(
 
     private async Task InvokeGameNotificationAsync(GameNotification notification, PlayerIndex recipientIndex, CancellationToken ct)
     {
-        var player = players![recipientIndex];
+        var player = players[recipientIndex];
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         linkedCts.CancelAfter(NotificationTimeout);
         // L1: プレイヤーメソッド呼び出しで発生しうる同期例外も try 内で受け止める
@@ -307,7 +254,7 @@ public class GameStateContext(
         }
         catch (OperationCanceledException)
         {
-            loggerFactory_.CreateLogger<GameStateContext>().LogWarning(
+            loggerFactory.CreateLogger<GameStateContext>().LogWarning(
                 "GameNotification ACK タイムアウト player:{Index} notification:{Notification}",
                 recipientIndex.Value,
                 notification.GetType().Name
@@ -315,7 +262,7 @@ public class GameStateContext(
         }
         catch (Exception ex)
         {
-            loggerFactory_.CreateLogger<GameStateContext>().LogWarning(
+            loggerFactory.CreateLogger<GameStateContext>().LogWarning(
                 ex,
                 "GameNotification ACK 例外 player:{Index} notification:{Notification}",
                 recipientIndex.Value,

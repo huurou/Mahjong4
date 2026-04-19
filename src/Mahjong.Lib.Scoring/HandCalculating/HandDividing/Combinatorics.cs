@@ -11,7 +11,6 @@ public static class Combinatorics
     /// <returns>長さ k の順列のコレクション</returns>
     public static IEnumerable<IEnumerable<T>> Permutations<T>(IEnumerable<T> source, int k) where T : notnull
     {
-        ArgumentNullException.ThrowIfNull(source);
         // ベースケース: k == 0 → 空の順列を 1 つ返す
         if (k == 0)
         {
@@ -45,7 +44,6 @@ public static class Combinatorics
     /// <returns>長さ k の組み合わせのコレクション</returns>
     public static IEnumerable<IEnumerable<T>> Combinations<T>(IEnumerable<T> source, int k) where T : notnull
     {
-        ArgumentNullException.ThrowIfNull(source);
         // ベースケース: k == 0 → 空の組み合わせを 1 つ返す
         if (k == 0)
         {

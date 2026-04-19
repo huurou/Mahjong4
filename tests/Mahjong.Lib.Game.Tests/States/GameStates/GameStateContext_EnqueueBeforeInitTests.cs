@@ -5,7 +5,7 @@ namespace Mahjong.Lib.Game.Tests.States.GameStates;
 
 public class GameStateContext_EnqueueBeforeInitTests : IDisposable
 {
-    private readonly GameStateContext context_ = new(GamesTestHelper.CreateWallGenerator(), GamesTestHelper.CreateNoOpScoreCalculator(), GamesTestHelper.CreateNoOpTenpaiChecker());
+    private readonly GameStateContext context_ = GamesTestHelper.CreateContext();
 
     public void Dispose()
     {

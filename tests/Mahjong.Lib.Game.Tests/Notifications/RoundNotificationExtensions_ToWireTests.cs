@@ -27,7 +27,7 @@ public class RoundNotificationExtensions_ToWireTests
     {
         // Arrange
         var view = CreateView();
-        var notification = new HaipaiNotification(view);
+        var notification = new HaipaiNotification(view, []);
 
         // Act
         var wire = notification.ToWire(NotificationId, ROUND_REVISION, RecipientIndex, Timeout);
@@ -45,7 +45,7 @@ public class RoundNotificationExtensions_ToWireTests
         var view = CreateView();
         var tsumoTile = new Tile(0);
         var candidates = new CandidateList([new TsumoAgariCandidate()]);
-        var notification = new TsumoNotification(view, tsumoTile, candidates);
+        var notification = new TsumoNotification(view, tsumoTile, candidates, []);
 
         // Act
         var wire = notification.ToWire(NotificationId, ROUND_REVISION, RecipientIndex, Timeout);
@@ -63,7 +63,7 @@ public class RoundNotificationExtensions_ToWireTests
         // Arrange
         var view = CreateView();
         var tsumoPlayerIndex = new PlayerIndex(1);
-        var notification = new OtherPlayerTsumoNotification(view, tsumoPlayerIndex);
+        var notification = new OtherPlayerTsumoNotification(view, tsumoPlayerIndex, []);
 
         // Act
         var wire = notification.ToWire(NotificationId, ROUND_REVISION, RecipientIndex, Timeout);
@@ -83,7 +83,7 @@ public class RoundNotificationExtensions_ToWireTests
         var discardedTile = new Tile(4);
         var discarderIndex = new PlayerIndex(1);
         var candidates = new CandidateList([new OkCandidate(), new RonCandidate()]);
-        var notification = new DahaiNotification(view, discardedTile, discarderIndex, candidates);
+        var notification = new DahaiNotification(view, discardedTile, discarderIndex, candidates, []);
 
         // Act
         var wire = notification.ToWire(NotificationId, ROUND_REVISION, RecipientIndex, Timeout);
@@ -102,7 +102,7 @@ public class RoundNotificationExtensions_ToWireTests
         var view = CreateView();
         var call = new Call(CallType.Pon, [new Tile(0), new Tile(1), new Tile(2)], new PlayerIndex(0), new Tile(2));
         var callerIndex = new PlayerIndex(0);
-        var notification = new CallNotification(view, call, callerIndex);
+        var notification = new CallNotification(view, call, callerIndex, []);
 
         // Act
         var wire = notification.ToWire(NotificationId, ROUND_REVISION, RecipientIndex, Timeout);
@@ -122,7 +122,7 @@ public class RoundNotificationExtensions_ToWireTests
         var call = new Call(CallType.Kakan, [new Tile(0), new Tile(1), new Tile(2), new Tile(3)], new PlayerIndex(0), new Tile(3));
         var callerIndex = new PlayerIndex(0);
         var candidates = new CandidateList([new OkCandidate()]);
-        var notification = new KanNotification(view, call, callerIndex, candidates);
+        var notification = new KanNotification(view, call, callerIndex, candidates, []);
 
         // Act
         var wire = notification.ToWire(NotificationId, ROUND_REVISION, RecipientIndex, Timeout);
@@ -141,7 +141,7 @@ public class RoundNotificationExtensions_ToWireTests
         var view = CreateView();
         var drawnTile = new Tile(0);
         var candidates = new CandidateList([new TsumoAgariCandidate()]);
-        var notification = new KanTsumoNotification(view, drawnTile, candidates);
+        var notification = new KanTsumoNotification(view, drawnTile, candidates, []);
 
         // Act
         var wire = notification.ToWire(NotificationId, ROUND_REVISION, RecipientIndex, Timeout);
@@ -158,7 +158,7 @@ public class RoundNotificationExtensions_ToWireTests
         // Arrange
         var view = CreateView();
         var indicator = new Tile(0);
-        var notification = new DoraRevealNotification(view, indicator);
+        var notification = new DoraRevealNotification(view, indicator, []);
 
         // Act
         var wire = notification.ToWire(NotificationId, ROUND_REVISION, RecipientIndex, Timeout);
@@ -175,7 +175,7 @@ public class RoundNotificationExtensions_ToWireTests
         // Arrange
         var view = CreateView();
         var winResult = CreateAdoptedWinAction();
-        var notification = new WinNotification(view, winResult);
+        var notification = new WinNotification(view, winResult, []);
 
         // Act
         var wire = notification.ToWire(NotificationId, ROUND_REVISION, RecipientIndex, Timeout);
@@ -192,7 +192,7 @@ public class RoundNotificationExtensions_ToWireTests
         // Arrange
         var view = CreateView();
         var ryuukyokuResult = CreateAdoptedRyuukyokuAction();
-        var notification = new RyuukyokuNotification(view, ryuukyokuResult);
+        var notification = new RyuukyokuNotification(view, ryuukyokuResult, []);
 
         // Act
         var wire = notification.ToWire(NotificationId, ROUND_REVISION, RecipientIndex, Timeout);
@@ -201,17 +201,6 @@ public class RoundNotificationExtensions_ToWireTests
         var payload = Assert.IsType<RyuukyokuNotificationPayload>(wire.Payload);
         Assert.Equal(ryuukyokuResult, payload.RyuukyokuResult);
         Assert.Contains(new OkCandidate(), wire.CandidateList);
-    }
-
-    [Fact]
-    public void Notificationがnull_ArgumentNullExceptionが発生する()
-    {
-        // Act
-        RoundNotification notification = null!;
-        var ex = Record.Exception(() => notification.ToWire(NotificationId, ROUND_REVISION, RecipientIndex, Timeout));
-
-        // Assert
-        Assert.IsType<ArgumentNullException>(ex);
     }
 
     private static PlayerRoundView CreateView()
@@ -244,9 +233,9 @@ public class RoundNotificationExtensions_ToWireTests
         var winner = new AdoptedWinner(new PlayerIndex(0), new Tile(0), scoreResult);
         return new AdoptedWinAction(
             [winner],
-            null,
+            new PlayerIndex(0),
             WinType.Tsumo,
-            null,
+            new KyoutakuRiichiAward(new PlayerIndex(0), 0),
             new Honba(0),
             false
         );

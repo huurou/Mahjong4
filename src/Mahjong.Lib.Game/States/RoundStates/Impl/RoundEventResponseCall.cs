@@ -33,7 +33,12 @@ public record RoundEventResponseCall : RoundEvent
     public override string Name => "副露応答";
 
     // イベント層で同期的に不正を弾くため、Call.Validate を先行実行する。Round.ExecuteOpenCall 内での再検証と重複するが意図的
-    public RoundEventResponseCall(PlayerIndex caller, CallType callType, ImmutableList<Tile> handTiles, Tile calledTile)
+    public RoundEventResponseCall(
+        PlayerIndex caller,
+        CallType callType,
+        ImmutableList<Tile> handTiles,
+        Tile calledTile
+    )
     {
         if (callType is not CallType.Chi and not CallType.Pon and not CallType.Daiminkan)
         {
@@ -44,7 +49,6 @@ public record RoundEventResponseCall : RoundEvent
         }
 
         var expectedHandCount = callType switch
-
         {
             CallType.Chi or CallType.Pon => 2,
             CallType.Daiminkan => 3,

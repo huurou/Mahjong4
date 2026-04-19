@@ -23,6 +23,7 @@ public class PlayerNotification_ConstructorTests
             null,
             candidates,
             TimeSpan.FromSeconds(30),
+            [new PlayerIndex(0)],
             payload
         );
 
@@ -33,28 +34,8 @@ public class PlayerNotification_ConstructorTests
         Assert.Null(notification.View);
         Assert.Single(notification.CandidateList);
         Assert.Equal(TimeSpan.FromSeconds(30), notification.Timeout);
+        Assert.Equal(new PlayerIndex(0), Assert.Single(notification.InquiredPlayerIndices));
         Assert.Same(payload, notification.Payload);
     }
 
-    [Fact]
-    public void Payloadがnull_ArgumentNullExceptionが発生する()
-    {
-        // Arrange
-        var id = NotificationId.NewId();
-        CandidateList candidates = [new OkCandidate()];
-
-        // Act
-        var ex = Record.Exception(() => new PlayerNotification(
-            id,
-            1,
-            new PlayerIndex(0),
-            null,
-            candidates,
-            TimeSpan.FromSeconds(30),
-            null!
-        ));
-
-        // Assert
-        Assert.IsType<ArgumentNullException>(ex);
-    }
 }

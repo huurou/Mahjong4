@@ -22,7 +22,7 @@ public class FakePlayer_OnXxxTests
         var player = FakePlayer.Create(0);
         var tile = new Tile(0);
         var candidates = new CandidateList([new DahaiCandidate(new DahaiOptionList([new DahaiOption(tile, false)]))]);
-        var notification = new TsumoNotification(CreateView(), tile, candidates);
+        var notification = new TsumoNotification(CreateView(), tile, candidates, []);
 
         // Act
         var response = await player.OnTsumoAsync(notification, TestContext.Current.CancellationToken);
@@ -42,7 +42,7 @@ public class FakePlayer_OnXxxTests
             OnTsumo = (_, _) => expected,
         };
         var tile = new Tile(0);
-        var notification = new TsumoNotification(CreateView(), tile, new CandidateList([new TsumoAgariCandidate()]));
+        var notification = new TsumoNotification(CreateView(), tile, new CandidateList([new TsumoAgariCandidate()]), []);
 
         // Act
         var response = await player.OnTsumoAsync(notification, TestContext.Current.CancellationToken);
@@ -55,7 +55,7 @@ public class FakePlayer_OnXxxTests
     public async Task OnDahai_Responder未設定_OkResponseを返す()
     {
         var player = FakePlayer.Create(0);
-        var response = await player.OnDahaiAsync(new DahaiNotification(CreateView(), new Tile(0), new PlayerIndex(1), new CandidateList([new OkCandidate()])), TestContext.Current.CancellationToken);
+        var response = await player.OnDahaiAsync(new DahaiNotification(CreateView(), new Tile(0), new PlayerIndex(1), new CandidateList([new OkCandidate()]), []), TestContext.Current.CancellationToken);
         Assert.IsType<OkResponse>(response);
     }
 
@@ -68,7 +68,7 @@ public class FakePlayer_OnXxxTests
         {
             OnDahai = (_, _) => new PonResponse(tiles),
         };
-        var notification = new DahaiNotification(CreateView(), new Tile(0), new PlayerIndex(1), new CandidateList([new OkCandidate()]));
+        var notification = new DahaiNotification(CreateView(), new Tile(0), new PlayerIndex(1), new CandidateList([new OkCandidate()]), [new PlayerIndex(0)]);
 
         // Act
         var response = await player.OnDahaiAsync(notification, TestContext.Current.CancellationToken);
@@ -83,7 +83,7 @@ public class FakePlayer_OnXxxTests
     {
         var player = FakePlayer.Create(0);
         var call = new Call(CallType.Kakan, [new Tile(0), new Tile(1), new Tile(2), new Tile(3)], new PlayerIndex(0), new Tile(3));
-        var response = await player.OnKanAsync(new KanNotification(CreateView(), call, new PlayerIndex(0), new CandidateList([new OkCandidate()])), TestContext.Current.CancellationToken);
+        var response = await player.OnKanAsync(new KanNotification(CreateView(), call, new PlayerIndex(0), new CandidateList([new OkCandidate()]), []), TestContext.Current.CancellationToken);
         Assert.IsType<OkResponse>(response);
     }
 
@@ -94,7 +94,7 @@ public class FakePlayer_OnXxxTests
         var tile = new Tile(10);
         var candidates = new CandidateList([new DahaiCandidate(new DahaiOptionList([new DahaiOption(tile, false)]))]);
         var player = FakePlayer.Create(0);
-        var notification = new KanTsumoNotification(CreateView(), tile, candidates);
+        var notification = new KanTsumoNotification(CreateView(), tile, candidates, []);
 
         // Act
         var response = await player.OnKanTsumoAsync(notification, TestContext.Current.CancellationToken);
@@ -117,7 +117,7 @@ public class FakePlayer_OnXxxTests
     public async Task OnHaipai_既定_OkResponseを返す()
     {
         var player = FakePlayer.Create(0);
-        var response = await player.OnHaipaiAsync(new HaipaiNotification(CreateView()), TestContext.Current.CancellationToken);
+        var response = await player.OnHaipaiAsync(new HaipaiNotification(CreateView(), []), TestContext.Current.CancellationToken);
         Assert.IsType<OkResponse>(response);
     }
 
@@ -126,7 +126,7 @@ public class FakePlayer_OnXxxTests
     {
         // Arrange
         var player = FakePlayer.Create(0);
-        var haipai = new HaipaiNotification(CreateView());
+        var haipai = new HaipaiNotification(CreateView(), []);
         var roundStart = new RoundStartNotification(RoundWind.East, new RoundNumber(0), new Honba(0), new PlayerIndex(0));
 
         // Act
@@ -149,7 +149,7 @@ public class FakePlayer_OnXxxTests
         {
             OnTsumo = (_, ct) => { receivedCt = ct; return new TsumoAgariResponse(); },
         };
-        var notification = new TsumoNotification(CreateView(), new Tile(0), new CandidateList([new TsumoAgariCandidate()]));
+        var notification = new TsumoNotification(CreateView(), new Tile(0), new CandidateList([new TsumoAgariCandidate()]), []);
 
         // Act
         await player.OnTsumoAsync(notification, cts.Token);

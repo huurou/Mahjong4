@@ -43,7 +43,7 @@ public class AdoptedWinAction_ConstructorTests
     }
 
     [Fact]
-    public void ツモ和了_LoserIndexがnull()
+    public void ツモ和了_LoserIndexに和了者自身を保持する()
     {
         // Arrange
         var winner = new AdoptedWinner(
@@ -55,16 +55,16 @@ public class AdoptedWinAction_ConstructorTests
         // Act
         var action = new AdoptedWinAction(
             [winner],
-            null,
+            new PlayerIndex(0),
             WinType.Tsumo,
-            null,
+            new KyoutakuRiichiAward(new PlayerIndex(0), 0),
             new Honba(0),
             true
         );
 
         // Assert
-        Assert.Null(action.LoserIndex);
-        Assert.Null(action.KyoutakuRiichiAward);
+        Assert.Equal(new PlayerIndex(0), action.LoserIndex);
+        Assert.Equal(0, action.KyoutakuRiichiAward.Count);
         Assert.Equal(WinType.Tsumo, action.WinType);
         Assert.True(action.DealerContinues);
     }
@@ -106,9 +106,9 @@ public class AdoptedWinAction_ConstructorTests
         // Act
         AdoptedRoundAction action = new AdoptedWinAction(
             [winner],
-            null,
+            new PlayerIndex(0),
             WinType.Tsumo,
-            null,
+            new KyoutakuRiichiAward(new PlayerIndex(0), 0),
             new Honba(0),
             true
         );
@@ -125,55 +125,7 @@ public class AdoptedWinAction_ConstructorTests
             [],
             new PlayerIndex(0),
             WinType.Ron,
-            null,
-            new Honba(0),
-            false
-        ));
-
-        // Assert
-        Assert.IsType<ArgumentException>(ex);
-    }
-
-    [Fact]
-    public void ロン和了でLoserIndexがnull_例外が発生する()
-    {
-        // Arrange
-        var winner = new AdoptedWinner(
-            new PlayerIndex(1),
-            new Tile(0),
-            new ScoreResult(1, 30, new PointArray(new Point(0)), [])
-        );
-
-        // Act
-        var ex = Record.Exception(() => new AdoptedWinAction(
-            [winner],
-            null,
-            WinType.Ron,
-            null,
-            new Honba(0),
-            false
-        ));
-
-        // Assert
-        Assert.IsType<ArgumentException>(ex);
-    }
-
-    [Fact]
-    public void 槍槓和了でLoserIndexがnull_例外が発生する()
-    {
-        // Arrange
-        var winner = new AdoptedWinner(
-            new PlayerIndex(1),
-            new Tile(0),
-            new ScoreResult(1, 30, new PointArray(new Point(0)), [])
-        );
-
-        // Act
-        var ex = Record.Exception(() => new AdoptedWinAction(
-            [winner],
-            null,
-            WinType.Chankan,
-            null,
+            new KyoutakuRiichiAward(new PlayerIndex(0), 0),
             new Honba(0),
             false
         ));
@@ -197,7 +149,7 @@ public class AdoptedWinAction_ConstructorTests
             [winner],
             new PlayerIndex(0),
             WinType.Chankan,
-            null,
+            new KyoutakuRiichiAward(new PlayerIndex(1), 0),
             new Honba(0),
             false
         );
@@ -208,7 +160,32 @@ public class AdoptedWinAction_ConstructorTests
     }
 
     [Fact]
-    public void ツモ和了でLoserIndexが指定されている_例外が発生する()
+    public void 嶺上和了_LoserIndexに和了者自身を保持する()
+    {
+        // Arrange
+        var winner = new AdoptedWinner(
+            new PlayerIndex(0),
+            new Tile(0),
+            new ScoreResult(1, 30, new PointArray(new Point(0)), [])
+        );
+
+        // Act
+        var action = new AdoptedWinAction(
+            [winner],
+            new PlayerIndex(0),
+            WinType.Rinshan,
+            new KyoutakuRiichiAward(new PlayerIndex(0), 0),
+            new Honba(0),
+            true
+        );
+
+        // Assert
+        Assert.Equal(new PlayerIndex(0), action.LoserIndex);
+        Assert.Equal(WinType.Rinshan, action.WinType);
+    }
+
+    [Fact]
+    public void ツモ和了でLoserIndexが和了者以外_例外が発生する()
     {
         // Arrange
         var winner = new AdoptedWinner(
@@ -222,9 +199,9 @@ public class AdoptedWinAction_ConstructorTests
             [winner],
             new PlayerIndex(1),
             WinType.Tsumo,
-            null,
+            new KyoutakuRiichiAward(new PlayerIndex(0), 0),
             new Honba(0),
-            true
+            false
         ));
 
         // Assert
@@ -232,7 +209,31 @@ public class AdoptedWinAction_ConstructorTests
     }
 
     [Fact]
-    public void 嶺上和了でLoserIndexが指定されている_例外が発生する()
+    public void 嶺上和了でLoserIndexが和了者以外_例外が発生する()
+    {
+        // Arrange
+        var winner = new AdoptedWinner(
+            new PlayerIndex(2),
+            new Tile(0),
+            new ScoreResult(1, 30, new PointArray(new Point(0)), [])
+        );
+
+        // Act
+        var ex = Record.Exception(() => new AdoptedWinAction(
+            [winner],
+            new PlayerIndex(3),
+            WinType.Rinshan,
+            new KyoutakuRiichiAward(new PlayerIndex(2), 0),
+            new Honba(0),
+            false
+        ));
+
+        // Assert
+        Assert.IsType<ArgumentException>(ex);
+    }
+
+    [Fact]
+    public void ロン和了でLoserIndexが和了者と同じ_例外が発生する()
     {
         // Arrange
         var winner = new AdoptedWinner(
@@ -244,11 +245,35 @@ public class AdoptedWinAction_ConstructorTests
         // Act
         var ex = Record.Exception(() => new AdoptedWinAction(
             [winner],
-            new PlayerIndex(1),
-            WinType.Rinshan,
-            null,
+            new PlayerIndex(0),
+            WinType.Ron,
+            new KyoutakuRiichiAward(new PlayerIndex(0), 0),
             new Honba(0),
-            true
+            false
+        ));
+
+        // Assert
+        Assert.IsType<ArgumentException>(ex);
+    }
+
+    [Fact]
+    public void 槍槓和了でダブロン中に和了者のひとりがLoserIndexと同じ_例外が発生する()
+    {
+        // Arrange
+        var scoreResult = new ScoreResult(2, 30, new PointArray(new Point(0)), []);
+        var winners = ImmutableList.Create(
+            new AdoptedWinner(new PlayerIndex(1), new Tile(0), scoreResult),
+            new AdoptedWinner(new PlayerIndex(2), new Tile(0), scoreResult)
+        );
+
+        // Act
+        var ex = Record.Exception(() => new AdoptedWinAction(
+            winners,
+            new PlayerIndex(1),
+            WinType.Chankan,
+            new KyoutakuRiichiAward(new PlayerIndex(1), 0),
+            new Honba(0),
+            false
         ));
 
         // Assert

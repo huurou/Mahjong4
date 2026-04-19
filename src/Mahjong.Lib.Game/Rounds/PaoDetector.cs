@@ -8,6 +8,10 @@ namespace Mahjong.Lib.Game.Rounds;
 /// 加槓は既存ポンを槓に差し替えるだけで新規牌種を増やさないため、大三元/大四喜のトリガ対象外。
 /// 四槓子は暗槓を除く槓 (Daiminkan/Kakan) によって総槓数が 4 に達した瞬間。
 /// 暗槓由来の役満は包対象外。
+///
+/// <see cref="Round.Pon"/> / <see cref="Round.Daiminkan"/> / <see cref="Round.Kakan"/> 内で副露履歴更新と同じ
+/// <c>with</c> 式で <see cref="Round.PaoResponsibleArray"/> を確定させるため、本検出は Round 内で呼ばれる
+/// (副露履歴と責任者更新の atomicity を優先し、RoundState / RoundManager 側には切り出していない)
 /// </summary>
 public static class PaoDetector
 {
@@ -19,10 +23,11 @@ public static class PaoDetector
 
     /// <summary>
     /// 指定の副露追加が包役満の確定トリガになるかを判定します。
+    /// 戻り値が <see cref="PaoYakuman.None"/> 以外 (<see cref="PaoYakumanExtensions.IsPao"/> で判定可) なら包成立。
+    /// 責任者の特定は呼び出し側の責務 (Pon/Daiminkan なら鳴かれた <c>fromIndex</c>、Kakan なら元ポンの <c>From</c>)
     /// </summary>
     /// <param name="callListAfter">副露追加後の CallList</param>
     /// <param name="justAddedCall">今追加された副露</param>
-    /// <returns>包対象となる役満種別。該当なしの場合 <see cref="PaoYakuman.None"/></returns>
     public static PaoYakuman Detect(CallList callListAfter, Call justAddedCall)
     {
         if (justAddedCall.Type == CallType.Ankan)

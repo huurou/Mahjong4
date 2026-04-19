@@ -9,9 +9,9 @@ namespace Mahjong.Lib.Game.Rounds;
 /// </summary>
 /// <param name="Winners">和了者毎の詳細 (Index / 和了牌 / 役情報を含む ScoreResult)</param>
 /// <param name="Honba">精算前の本場 (本場加算対象の集計表示に使用)</param>
-/// <param name="KyoutakuRiichiAward">供託立直棒の受取情報 (供託がない場合は null)</param>
+/// <param name="KyoutakuRiichiAward">供託立直棒の受取情報 (供託がない場合は <see cref="KyoutakuRiichiAward.Count"/> = 0)</param>
 public record WinSettlementDetails(
     ImmutableArray<AdoptedWinner> Winners,
     Honba Honba,
-    KyoutakuRiichiAward? KyoutakuRiichiAward
+    KyoutakuRiichiAward KyoutakuRiichiAward
 );

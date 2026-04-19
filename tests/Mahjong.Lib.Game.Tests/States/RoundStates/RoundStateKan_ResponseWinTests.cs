@@ -47,14 +47,14 @@ public class RoundStateKan_ResponseWinTests : IDisposable
         var dealer = context_.Round.Turn;
         var pon1 = new Call(CallType.Pon, [new Tile(0), new Tile(1), new Tile(3)], new PlayerIndex(1), new Tile(3));
         var pon2 = new Call(CallType.Pon, [new Tile(4), new Tile(5), new Tile(7)], new PlayerIndex(1), new Tile(7));
-        context_.Round = context_.Round with
+        context_.InjectRoundForTest(context_.Round with
         {
             HandArray = context_.Round.HandArray
                 .AddTile(dealer, new Tile(2)),
             CallListArray = context_.Round.CallListArray
                 .AddCall(dealer, pon1)
                 .AddCall(dealer, pon2),
-        };
+        });
 
         // Kakan on first pon (kind 0) — replaces at index 0, not the end
         await context_.ResponseKanAsync(CallType.Kakan, new Tile(2));
@@ -78,10 +78,10 @@ public class RoundStateKan_ResponseWinTests : IDisposable
 
         var dealer = context_.Round.Turn;
         var pastKakan = new Call(CallType.Kakan, [new Tile(0), new Tile(1), new Tile(2), new Tile(3)], dealer, new Tile(0));
-        context_.Round = context_.Round with
+        context_.InjectRoundForTest(context_.Round with
         {
             CallListArray = context_.Round.CallListArray.AddCall(dealer, pastKakan),
-        };
+        });
 
         await context_.ResponseKanAsync(CallType.Ankan, RoundStateContextTestHelper.PickAnkanTile(context_));
         await RoundStateContextTestHelper.WaitForStateAsync<RoundStateKan>(context_);

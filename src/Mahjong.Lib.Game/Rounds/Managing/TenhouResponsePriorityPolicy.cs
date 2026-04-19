@@ -20,12 +20,10 @@ public sealed class TenhouResponsePriorityPolicy : IResponsePriorityPolicy
         ImmutableArray<AdoptedPlayerResponse> responses
     )
     {
-        ArgumentNullException.ThrowIfNull(spec);
-
         return spec.Phase switch
         {
-            RoundInquiryPhase.Dahai => ResolveDahai(responses, RequireLoserIndex(spec)),
-            RoundInquiryPhase.Kan => ResolveKan(responses, RequireLoserIndex(spec)),
+            RoundInquiryPhase.Dahai => ResolveDahai(responses, spec.LoserIndex),
+            RoundInquiryPhase.Kan => ResolveKan(responses, spec.LoserIndex),
             // Haipai: 全員 OK / Tsumo / KanTsumo / AfterKanTsumo: 単一プレイヤー応答なので優先順位解決不要
             _ => responses,
         };
@@ -97,12 +95,4 @@ public sealed class TenhouResponsePriorityPolicy : IResponsePriorityPolicy
         return (responder.Value - loser.Value + PlayerIndex.PLAYER_COUNT) % PlayerIndex.PLAYER_COUNT;
     }
 
-    private static PlayerIndex RequireLoserIndex(RoundInquirySpec spec)
-    {
-        return spec.LoserIndex
-            ?? throw new ArgumentException(
-                $"フェーズ {spec.Phase} では RoundInquirySpec.LoserIndex が必須です。",
-                nameof(spec)
-            );
-    }
 }

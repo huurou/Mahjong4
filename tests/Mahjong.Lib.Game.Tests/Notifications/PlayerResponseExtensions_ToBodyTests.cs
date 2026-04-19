@@ -154,14 +154,4 @@ public class PlayerResponseExtensions_ToBodyTests
         Assert.Equal(tile, actual.Tile);
     }
 
-    [Fact]
-    public void Responseがnull_ArgumentNullExceptionが発生する()
-    {
-        // Act
-        PlayerResponse response = null!;
-        var ex = Record.Exception(response.ToBody);
-
-        // Assert
-        Assert.IsType<ArgumentNullException>(ex);
-    }
 }

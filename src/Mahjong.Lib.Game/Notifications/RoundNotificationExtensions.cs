@@ -22,8 +22,6 @@ public static class RoundNotificationExtensions
         TimeSpan timeout
     )
     {
-        ArgumentNullException.ThrowIfNull(notification);
-
         CandidateList okOnly = [new OkCandidate()];
         var (candidates, payload) = notification switch
         {
@@ -34,6 +32,7 @@ public static class RoundNotificationExtensions
             CallNotification n => (okOnly, new CallNotificationPayload(n.MadeCall, n.CallerIndex)),
             KanNotification n => (n.CandidateList, new KanNotificationPayload(n.KanCall, n.KanCallerIndex)),
             KanTsumoNotification n => (n.CandidateList, new KanTsumoNotificationPayload(n.DrawnTile)),
+            OtherPlayerKanTsumoNotification n => (okOnly, new OtherPlayerKanTsumoNotificationPayload(n.KanTsumoPlayerIndex)),
             DoraRevealNotification n => (okOnly, new DoraRevealNotificationPayload(n.NewDoraIndicator)),
             WinNotification n => (okOnly, new WinNotificationPayload(n.WinResult)),
             RyuukyokuNotification n => (okOnly, new RyuukyokuNotificationPayload(n.RyuukyokuResult)),
@@ -46,6 +45,7 @@ public static class RoundNotificationExtensions
             notification.View,
             candidates,
             timeout,
+            notification.InquiredPlayerIndices,
             payload
         );
     }

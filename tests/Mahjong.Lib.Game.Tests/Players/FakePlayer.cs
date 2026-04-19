@@ -30,6 +30,7 @@ internal sealed class FakePlayer(PlayerId playerId, string displayName, PlayerIn
     public Func<DahaiNotification, CancellationToken, PlayerResponse>? OnDahai { get; init; }
     public Func<KanNotification, CancellationToken, PlayerResponse>? OnKan { get; init; }
     public Func<KanTsumoNotification, CancellationToken, AfterKanTsumoResponse>? OnKanTsumo { get; init; }
+    public Func<OtherPlayerKanTsumoNotification, CancellationToken, OkResponse>? OnOtherPlayerKanTsumo { get; init; }
 
     public Func<GameStartNotification, CancellationToken, Task<OkResponse>>? OnGameStartHandler { get; init; }
     public Func<RoundStartNotification, CancellationToken, Task<OkResponse>>? OnRoundStartHandler { get; init; }
@@ -45,6 +46,7 @@ internal sealed class FakePlayer(PlayerId playerId, string displayName, PlayerIn
     public Func<DahaiNotification, CancellationToken, Task<PlayerResponse>>? OnDahaiHandler { get; init; }
     public Func<KanNotification, CancellationToken, Task<PlayerResponse>>? OnKanHandler { get; init; }
     public Func<KanTsumoNotification, CancellationToken, Task<AfterKanTsumoResponse>>? OnKanTsumoHandler { get; init; }
+    public Func<OtherPlayerKanTsumoNotification, CancellationToken, Task<OkResponse>>? OnOtherPlayerKanTsumoHandler { get; init; }
 
     // 受信した通知の記録 (テスト assertion 用)
     public IReadOnlyList<object> ReceivedNotifications
@@ -182,6 +184,11 @@ internal sealed class FakePlayer(PlayerId playerId, string displayName, PlayerIn
     public override Task<PlayerResponse> OnDahaiAsync(DahaiNotification notification, CancellationToken ct = default)
     {
         Record(notification);
+        // 問い合わせ対象外 (= 打牌者本人) は OK のみ許可のため、デリゲートを呼ばず OK を返す
+        if (!notification.InquiredPlayerIndices.Contains(PlayerIndex))
+        {
+            return Task.FromResult<PlayerResponse>(new OkResponse());
+        }
         if (OnDahaiHandler is not null)
         {
             return OnDahaiHandler(notification, ct);
@@ -193,6 +200,11 @@ internal sealed class FakePlayer(PlayerId playerId, string displayName, PlayerIn
     public override Task<PlayerResponse> OnKanAsync(KanNotification notification, CancellationToken ct = default)
     {
         Record(notification);
+        // 問い合わせ対象外 (= 槓宣言者本人) は OK のみ許可のため、デリゲートを呼ばず OK を返す
+        if (!notification.InquiredPlayerIndices.Contains(PlayerIndex))
+        {
+            return Task.FromResult<PlayerResponse>(new OkResponse());
+        }
         if (OnKanHandler is not null)
         {
             return OnKanHandler(notification, ct);
@@ -210,6 +222,17 @@ internal sealed class FakePlayer(PlayerId playerId, string displayName, PlayerIn
         }
 
         return Task.FromResult(OnKanTsumo?.Invoke(notification, ct) ?? DefaultKanTsumoResponse(notification));
+    }
+
+    public override Task<OkResponse> OnOtherPlayerKanTsumoAsync(OtherPlayerKanTsumoNotification notification, CancellationToken ct = default)
+    {
+        Record(notification);
+        if (OnOtherPlayerKanTsumoHandler is not null)
+        {
+            return OnOtherPlayerKanTsumoHandler(notification, ct);
+        }
+
+        return Task.FromResult(OnOtherPlayerKanTsumo?.Invoke(notification, ct) ?? new OkResponse());
     }
 
     private void Record(object notification)

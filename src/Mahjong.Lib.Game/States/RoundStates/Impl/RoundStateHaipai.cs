@@ -18,7 +18,7 @@ public record RoundStateHaipai : RoundState
     public override void ResponseOk(RoundStateContext context, RoundEventResponseOk evt)
     {
         base.ResponseOk(context, evt);
-        Transit(context, new RoundStateTsumo(), () => context.Round = context.Round.Tsumo());
+        Transit(context, new RoundStateTsumo(), round => round.Tsumo());
     }
 
     public override RoundInquirySpec CreateInquirySpec(Round round, IResponseCandidateEnumerator enumerator)
@@ -28,6 +28,6 @@ public record RoundStateHaipai : RoundState
         {
             specs.Add(new PlayerInquirySpec(new PlayerIndex(i), [new OkCandidate()]));
         }
-        return new RoundInquirySpec(RoundInquiryPhase.Haipai, specs.ToImmutable(), null);
+        return new RoundInquirySpec(RoundInquiryPhase.Haipai, specs.ToImmutable(), [], round.Turn);
     }
 }

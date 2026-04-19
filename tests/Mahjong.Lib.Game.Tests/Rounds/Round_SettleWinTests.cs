@@ -1,5 +1,4 @@
-﻿using Mahjong.Lib.Game.Calls;
-using Mahjong.Lib.Game.Games.Scoring;
+﻿using Mahjong.Lib.Game.Games.Scoring;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Tiles;
@@ -10,6 +9,9 @@ namespace Mahjong.Lib.Game.Tests.Rounds;
 
 public class Round_SettleWinTests
 {
+    // 点数移動のみを検証するテスト群で winTile の値にはこだわらないためのダミー牌
+    private static readonly Tile DUMMY_WIN_TILE = new(0);
+
     private static ScoreResult Result(params (int index, int delta)[] deltas)
     {
         var array = new PointArray(new Point(0));
@@ -40,13 +42,13 @@ public class Round_SettleWinTests
         var dealer = new PlayerIndex(0);
 
         // Act
-        var result = round.SettleWin([dealer], dealer, WinType.Tsumo, mock.Object);
+        var (settled, _) = round.SettleWin([dealer], dealer, WinType.Tsumo, DUMMY_WIN_TILE, mock.Object);
 
         // Assert
-        Assert.Equal(25000 + 12000, result.PointArray[dealer].Value);
-        Assert.Equal(25000 - 4000, result.PointArray[new PlayerIndex(1)].Value);
-        Assert.Equal(25000 - 4000, result.PointArray[new PlayerIndex(2)].Value);
-        Assert.Equal(25000 - 4000, result.PointArray[new PlayerIndex(3)].Value);
+        Assert.Equal(25000 + 12000, settled.PointArray[dealer].Value);
+        Assert.Equal(25000 - 4000, settled.PointArray[new PlayerIndex(1)].Value);
+        Assert.Equal(25000 - 4000, settled.PointArray[new PlayerIndex(2)].Value);
+        Assert.Equal(25000 - 4000, settled.PointArray[new PlayerIndex(3)].Value);
     }
 
     [Fact]
@@ -63,7 +65,7 @@ public class Round_SettleWinTests
         var loser = new PlayerIndex(3);
 
         // Act
-        round.SettleWin([winner], loser, WinType.Ron, mock.Object);
+        round.SettleWin([winner], loser, WinType.Ron, DUMMY_WIN_TILE, mock.Object);
 
         // Assert
         Assert.NotNull(captured);
@@ -84,11 +86,11 @@ public class Round_SettleWinTests
         var loser = new PlayerIndex(2);
 
         // Act
-        var result = round.SettleWin([dealer], loser, WinType.Ron, mock.Object);
+        var (settled, _) = round.SettleWin([dealer], loser, WinType.Ron, DUMMY_WIN_TILE, mock.Object);
 
         // Assert
-        Assert.Equal(25000 + 12000 + 300, result.PointArray[dealer].Value);
-        Assert.Equal(25000 - 12000 - 300, result.PointArray[loser].Value);
+        Assert.Equal(25000 + 12000 + 300, settled.PointArray[dealer].Value);
+        Assert.Equal(25000 - 12000 - 300, settled.PointArray[loser].Value);
     }
 
     [Fact]
@@ -102,13 +104,13 @@ public class Round_SettleWinTests
         var dealer = new PlayerIndex(0);
 
         // Act
-        var result = round.SettleWin([dealer], dealer, WinType.Tsumo, mock.Object);
+        var (settled, _) = round.SettleWin([dealer], dealer, WinType.Tsumo, DUMMY_WIN_TILE, mock.Object);
 
         // Assert
-        Assert.Equal(25000 + 12000 + 600, result.PointArray[dealer].Value);
-        Assert.Equal(25000 - 4000 - 200, result.PointArray[new PlayerIndex(1)].Value);
-        Assert.Equal(25000 - 4000 - 200, result.PointArray[new PlayerIndex(2)].Value);
-        Assert.Equal(25000 - 4000 - 200, result.PointArray[new PlayerIndex(3)].Value);
+        Assert.Equal(25000 + 12000 + 600, settled.PointArray[dealer].Value);
+        Assert.Equal(25000 - 4000 - 200, settled.PointArray[new PlayerIndex(1)].Value);
+        Assert.Equal(25000 - 4000 - 200, settled.PointArray[new PlayerIndex(2)].Value);
+        Assert.Equal(25000 - 4000 - 200, settled.PointArray[new PlayerIndex(3)].Value);
     }
 
     [Fact]
@@ -123,11 +125,11 @@ public class Round_SettleWinTests
         var loser = new PlayerIndex(3);
 
         // Act
-        var result = round.SettleWin([winner], loser, WinType.Ron, mock.Object);
+        var (settled, _) = round.SettleWin([winner], loser, WinType.Ron, DUMMY_WIN_TILE, mock.Object);
 
         // Assert
-        Assert.Equal(25000 + 8000 + 1000, result.PointArray[winner].Value);
-        Assert.Equal(0, result.KyoutakuRiichiCount.Value);
+        Assert.Equal(25000 + 8000 + 1000, settled.PointArray[winner].Value);
+        Assert.Equal(0, settled.KyoutakuRiichiCount.Value);
     }
 
     [Fact]
@@ -144,13 +146,13 @@ public class Round_SettleWinTests
         var loser = new PlayerIndex(3);
 
         // Act
-        var result = round.SettleWin(winners, loser, WinType.Ron, mock.Object);
+        var (settled, _) = round.SettleWin(winners, loser, WinType.Ron, DUMMY_WIN_TILE, mock.Object);
 
         // Assert: winners[0] = index 1 が上家取り (供託 2000)
-        Assert.Equal(25000 + 8000 + 2000, result.PointArray[new PlayerIndex(1)].Value);
-        Assert.Equal(25000 + 8000, result.PointArray[new PlayerIndex(2)].Value);
-        Assert.Equal(25000 - 16000, result.PointArray[loser].Value);
-        Assert.Equal(0, result.KyoutakuRiichiCount.Value);
+        Assert.Equal(25000 + 8000 + 2000, settled.PointArray[new PlayerIndex(1)].Value);
+        Assert.Equal(25000 + 8000, settled.PointArray[new PlayerIndex(2)].Value);
+        Assert.Equal(25000 - 16000, settled.PointArray[loser].Value);
+        Assert.Equal(0, settled.KyoutakuRiichiCount.Value);
     }
 
     [Fact]
@@ -167,12 +169,12 @@ public class Round_SettleWinTests
         var loser = new PlayerIndex(3);
 
         // Act
-        var result = round.SettleWin(winners, loser, WinType.Ron, mock.Object);
+        var (settled, _) = round.SettleWin(winners, loser, WinType.Ron, DUMMY_WIN_TILE, mock.Object);
 
         // Assert: 各和了者が 300×1=300 を放銃者から受け取る (計 600 を放銃者が支払い)
-        Assert.Equal(25000 + 8000 + 300, result.PointArray[new PlayerIndex(1)].Value);
-        Assert.Equal(25000 + 8000 + 300, result.PointArray[new PlayerIndex(2)].Value);
-        Assert.Equal(25000 - 16000 - 600, result.PointArray[loser].Value);
+        Assert.Equal(25000 + 8000 + 300, settled.PointArray[new PlayerIndex(1)].Value);
+        Assert.Equal(25000 + 8000 + 300, settled.PointArray[new PlayerIndex(2)].Value);
+        Assert.Equal(25000 - 16000 - 600, settled.PointArray[loser].Value);
     }
 
     [Fact]
@@ -183,7 +185,7 @@ public class Round_SettleWinTests
 
         // Act
         var exception = Record.Exception(() =>
-            round.SettleWin([], new PlayerIndex(0), WinType.Tsumo, RoundTestHelper.NoOpScoreCalculator));
+            round.SettleWin([], new PlayerIndex(0), WinType.Tsumo, DUMMY_WIN_TILE, RoundTestHelper.NoOpScoreCalculator));
 
         // Assert
         Assert.IsType<InvalidOperationException>(exception);
@@ -198,45 +200,28 @@ public class Round_SettleWinTests
 
         // Act
         var exception = Record.Exception(() =>
-            round.SettleWin(duplicate, new PlayerIndex(3), WinType.Ron, RoundTestHelper.NoOpScoreCalculator));
+            round.SettleWin(duplicate, new PlayerIndex(3), WinType.Ron, DUMMY_WIN_TILE, RoundTestHelper.NoOpScoreCalculator));
 
         // Assert
         Assert.IsType<InvalidOperationException>(exception);
     }
 
     [Fact]
-    public void 槍槓_元ポンより後の副露があっても加槓牌が和了牌として解決される()
+    public void WinTileがWinSettlementDetailsに反映される()
     {
-        // Arrange: 放銃者の副露リストを [Kakan(Kind4 = 5m), Pon(Kind27 = 東)] に直接構築する。
-        // 旧実装 (CallList.Last) では Pon(東) の末尾牌を WinTile に入れてしまうため、
-        // Kakan/Ankan のみを対象にフィルタした修正を検証する
+        // Arrange: 呼び出し側で明示的に決定した winTile が details.Winners の WinTile に入ることを検証
         var winner = new PlayerIndex(0);
         var loser = new PlayerIndex(3);
         var mock = new Mock<IScoreCalculator>();
         mock.Setup(x => x.Calculate(It.IsAny<ScoreRequest>()))
             .Returns(Result((0, 8000), (3, -8000)));
         var round = CreateBaseRound();
-
-        var kakanAddedTile = new Tile(19);
-        var kakan = new Call(
-            CallType.Kakan,
-            [new Tile(16), new Tile(17), new Tile(18), kakanAddedTile],
-            new PlayerIndex(0),
-            new Tile(16)
-        );
-        var laterPon = new Call(
-            CallType.Pon,
-            [new Tile(108), new Tile(109), new Tile(110)],
-            new PlayerIndex(2),
-            new Tile(108)
-        );
-        var callListArray = round.CallListArray.AddCall(loser, kakan).AddCall(loser, laterPon);
-        round = round with { CallListArray = callListArray };
+        var chosenWinTile = new Tile(19);
 
         // Act
-        round.SettleWin([winner], loser, WinType.Chankan, mock.Object, out var details);
+        var (_, details) = round.SettleWin([winner], loser, WinType.Chankan, chosenWinTile, mock.Object);
 
         // Assert
-        Assert.Equal(kakanAddedTile.Id, details.Winners[0].WinTile.Id);
+        Assert.Equal(chosenWinTile.Id, details.Winners[0].WinTile.Id);
     }
 }

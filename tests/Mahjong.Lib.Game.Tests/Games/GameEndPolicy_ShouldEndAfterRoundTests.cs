@@ -1,12 +1,26 @@
-﻿using Mahjong.Lib.Game.Games;
+﻿using Mahjong.Lib.Game.Adoptions;
+using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.States.GameStates.Impl;
+using System.Collections.Immutable;
 
 namespace Mahjong.Lib.Game.Tests.Games;
 
 public class GameEndPolicy_ShouldEndAfterRoundTests
 {
+    private static GameEventRoundEndedByWin CreateWinEvent(PlayerIndex winner, PlayerIndex loser, WinType winType)
+    {
+        return new GameEventRoundEndedByWin(
+            [winner],
+            loser,
+            winType,
+            ImmutableArray<AdoptedWinner>.Empty,
+            new Honba(0),
+            new KyoutakuRiichiAward(winner, 0)
+        );
+    }
+
     [Fact]
     public void トビ発生_trueを返す()
     {
@@ -77,7 +91,7 @@ public class GameEndPolicy_ShouldEndAfterRoundTests
             .AdvanceToNextRound(RoundAdvanceMode.DealerChangeResetHonba)
             .AdvanceToNextRound(RoundAdvanceMode.DealerChangeResetHonba)
             .AdvanceToNextRound(RoundAdvanceMode.DealerChangeResetHonba);
-        var evt = new GameEventRoundEndedByWin(WinnerIndices: [new PlayerIndex(3)], LoserIndex: new PlayerIndex(3), WinType: WinType.Tsumo);
+        var evt = CreateWinEvent(new PlayerIndex(3), new PlayerIndex(3), WinType.Tsumo);
 
         // Act
         var result = GameEndPolicy.ShouldEndAfterRound(game, evt, dealerContinues: true);
@@ -101,8 +115,7 @@ public class GameEndPolicy_ShouldEndAfterRoundTests
             PointArray = new PointArray(new Point(20000))
                 .AddPoint(new PlayerIndex(3), 20000),
         };
-        var evt = new GameEventRoundEndedByWin(
-            WinnerIndices: [new PlayerIndex(3)], LoserIndex: new PlayerIndex(3), WinType: WinType.Tsumo);
+        var evt = CreateWinEvent(new PlayerIndex(3), new PlayerIndex(3), WinType.Tsumo);
 
         // Act
         var result = GameEndPolicy.ShouldEndAfterRound(game, evt, dealerContinues: true);
@@ -127,8 +140,7 @@ public class GameEndPolicy_ShouldEndAfterRoundTests
                 .AddPoint(new PlayerIndex(0), 10000)
                 .AddPoint(new PlayerIndex(3), 10000),
         };
-        var evt = new GameEventRoundEndedByWin(
-            WinnerIndices: [new PlayerIndex(3)], LoserIndex: new PlayerIndex(3), WinType: WinType.Tsumo);
+        var evt = CreateWinEvent(new PlayerIndex(3), new PlayerIndex(3), WinType.Tsumo);
 
         // Act
         var result = GameEndPolicy.ShouldEndAfterRound(game, evt, dealerContinues: true);
@@ -154,11 +166,7 @@ public class GameEndPolicy_ShouldEndAfterRoundTests
             PointArray = new PointArray(new Point(20000))
                 .AddPoint(new PlayerIndex(0), 30000),
         };
-        var evt = new GameEventRoundEndedByWin(
-            WinnerIndices: [new PlayerIndex(0)],
-            LoserIndex: new PlayerIndex(3),
-            WinType: WinType.Ron
-        );
+        var evt = CreateWinEvent(new PlayerIndex(0), new PlayerIndex(3), WinType.Ron);
 
         // Act: dealerContinues=true (続行判定側) なので、ここで true が返るならオーラス止め由来
         var result = GameEndPolicy.ShouldEndAfterRound(game, evt, dealerContinues: true);
@@ -182,8 +190,7 @@ public class GameEndPolicy_ShouldEndAfterRoundTests
             PointArray = new PointArray(new Point(20000))
                 .AddPoint(new PlayerIndex(3), 20000),
         };
-        var evt = new GameEventRoundEndedByWin(
-            WinnerIndices: [new PlayerIndex(3)], LoserIndex: new PlayerIndex(3), WinType: WinType.Tsumo);
+        var evt = CreateWinEvent(new PlayerIndex(3), new PlayerIndex(3), WinType.Tsumo);
 
         // Act: dealerContinues=true で規定局数消化による終了を回避し、オーラス止め単独を見る
         var result = GameEndPolicy.ShouldEndAfterRound(game, evt, dealerContinues: true);

@@ -86,7 +86,7 @@
 
 - **【高】`PlayerNotification` の通知固有ペイロード運搬**: 現状の `PlayerNotification` は `NotificationType` / `View` / `CandidateList` のみを保持しており、`TsumoTile` (`TsumoNotification`) / `DiscardedTile` + `DiscarderIndex` (`DahaiNotification`) / `WinResult` (`WinNotification`) / `FinalPointArray` (`GameEndNotification`) / `PlayerList` + `Rules` (`GameStartNotification`) / `RoundWind` + `RoundNumber` + `Honba` + `DealerIndex` (`RoundStartNotification`) / `RyuukyokuResult` (`RyuukyokuNotification`) / `MadeCall` + `CallerIndex` (`CallNotification`) / `NewDoraIndicator` (`DoraRevealNotification`) 等が Wire 側で復元不能。別プロセス/通信プレイヤー接続時に Wire 経由で通知内容が届かない。通知種別ごとの Wire DTO もしくは `NotificationBody` 相当の discriminated union を `PlayerNotification` に追加して解消する
 - **【高】`KanTsumo` 1 通知化に対応する RoundManager 分解契約**: `RoundStateKanTsumo` は `ResponseOk` / `ResponseWin` のみ処理し、打牌 / 暗槓 / 加槓は `RoundStateAfterKanTsumo` 側で処理する 2 段階構造。`PlayerResponseEnvelopeExtensions.FromWire(KanTsumo)` は `KanTsumoDahaiResponse` / `KanTsumoAnkanResponse` / `KanTsumoKakanResponse` を返すため、`RoundManager` が `RinshanTsumoResponse` は `RoundStateKanTsumo` に、それ以外 3 種は `RoundStateAfterKanTsumo` にディスパッチする責務を明記しテスト化する
-- **【中】`ResolvedWinAction.LoserIndex` の境界変換**: `ResolvedWinAction` はツモ/嶺上で `LoserIndex == null` を強制するが、`RoundEventResponseWin` / `RoundEndedEventArgs` / `Round.SettleWin` では和了者自身 (`self`) を入れる規約。`RoundManager` がイベント系から `ResolvedWinAction` を生成する際に `WinType` がツモ/嶺上なら `self → null` へ正規化する変換を実装する
+- **【中】`AdoptedWinAction.LoserIndex` の扱い統一**: (Phase 6 初頭で解消済) かつては `AdoptedWinAction` だけがツモ/嶺上で `LoserIndex == null` を強制していたが、`RoundEventResponseWin` / `RoundEndedEventArgs` / `Round.SettleWin` / `GameEventRoundEndedByWin` は「ツモ/嶺上では和了者自身 (`self`)」の規約で統一されていた。ズレを埋めるためだけに `NormalizeLoserIndex` 正規化が 2 箇所 (`AdoptedRoundActionBuilder` / `GameStateRoundRunning.BuildAdoptedRoundAction`) で重複していたため、`AdoptedWinAction.LoserIndex` を non-nullable `PlayerIndex` に変更し、ツモ/嶺上判定は `WinType` 一本に統一して正規化コードは削除済
 - **【中】`GameNotification` ACK 経路の整備**: `PlayerResponseEnvelopeExtensions.FromWire(RoundInquiryPhase)` は局内意思決定フェーズ前提のため、`GameStartNotification` / `RoundStartNotification` / `RoundEndNotification` / `GameEndNotification` に対する Wire ACK (OK 応答) を受信する経路が無い。`NotificationType` ベースの OK 検証か `FromWireOk()` 相当を追加する
 - **【高】`ResponseBody` / `ResponseCandidate` の多態シリアライズ設計**: `ResponseBody` と `ResponseCandidate` は abstract 基底で、`PlayerResponseEnvelope.Body` / `PlayerNotification.CandidateList` はこれらの基底型を保持する。現状は object-to-object 変換のラウンドトリップしかテストされていない。JSON 等でシリアライズする際には `System.Text.Json` の `[JsonPolymorphic]` / `[JsonDerivedType]` や独自 converter 等の多態ディスパッチ設計が必須。別プロセス/通信プレイヤー接続時のブロッカーとなるため Phase 5 で対応する
 - **【中】`FakePlayer` responder の async 版追加**: 現状の `FakePlayer` は同期 `Func<TNotification, CancellationToken, TResponse>` 固定のため、Phase 5 の RoundManager で timeout/cancellation シナリオをテストする際に遅延応答・キャンセル待ち・例外発生タイミングの表現力が不足。`Func<TNotification, CancellationToken, Task<TResponse>>` も受けられる async responder を同期デリゲートと並存で追加する
@@ -98,7 +98,7 @@
 ### 実装済み
 
 **RoundManager 抽象・実装** (`src/Mahjong.Lib.Game/Rounds/Managing/`)
-- `RoundManager` 本体 (sealed) — 1 局分の通知・応答集約、`Channel<RoundState>` リレー、`Task.WhenAll` 並列通知 + プレイヤー単位 10 秒タイムアウト、KanTsumo 2 段階ディスパッチ (`pendingAfterKanTsumoResponse_`)、合法応答検証 (`ResponseValidator`)、`NormalizeLoserIndex` で Tsumo/Rinshan 時の self→null 正規化
+- `RoundManager` 本体 (sealed) — 1 局分の通知・応答集約、`Channel<RoundState>` リレー、`Task.WhenAll` 並列通知 + プレイヤー単位 10 秒タイムアウト、KanTsumo 2 段階ディスパッチ (`pendingAfterKanTsumoResponse_`)、合法応答検証 (`ResponseValidator`)
 - `IRoundViewProjector` + `RoundViewProjector`
 - `IResponseCandidateEnumerator` + `ResponseCandidateEnumerator` (`ITenpaiChecker` / `GameRules` 注入、赤ドラ区別鳴き候補を `EnumerateRedCountVariants(pickCount)` で枚数組合せ列挙、立直中は槓候補抑制)
 - `IResponsePriorityPolicy` + `TenhouResponsePriorityPolicy` (ロン > ポン/大明槓 > チー > OK、ダブロン対応、同順位は放銃者起点巡目順)
@@ -145,7 +145,7 @@
 - `GameStateContext.InvokeGameNotificationAsync` はプレイヤーメソッドの同期例外も try 内で受ける
 
 **テスト追加** (`tests/Mahjong.Lib.Game.Tests/`)
-- `Rounds/Managing/`: `RoundManagerTestHelper` / `RoundManager_NormalizeLoserIndexTests` / `RoundManager_StartAsyncTests` / `RoundManager_DahaiFlowTests` / `RoundManager_TimeoutTests` / `RoundManager_CandidateValidationTests` / `RoundManager_KanTsumoFlowTests` / `ResponseCandidateEnumerator_EnumerateFor*Tests`
+- `Rounds/Managing/`: `RoundManagerTestHelper` / `RoundManager_StartAsyncTests` / `RoundManager_DahaiFlowTests` / `RoundManager_TimeoutTests` / `RoundManager_CandidateValidationTests` / `RoundManager_KanTsumoFlowTests` / `ResponseCandidateEnumerator_EnumerateFor*Tests`
 - `Rounds/`: `PaoDetector_DetectTests` / `Round_PaoRecordTests` / `Round_SettleWinPaoTests` / `Round_TemporaryFuritenTests`
 - `Games/`: `GameManager_GameLevelNotificationTests`
 
@@ -163,17 +163,17 @@
 - **補助通知の未対応分**: `OtherPlayerTsumoNotification` / `DoraRevealNotification` の送信経路
 - **`ResponseCandidateEnumerator` の立直中暗槓精緻化**: 待ち不変条件 (暗槓対象=ツモ牌 / 待ち牌種集合不変 / 順子解釈なし刻子) を満たす場合のみ候補提示
 - **合法応答検証の 2 / 3 段目**: 現状は候補リスト membership のみ。意味的検証 (手牌との整合等) と副作用防止を追加
+- **対局統合テストの再構築**: `GameStateContext` が全依存必須 (`players` / `projector` / `enumerator` / `priorityPolicy` / `defaultFactory` / `notificationBuilder` / `dispatcher` / `tracer` / `loggerFactory` すべて非 nullable) となり、直接駆動経路が廃止されたため、`RoundStateContext` 直接駆動を前提としていた旧 `GameStateContext_IntegrationTests` (流局/子ロン/親ツモ連荘/4 局消化) および `GameStateRoundRunning_RenchanTests` (連荘条件: None / AgariOnly / AgariOrTenpai 親テンパイ / AgariOrTenpai 親ノーテン / 途中流局 KyuushuKyuuhai) は削除済。現行の自動駆動経路 (`RoundManager` が内部 `RoundStateContext` に対し通知送信・応答集約・dispatch を自動実行) と直接駆動テストが同一 `RoundStateContext` を奪い合う race のため flaky 化していた。代替として `GameManager` + `FakePlayer` 経由で「ロン成立」「ツモ連荘で Honba+1」「4 局流局で対局終了」「1 位単独オーラス親あがり止め」「連荘条件別の親継続/親流れ判定」「途中流局 (九種九牌) での同一親本場加算」などの統合シナリオを Phase 6 の AI 実装と合わせて再構築する
 
-### Phase 5 レビューで持ち越した構造懸念
+### Phase 5 レビューで持ち越した構造懸念 (解消済)
 
-Phase 5 の実装レビュー (Claude + Codex gpt-5.4) で挙がった、実害は出ないが中長期的に解消したい設計課題。Phase 6 以降で順次着手する。
+Phase 5 の実装レビュー (Claude + Codex gpt-5.4) で挙がった設計課題を Phase 6 冒頭で解消した。実装内容の要点:
 
-- **`RoundManager` の責務分離**: 現在 660 行で「状態遷移集約 / 通知生成 / 応答検証・優先順位解決 / ディスパッチ / リソース管理」を一手に担う。`INotificationBuilder` / `IResponseDispatcher` 相当で分離し、テスト粒度を細かくする
-- **`Round` の外部 setter 書き換え**: `RoundManager.ApplyTemporaryFuritenIfRonMissed` が `context_.Round = context_.Round.SetTemporaryFuriten(...)` で Round を書き換えている。イミュータブル集約を `RoundStateContext` 越しに外部改変する構造になっており、副作用を RoundState 内部に閉じ込める方向で見直す
-- **`IGameTracer.OnInvalidResponse` の default interface method 化**: 新規メソッド追加時に全実装へ no-op 追加が必要になる。C# default interface method で既定 no-op を提供し、テストダブル・ロギング実装の更新負荷を下げる
-- **`Round.ResolveWinTile` の best-guess フォールバック削除**: 完全な状態を構築せず `SettleWin` を呼ぶ単体テストのために「和了者の手牌末尾を best-guess で返す」経路があるが、本番で誤った牌が通知層に流れるリスクを残す。`SettleWin` の API に和了牌を明示引き渡す形へ整理する (Chankan の加槓牌解決 (#C5) の堅牢化もここに集約できる)
-- **`Round.SettleWin` の out パラメータ**: 通知明細を常に集計するなら `(Round, WinSettlementDetails)` タプルまたは複合レコード戻り値のほうが関数型スタイルに合う
-- **`PaoDetector` の副作用位置**: 現在 `Round.Pon` / `Daiminkan` / `Kakan` 内で呼び出して `PaoResponsibleArray` を書き換えている。Round に「パオ検出」という責務が混ざるため、呼び出し側 (RoundManager or RoundState) で検出するか、結果タプルで分離する案を検討
+- **`IGameTracer` の default interface method 化**: 全 9 メソッドに既定 no-op を付与。`NullGameTracer` はメソッド定義を削除し `Instance` の公開型を `IGameTracer` に変更
+- **`Round.SettleWin` のタプル戻り値化 + `winTile` 明示**: `out WinSettlementDetails` を廃止し `(Round Settled, WinSettlementDetails Details)` タプル戻り値へ統一。和了牌は呼び出し側 (RoundState) が決定して渡す引数に変更し、`Round.ResolveWinTile` の best-guess フォールバックを削除
+- **同巡フリテンの RoundState 移動 + `Round` 外部 setter 封鎖**: ロン見逃し検出は `RoundManager.DetectRonMissedFuritenPlayers` が担当し、結果を `RoundEventResponseOk` / `RoundEventResponseCall` のフィールド経由で `RoundStateDahai` に渡して `Round.ApplyTemporaryFuriten` を適用。`RoundStateContext.Round` は `private set` に降格し、状態遷移時の Round 更新は `Transit(RoundState, Func<Round, Round>)` オーバーロード経由に一本化
+- **`PaoDetector.Detect` の戻り値整理**: `PaoDetectionResult` record へ変更 (`IsPao` プロパティで判定)。副作用位置は Round 内 (副露履歴と責任者更新の atomicity 優先) を維持
+- **`RoundManager` の責務分離**: `IRoundNotificationBuilder` + `RoundNotificationBuilder` (通知生成) / `IResponseDispatcher` + `ResponseDispatcher` (応答→イベント変換) を分離。`RoundManager` は 545 → 約 330 行に縮小し、メインループ・プレイヤー呼び出し・優先順位解決とフリテン検出・ライフサイクル管理に専念。共有ヘルパ `AdoptedRoundActionBuilder` を新設し通知層とトレース層で共有
 
 ## Phase 6: AI実装と自動対局
 

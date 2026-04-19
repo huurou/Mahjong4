@@ -12,8 +12,6 @@ public sealed class RoundViewProjector : IRoundViewProjector
 {
     public PlayerRoundView Project(Round round, PlayerIndex viewerIndex)
     {
-        ArgumentNullException.ThrowIfNull(round);
-
         var ownPlayerStatus = round.PlayerRoundStatusArray[viewerIndex];
         var ownStatus = new OwnRoundStatus(
             IsRiichi: ownPlayerStatus.IsRiichi,

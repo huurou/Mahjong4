@@ -20,14 +20,14 @@ public abstract record RoundEndedEventArgs;
 /// <param name="Winners">和了者毎の明細 (Index / 和了牌 / スコア計算結果)。
 /// 既存テスト互換のため null 可、RoundStateContext 直接駆動経路では null、RoundManager 経由では常に付与される</param>
 /// <param name="Honba">精算前の本場</param>
-/// <param name="KyoutakuRiichiAward">供託立直棒の受取情報 (供託がない場合は null)</param>
+/// <param name="KyoutakuRiichiAward">供託立直棒の受取情報 (供託がない場合は <see cref="KyoutakuRiichiAward.Count"/> = 0)</param>
 public record RoundEndedByWinEventArgs(
     ImmutableArray<PlayerIndex> WinnerIndices,
     PlayerIndex LoserIndex,
     WinType WinType,
-    ImmutableArray<AdoptedWinner> Winners = default,
-    Honba? Honba = null,
-    KyoutakuRiichiAward? KyoutakuRiichiAward = null
+    ImmutableArray<AdoptedWinner> Winners,
+    Honba Honba,
+    KyoutakuRiichiAward KyoutakuRiichiAward
 ) : RoundEndedEventArgs;
 
 /// <summary>

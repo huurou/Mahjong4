@@ -218,17 +218,6 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
     }
 
     [Fact]
-    public void Envelopeがnull_ArgumentNullExceptionが発生する()
-    {
-        // Act
-        PlayerResponseEnvelope envelope = null!;
-        var ex = Record.Exception(() => envelope.FromWire(RoundInquiryPhase.Haipai));
-
-        // Assert
-        Assert.IsType<ArgumentNullException>(ex);
-    }
-
-    [Fact]
     public void ラウンドトリップ_DahaiResponse_ToBodyしてFromWireで元と等価()
     {
         // Arrange

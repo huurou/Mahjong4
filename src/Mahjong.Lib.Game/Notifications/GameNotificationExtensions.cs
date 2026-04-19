@@ -22,8 +22,6 @@ public static class GameNotificationExtensions
         TimeSpan timeout
     )
     {
-        ArgumentNullException.ThrowIfNull(notification);
-
         NotificationPayload payload = notification switch
         {
             GameStartNotification n => new GameStartNotificationPayload(n.PlayerList, n.Rules),
@@ -47,6 +45,7 @@ public static class GameNotificationExtensions
             null,
             [new OkCandidate()],
             timeout,
+            [],
             payload
         );
     }

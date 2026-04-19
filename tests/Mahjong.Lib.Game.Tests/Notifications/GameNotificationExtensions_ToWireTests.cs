@@ -91,17 +91,6 @@ public class GameNotificationExtensions_ToWireTests
     }
 
     [Fact]
-    public void Notificationがnull_ArgumentNullExceptionが発生する()
-    {
-        // Act
-        GameNotification notification = null!;
-        var ex = Record.Exception(() => notification.ToWire(NotificationId, ROUND_REVISION, RecipientIndex, Timeout));
-
-        // Assert
-        Assert.IsType<ArgumentNullException>(ex);
-    }
-
-    [Fact]
     public void GameStartNotificationのRecipientIndexと引数が不一致_ArgumentExceptionが発生する()
     {
         // Arrange

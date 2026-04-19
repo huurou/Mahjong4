@@ -1,5 +1,4 @@
-﻿using Mahjong.Lib.Game.Inquiries;
-using Mahjong.Lib.Game.Adoptions;
+﻿using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Notifications;
 using Mahjong.Lib.Game.Rounds;
@@ -92,17 +91,9 @@ public record GameStateRoundRunning : GameState
                 new GameStateEnd(),
                 action: async () =>
                 {
-                    if (context.IsRoundManagerAvailable)
-                    {
-                        await context.BroadcastGameNotificationAsync(
-                            _ => new RoundEndNotification(resolvedAction), ct);
-                    }
+                    await context.BroadcastGameNotificationAsync(_ => new RoundEndNotification(resolvedAction), ct);
                     context.DisposeRoundContext();
-                    if (context.IsRoundManagerAvailable)
-                    {
-                        await context.BroadcastGameNotificationAsync(
-                            _ => new GameEndNotification(context.Game.PointArray), ct);
-                    }
+                    await context.BroadcastGameNotificationAsync(_ => new GameEndNotification(context.Game.PointArray), ct);
                 },
                 ct
             );
@@ -115,24 +106,17 @@ public record GameStateRoundRunning : GameState
                 new GameStateRoundRunning(),
                 action: async () =>
                 {
-                    if (context.IsRoundManagerAvailable)
-                    {
-                        await context.BroadcastGameNotificationAsync(
-                            _ => new RoundEndNotification(resolvedAction), ct);
-                    }
+                    await context.BroadcastGameNotificationAsync(_ => new RoundEndNotification(resolvedAction), ct);
                     context.DisposeRoundContext();
-                    if (context.IsRoundManagerAvailable)
-                    {
-                        await context.BroadcastGameNotificationAsync(
-                            _ => new RoundStartNotification(
-                                context.Game.RoundWind,
-                                context.Game.RoundNumber,
-                                context.Game.Honba,
-                                context.Game.RoundNumber.ToDealer()
-                            ),
-                            ct
-                        );
-                    }
+                    await context.BroadcastGameNotificationAsync(_ => 
+                        new RoundStartNotification(
+                            context.Game.RoundWind,
+                            context.Game.RoundNumber,
+                            context.Game.Honba,
+                            context.Game.RoundNumber.ToDealer()
+                        ),
+                        ct
+                    );
                     context.StartRound(context.Game.CreateRound(context.WallGenerator));
                 },
                 ct
@@ -145,15 +129,11 @@ public record GameStateRoundRunning : GameState
         return evt switch
         {
             GameEventRoundEndedByWin win => new AdoptedWinAction(
-                winnerIndices: [
-                    .. win.Winners.IsDefaultOrEmpty
-                        ? win.WinnerIndices.Select(x => new AdoptedWinner(x, default!, default!))
-                        : win.Winners
-                ],
-                loserIndex: win.WinType is WinType.Tsumo or WinType.Rinshan ? null : win.LoserIndex,
+                winnerIndices: [.. win.Winners],
+                loserIndex: win.LoserIndex,
                 winType: win.WinType,
                 kyoutakuRiichiAward: win.KyoutakuRiichiAward,
-                honba: win.Honba ?? new Honba(0),
+                honba: win.Honba,
                 dealerContinues: dealerContinues
             ),
             GameEventRoundEndedByRyuukyoku ryu => new AdoptedRyuukyokuAction(

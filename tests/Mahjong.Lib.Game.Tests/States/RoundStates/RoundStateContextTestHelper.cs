@@ -144,10 +144,10 @@ internal static class RoundStateContextTestHelper
     /// </summary>
     internal static void InjectChiHand(RoundStateContext context, PlayerIndex callerIndex)
     {
-        context.Round = context.Round with
+        context.InjectRoundForTest(context.Round with
         {
             HandArray = context.Round.HandArray.AddTile(callerIndex, new Tile(84)).AddTile(callerIndex, new Tile(88))
-        };
+        });
     }
 
     internal static async Task WaitForStateAsync<T>(

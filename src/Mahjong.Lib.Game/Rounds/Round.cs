@@ -155,6 +155,22 @@ public record Round(
     }
 
     /// <summary>
+    /// 指定されたプレイヤー群に同巡フリテン (<see cref="PlayerRoundStatus.IsTemporaryFuriten"/>=true) をまとめて適用します。
+    /// 空の配列を渡した場合は副作用なしで同一インスタンスを返します。
+    /// 打牌フェーズでロン見逃ししたプレイヤー (RoundManager が検出) を RoundState が一括適用する用途
+    /// </summary>
+    internal Round ApplyTemporaryFuriten(ImmutableArray<PlayerIndex> playerIndices)
+    {
+        if (playerIndices.IsDefaultOrEmpty) { return this; }
+        var round = this;
+        foreach (var playerIndex in playerIndices)
+        {
+            round = round.SetTemporaryFuriten(playerIndex, true);
+        }
+        return round;
+    }
+
+    /// <summary>
     /// 現手番プレイヤーが打牌します。
     /// 第一打フラグ・一発フラグの解除、流し満貫条件 (幺九以外を捨てたら喪失)、嶺上中フラグの解除を行います。
     /// 一発フラグはツモ時点では維持し、打牌 (= ツモ和了しなかった) で消します。
@@ -373,7 +389,8 @@ public record Round(
         };
         statusArray = statusArray.SetStatus(fromIndex, fromStatus);
 
-        var paoResponsibleArray = PaoDetector.Detect(callListArray[callerIndex], call) != PaoYakuman.None
+        // 副露履歴更新と同じ with 式で PaoResponsibleArray を確定させる (atomicity 優先)
+        var paoResponsibleArray = PaoDetector.Detect(callListArray[callerIndex], call).IsPao()
             ? PaoResponsibleArray.SetResponsible(callerIndex, fromIndex)
             : PaoResponsibleArray;
 
@@ -481,7 +498,7 @@ public record Round(
 
         // 加槓で発火しうる包は四槓子のみ (大三元/大四喜は Pon/Daiminkan で既に確定済み)。
         // 四槓子 (Kakan 4 槓目) の責任者は元ポンの出し手とするのが天鳳準拠。
-        var paoResponsibleArray = PaoDetector.Detect(callListArray[Turn], kakan) != PaoYakuman.None
+        var paoResponsibleArray = PaoDetector.Detect(callListArray[Turn], kakan).IsPao()
             ? PaoResponsibleArray.SetResponsible(Turn, existingPon.From)
             : PaoResponsibleArray;
 
@@ -577,27 +594,21 @@ public record Round(
     }
 
     /// <summary>
-    /// 和了時の点数精算 (スコア計算 + 本場 + 供託) を行います。通知層へ渡す明細 (役・点・本場・供託) は破棄します。
-    /// </summary>
-    internal Round SettleWin(ImmutableArray<PlayerIndex> winners, PlayerIndex loserIndex, WinType winType, IScoreCalculator scoreCalculator)
-    {
-        return SettleWin(winners, loserIndex, winType, scoreCalculator, out _);
-    }
-
-    /// <summary>
-    /// 和了時の点数精算を行い、通知層へ渡す明細 (和了者毎のスコア / 和了牌 / 本場 / 供託受取) を <paramref name="details"/> で出力します。
+    /// 和了時の点数精算を行い、通知層へ渡す明細 (和了者毎のスコア / 和了牌 / 本場 / 供託受取) と精算後の Round を返します。
+    /// 和了牌は呼び出し側で明示的に決定する (Ron=放銃者の河末尾 / Chankan=<see cref="Impl.RoundStateKan.KanTiles"/>.Last /
+    /// Tsumo・Rinshan=和了者の手牌末尾)。
     /// </summary>
     /// <param name="winners">和了者 (ダブロンなら複数、上家取りのため放銃者から見た反時計回り順)</param>
     /// <param name="loserIndex">放銃者のインデックス ロン/槍槓では打牌者/加槓宣言者、ツモ/嶺上では和了者自身</param>
     /// <param name="winType">和了種別</param>
+    /// <param name="winTile">和了牌 (Ron=放銃牌 / Chankan=加槓追加牌 / Tsumo・Rinshan=ツモ牌)</param>
     /// <param name="scoreCalculator">点数計算機</param>
-    /// <param name="details">和了明細の出力</param>
-    internal Round SettleWin(
+    internal (Round Settled, WinSettlementDetails Details) SettleWin(
         ImmutableArray<PlayerIndex> winners,
         PlayerIndex loserIndex,
         WinType winType,
-        IScoreCalculator scoreCalculator,
-        out WinSettlementDetails details
+        Tile winTile,
+        IScoreCalculator scoreCalculator
     )
     {
         if (winners.IsDefaultOrEmpty)
@@ -627,7 +638,6 @@ public record Round(
                 var playerIndex = new PlayerIndex(i);
                 pointArray = pointArray.AddPoint(playerIndex, result.PointDeltas[playerIndex].Value);
             }
-            var winTile = ResolveWinTile(winner, loserIndex, winType);
             winnersBuilder.Add(new AdoptedWinner(winner, winTile, result));
         }
 
@@ -660,40 +670,15 @@ public record Round(
         }
 
         var kyoutaku = KyoutakuRiichiCount.Value;
-        KyoutakuRiichiAward? kyoutakuAward = null;
         if (kyoutaku > 0)
         {
             pointArray = pointArray.AddPoint(winners[0], kyoutaku * 1000);
-            kyoutakuAward = new KyoutakuRiichiAward(winners[0], kyoutaku);
         }
+        var kyoutakuAward = new KyoutakuRiichiAward(winners[0], kyoutaku);
 
-        details = new WinSettlementDetails(winnersBuilder.ToImmutable(), Honba, kyoutakuAward);
-        return this with { PointArray = pointArray, KyoutakuRiichiCount = KyoutakuRiichiCount.Clear() };
-    }
-
-    /// <summary>
-    /// 和了牌を和了種別に応じて局状態から引き当てる。
-    /// Tsumo/Rinshan: 和了者の最後の牌 (= ツモ牌)
-    /// Ron: 放銃者の河最後 (= 放銃牌)
-    /// Chankan: 放銃者の副露のうち最後の加槓/暗槓 (Kakan/Ankan) の追加牌
-    ///   加槓は副露リストの元ポンを置換するため、単純な「副露リストの最後」では元ポン以降に発生した他の副露を拾ってしまう。
-    ///   加槓と暗槓 (国士暗槓チャンカン) のみを対象にした上で最後に発生したものを参照する。
-    /// 期待する source が空 (単体テストなどで完全な状態を構築せずに SettleWin を呼んだ場合) は
-    /// 和了者の手牌末尾を best-guess で返す (通知層に届くのは厳密には誤りだが SettleWin 自体は完了させる)
-    /// </summary>
-    private Tile ResolveWinTile(PlayerIndex winnerIndex, PlayerIndex loserIndex, WinType winType)
-    {
-        var tile = winType switch
-        {
-            WinType.Tsumo or WinType.Rinshan => HandArray[winnerIndex].LastOrDefault(),
-            WinType.Ron => RiverArray[loserIndex].LastOrDefault(),
-            WinType.Chankan => CallListArray[loserIndex]
-                .LastOrDefault(x => x.Type is CallType.Kakan or CallType.Ankan)?.Tiles.LastOrDefault(),
-            _ => throw new InvalidOperationException($"未対応の和了種別: {winType}"),
-        };
-        return tile
-            ?? HandArray[winnerIndex].LastOrDefault()
-            ?? throw new InvalidOperationException($"和了牌の解決に失敗しました。winType:{winType} winner:{winnerIndex.Value}");
+        var details = new WinSettlementDetails(winnersBuilder.ToImmutable(), Honba, kyoutakuAward);
+        var settled = this with { PointArray = pointArray, KyoutakuRiichiCount = KyoutakuRiichiCount.Clear() };
+        return (settled, details);
     }
 
     /// <summary>

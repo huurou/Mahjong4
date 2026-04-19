@@ -91,6 +91,8 @@ internal static class RoundManagerTestHelper
             new ResponseCandidateEnumerator(tenpaiChecker, rules),
             new TenhouResponsePriorityPolicy(),
             new DefaultResponseFactory(),
+            new RoundNotificationBuilder(),
+            new ResponseDispatcher(),
             tenpaiChecker,
             scoreCalculator,
             tracer,

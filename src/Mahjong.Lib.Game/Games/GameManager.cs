@@ -22,7 +22,9 @@ namespace Mahjong.Lib.Game.Games;
 /// <param name="enumerator">合法応答候補列挙</param>
 /// <param name="priorityPolicy">応答優先順位解決</param>
 /// <param name="defaultFactory">タイムアウト時既定応答生成</param>
-/// <param name="tracer">対局トレーサー (no-op が必要な場合は <see cref="NullGameTracer"/> を明示的に渡す)</param>
+/// <param name="notificationBuilder">通知ビルダー (既定実装: <see cref="RoundNotificationBuilder"/>)</param>
+/// <param name="dispatcher">応答ディスパッチャ (既定実装: <see cref="ResponseDispatcher"/>)</param>
+/// <param name="tracer">対局トレーサー (no-op が必要な場合は <see cref="NullGameTracer.Instance"/> を明示的に渡す)</param>
 /// <param name="loggerFactory">ロガーファクトリ (no-op が必要な場合は <see cref="NullLoggerFactory.Instance"/> を明示的に渡す)</param>
 public class GameManager(
     PlayerList playerList,
@@ -34,6 +36,8 @@ public class GameManager(
     IResponseCandidateEnumerator enumerator,
     IResponsePriorityPolicy priorityPolicy,
     IDefaultResponseFactory defaultFactory,
+    IRoundNotificationBuilder notificationBuilder,
+    IResponseDispatcher dispatcher,
     IGameTracer tracer,
     ILoggerFactory loggerFactory
 ) : IDisposable
@@ -68,6 +72,8 @@ public class GameManager(
             enumerator,
             priorityPolicy,
             defaultFactory,
+            notificationBuilder,
+            dispatcher,
             tracer,
             loggerFactory
         );

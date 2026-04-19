@@ -20,33 +20,4 @@ public class Player_ConstructorTests
         Assert.Equal(index, player.PlayerIndex);
     }
 
-    [Fact]
-    public void PlayerIdがnull_ArgumentNullExceptionが発生する()
-    {
-        // Act
-        var ex = Record.Exception(() => new PlayersTestHelper.TestPlayer(null!, "A", new PlayerIndex(0)));
-
-        // Assert
-        Assert.IsType<ArgumentNullException>(ex);
-    }
-
-    [Fact]
-    public void DisplayNameがnull_ArgumentNullExceptionが発生する()
-    {
-        // Act
-        var ex = Record.Exception(() => new PlayersTestHelper.TestPlayer(PlayerId.NewId(), null!, new PlayerIndex(0)));
-
-        // Assert
-        Assert.IsType<ArgumentNullException>(ex);
-    }
-
-    [Fact]
-    public void PlayerIndexがnull_ArgumentNullExceptionが発生する()
-    {
-        // Act
-        var ex = Record.Exception(() => new PlayersTestHelper.TestPlayer(PlayerId.NewId(), "A", null!));
-
-        // Assert
-        Assert.IsType<ArgumentNullException>(ex);
-    }
 }

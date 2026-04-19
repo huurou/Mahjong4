@@ -18,8 +18,6 @@ public sealed class ResponseCandidateEnumerator(
     GameRules rules
 ) : IResponseCandidateEnumerator
 {
-    private readonly ITenpaiChecker tenpaiChecker_ = tenpaiChecker ?? throw new ArgumentNullException(nameof(tenpaiChecker));
-    private readonly GameRules rules_ = rules ?? throw new ArgumentNullException(nameof(rules));
 
     private const int RIICHI_POINT_MIN = 1000;
     private const int RIICHI_WALL_MIN = 4;
@@ -27,9 +25,6 @@ public sealed class ResponseCandidateEnumerator(
 
     public CandidateList EnumerateForTsumo(Round round, PlayerIndex turnPlayerIndex)
     {
-        ArgumentNullException.ThrowIfNull(round);
-        ArgumentNullException.ThrowIfNull(turnPlayerIndex);
-
         var builder = ImmutableList.CreateBuilder<ResponseCandidate>();
         var hand = round.HandArray[turnPlayerIndex];
         var callList = round.CallListArray[turnPlayerIndex];
@@ -58,10 +53,6 @@ public sealed class ResponseCandidateEnumerator(
 
     public CandidateList EnumerateForDahai(Round round, PlayerIndex responderIndex, Tile discardedTile)
     {
-        ArgumentNullException.ThrowIfNull(round);
-        ArgumentNullException.ThrowIfNull(responderIndex);
-        ArgumentNullException.ThrowIfNull(discardedTile);
-
         var builder = ImmutableList.CreateBuilder<ResponseCandidate>();
         var hand = round.HandArray[responderIndex];
         var callList = round.CallListArray[responderIndex];
@@ -90,9 +81,6 @@ public sealed class ResponseCandidateEnumerator(
         CallType kanType
     )
     {
-        ArgumentNullException.ThrowIfNull(round);
-        ArgumentNullException.ThrowIfNull(responderIndex);
-
         if (kanTiles.IsDefaultOrEmpty)
         {
             throw new ArgumentException("kanTiles が空です。", nameof(kanTiles));
@@ -109,7 +97,7 @@ public sealed class ResponseCandidateEnumerator(
                 builder.Add(new ChankanRonCandidate());
             }
         }
-        else if (kanType is CallType.Ankan && rules_.AllowAnkanChankanForKokushi)
+        else if (kanType is CallType.Ankan && rules.AllowAnkanChankanForKokushi)
         {
             // 暗槓チャンカンは国士無双のみ成立。手牌13枚と暗槓牌種がすべて幺九牌である場合に候補を提示する
             // (役制限は ScoreCalculator 側で国士無双以外を不成立として担保する)
@@ -131,9 +119,6 @@ public sealed class ResponseCandidateEnumerator(
 
     public CandidateList EnumerateForKanTsumo(Round round, PlayerIndex turnPlayerIndex)
     {
-        ArgumentNullException.ThrowIfNull(round);
-        ArgumentNullException.ThrowIfNull(turnPlayerIndex);
-
         var builder = ImmutableList.CreateBuilder<ResponseCandidate>();
         var hand = round.HandArray[turnPlayerIndex];
         var callList = round.CallListArray[turnPlayerIndex];
@@ -155,9 +140,6 @@ public sealed class ResponseCandidateEnumerator(
 
     public CandidateList EnumerateForAfterKanTsumo(Round round, PlayerIndex turnPlayerIndex)
     {
-        ArgumentNullException.ThrowIfNull(round);
-        ArgumentNullException.ThrowIfNull(turnPlayerIndex);
-
         var builder = ImmutableList.CreateBuilder<ResponseCandidate>();
         var hand = round.HandArray[turnPlayerIndex];
         var callList = round.CallListArray[turnPlayerIndex];
@@ -191,7 +173,7 @@ public sealed class ResponseCandidateEnumerator(
         foreach (var tile in candidateTiles)
         {
             var remaining = new Hand(RemoveFirst(hand, tile));
-            var riichiAvailable = riichiBase && tenpaiChecker_.IsTenpai(remaining, callList);
+            var riichiAvailable = riichiBase && tenpaiChecker.IsTenpai(remaining, callList);
             options.Add(new DahaiOption(tile, riichiAvailable));
         }
 
@@ -208,7 +190,7 @@ public sealed class ResponseCandidateEnumerator(
 
         var tsumoTile = hand.Last();
         var remaining = new Hand(RemoveFirst(hand, tsumoTile));
-        var waits = tenpaiChecker_.EnumerateWaitTileKinds(remaining, callList);
+        var waits = tenpaiChecker.EnumerateWaitTileKinds(remaining, callList);
         return waits.Contains(tsumoTile.Kind) ? new TsumoAgariCandidate() : null;
     }
 
@@ -224,7 +206,7 @@ public sealed class ResponseCandidateEnumerator(
             return null;
         }
 
-        var waits = tenpaiChecker_.EnumerateWaitTileKinds(hand, callList);
+        var waits = tenpaiChecker.EnumerateWaitTileKinds(hand, callList);
         return waits.Contains(targetTile.Kind) ? new RonCandidate() : null;
     }
 
@@ -236,8 +218,8 @@ public sealed class ResponseCandidateEnumerator(
     /// </summary>
     private IEnumerable<ImmutableArray<Tile>> EnumerateRedCountVariants(IEnumerable<Tile> tilesOfKind, int pickCount)
     {
-        var reds = tilesOfKind.Where(rules_.IsRedDora).ToList();
-        var nonReds = tilesOfKind.Where(x => !rules_.IsRedDora(x)).ToList();
+        var reds = tilesOfKind.Where(rules.IsRedDora).ToList();
+        var nonReds = tilesOfKind.Where(x => !rules.IsRedDora(x)).ToList();
         if (reds.Count + nonReds.Count < pickCount) { yield break; }
 
         var minReds = Math.Max(0, pickCount - nonReds.Count);

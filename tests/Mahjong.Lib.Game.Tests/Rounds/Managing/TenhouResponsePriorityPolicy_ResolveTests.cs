@@ -168,7 +168,8 @@ public class TenhouResponsePriorityPolicy_ResolveTests
         var spec = new RoundInquirySpec(
             RoundInquiryPhase.Haipai,
             [new PlayerInquirySpec(new PlayerIndex(0), [new OkCandidate()])],
-            null
+            [],
+            new PlayerIndex(0)
         );
         var responses = ImmutableArray.Create(
             new AdoptedPlayerResponse(new PlayerIndex(0), new OkResponse())
@@ -181,29 +182,12 @@ public class TenhouResponsePriorityPolicy_ResolveTests
         Assert.Single(result);
     }
 
-    [Fact]
-    public void Dahai_LoserIndexがnull_例外()
-    {
-        // Arrange
-        var specWithoutLoser = new RoundInquirySpec(
-            RoundInquiryPhase.Dahai,
-            [new PlayerInquirySpec(new PlayerIndex(0), [new OkCandidate()])],
-            null
-        );
-        var responses = ImmutableArray<AdoptedPlayerResponse>.Empty;
-
-        // Act
-        var ex = Record.Exception(() => policy_.Resolve(specWithoutLoser, responses));
-
-        // Assert
-        Assert.IsType<ArgumentException>(ex);
-    }
-
     private static RoundInquirySpec CreateDahaiSpec(int loserIndex)
     {
         return new RoundInquirySpec(
             RoundInquiryPhase.Dahai,
             [new PlayerInquirySpec(new PlayerIndex(loserIndex), [new OkCandidate()])],
+            [],
             new PlayerIndex(loserIndex)
         );
     }
@@ -213,6 +197,7 @@ public class TenhouResponsePriorityPolicy_ResolveTests
         return new RoundInquirySpec(
             RoundInquiryPhase.Kan,
             [new PlayerInquirySpec(new PlayerIndex(loserIndex), [new OkCandidate()])],
+            [],
             new PlayerIndex(loserIndex)
         );
     }
