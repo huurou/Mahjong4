@@ -5,7 +5,7 @@ namespace Mahjong.Lib.Game.Rounds.Managing;
 
 /// <summary>
 /// プレイヤー応答が提示済み候補に含まれる合法応答かを検証する
-/// 候補外応答は RoundManager 側で defaultFactory によるフォールバックに差し替えられる
+/// 候補外応答は RoundStateContext の通知・応答集約ループで defaultFactory によるフォールバックに差し替えられる
 /// </summary>
 internal static class ResponseValidator
 {

@@ -1,5 +1,4 @@
 ﻿using Mahjong.Lib.Game.States.RoundStates;
-using Mahjong.Lib.Game.States.RoundStates.Impl;
 using Mahjong.Lib.Game.Tiles;
 
 namespace Mahjong.Lib.Game.Tests.States.RoundStates;
@@ -15,12 +14,13 @@ public class RoundStateTsumo_EntryTests : IDisposable
     }
 
     [Fact]
-    public async Task ツモ状態入場_Turnの手牌が十四枚になる()
+    public void ツモ状態入場_Turnの手牌が十四枚になる()
     {
         // Arrange
-        context_.Init(RoundStateContextTestHelper.CreateRound());
-        await context_.ResponseOkAsync();
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
+        RoundStateContextTestHelper.InitDirect(context_, RoundStateContextTestHelper.CreateRound());
+
+        // Act
+        RoundStateContextTestHelper.DriveResponseOk(context_);
 
         // Assert
         Assert.Equal(14, context_.Round.HandArray[context_.Round.Turn].Count());

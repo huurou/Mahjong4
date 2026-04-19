@@ -20,8 +20,9 @@ public record RoundStateAfterKanTsumo : RoundState
     public override void ResponseDahai(RoundStateContext context, RoundEventResponseDahai evt)
     {
         base.ResponseDahai(context, evt);
-        Transit(context, new RoundStateDahai(), round =>
+        Transit(context, () => new RoundStateDahai(), round =>
         {
+            // PendRiichi と Dahai を単一関数で適用することで、Dahai 例外時に Round が部分更新されないことを保証する
             if (evt.IsRiichi)
             {
                 round = round.PendRiichi(round.Turn);
@@ -41,7 +42,7 @@ public record RoundStateAfterKanTsumo : RoundState
         };
         Transit(
             context,
-            new RoundStateKan(evt.CallType, kanTiles),
+            () => new RoundStateKan(evt.CallType, kanTiles),
             round => evt.CallType switch
             {
                 CallType.Ankan => round.Ankan(evt.Tile),

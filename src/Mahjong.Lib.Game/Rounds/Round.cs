@@ -143,7 +143,7 @@ public record Round(
 
     /// <summary>
     /// 指定プレイヤーの同巡フリテン (<see cref="PlayerRoundStatus.IsTemporaryFuriten"/>) を設定します。
-    /// ロン見逃し検出時に <see cref="Managing.RoundManager"/> から呼び出されます。
+    /// ロン見逃し検出時に <see cref="States.RoundStates.RoundStateContext"/> から呼び出されます。
     /// 同値の場合は副作用なしで同一インスタンスを返します。
     /// </summary>
     internal Round SetTemporaryFuriten(PlayerIndex playerIndex, bool value)
@@ -157,7 +157,7 @@ public record Round(
     /// <summary>
     /// 指定されたプレイヤー群に同巡フリテン (<see cref="PlayerRoundStatus.IsTemporaryFuriten"/>=true) をまとめて適用します。
     /// 空の配列を渡した場合は副作用なしで同一インスタンスを返します。
-    /// 打牌フェーズでロン見逃ししたプレイヤー (RoundManager が検出) を RoundState が一括適用する用途
+    /// 打牌フェーズでロン見逃ししたプレイヤー (RoundStateContext が検出) を一括適用する用途
     /// </summary>
     internal Round ApplyTemporaryFuriten(ImmutableArray<PlayerIndex> playerIndices)
     {

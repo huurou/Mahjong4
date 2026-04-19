@@ -16,21 +16,18 @@ public class RoundStateDahai_RiichiTests : IDisposable
     }
 
     [Fact]
-    public async Task 立直宣言付き打牌_OK応答で確定_持ち点1000減と供託1増()
+    public void 立直宣言付き打牌_OK応答で確定_持ち点1000減と供託1増()
     {
         // Arrange
-        context_.Init(RoundStateContextTestHelper.CreateRound());
-        await context_.ResponseOkAsync();
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
+        RoundStateContextTestHelper.InitDirect(context_, RoundStateContextTestHelper.CreateRound());
+        RoundStateContextTestHelper.DriveResponseOk(context_);
         var dealer = new PlayerIndex(0);
         var initialPoint = context_.Round.PointArray[dealer].Value;
         var tile = RoundStateContextTestHelper.PickTileToDahai(context_);
 
         // Act: 立直宣言付き打牌 → OK 応答 (ロンなし)
-        await context_.ResponseDahaiAsync(tile, isRiichi: true);
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateDahai>(context_);
-        await context_.ResponseOkAsync();
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
+        RoundStateContextTestHelper.DriveResponseDahai(context_, tile, isRiichi: true);
+        RoundStateContextTestHelper.DriveResponseOk(context_);
 
         // Assert: 立直確定
         Assert.Equal(initialPoint - 1000, context_.Round.PointArray[dealer].Value);
@@ -41,22 +38,19 @@ public class RoundStateDahai_RiichiTests : IDisposable
     }
 
     [Fact]
-    public async Task 立直宣言付き打牌_ロン応答で不成立_持ち点と供託は変わらない()
+    public void 立直宣言付き打牌_ロン応答で不成立_持ち点と供託は変わらない()
     {
         // Arrange
-        context_.Init(RoundStateContextTestHelper.CreateRound());
-        await context_.ResponseOkAsync();
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
+        RoundStateContextTestHelper.InitDirect(context_, RoundStateContextTestHelper.CreateRound());
+        RoundStateContextTestHelper.DriveResponseOk(context_);
         var dealer = new PlayerIndex(0);
         var initialPoint = context_.Round.PointArray[dealer].Value;
         var initialKyoutaku = context_.Round.KyoutakuRiichiCount.Value;
         var tile = RoundStateContextTestHelper.PickTileToDahai(context_);
 
         // Act: 立直宣言付き打牌 → 子ロン
-        await context_.ResponseDahaiAsync(tile, isRiichi: true);
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateDahai>(context_);
-        await RoundStateContextTestHelper.ResponseRonWinAsync(context_, new PlayerIndex(1), dealer);
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateWin>(context_);
+        RoundStateContextTestHelper.DriveResponseDahai(context_, tile, isRiichi: true);
+        RoundStateContextTestHelper.DriveRonWin(context_, new PlayerIndex(1), dealer);
 
         // Assert: 立直は不成立 → 持ち点も供託も変化なし、IsRiichi も false
         Assert.Equal(initialPoint, context_.Round.PointArray[dealer].Value);
@@ -66,12 +60,11 @@ public class RoundStateDahai_RiichiTests : IDisposable
     }
 
     [Fact]
-    public async Task 立直宣言付き打牌_鳴き応答で立直成立_持ち点1000減と供託1増()
+    public void 立直宣言付き打牌_鳴き応答で立直成立_持ち点1000減と供託1増()
     {
         // Arrange
-        context_.Init(RoundStateContextTestHelper.CreateRound());
-        await context_.ResponseOkAsync();
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
+        RoundStateContextTestHelper.InitDirect(context_, RoundStateContextTestHelper.CreateRound());
+        RoundStateContextTestHelper.DriveResponseOk(context_);
         var dealer = new PlayerIndex(0);
         var initialPoint = context_.Round.PointArray[dealer].Value;
         var tile = RoundStateContextTestHelper.PickTileToDahai(context_);
@@ -81,23 +74,15 @@ public class RoundStateDahai_RiichiTests : IDisposable
         RoundStateContextTestHelper.InjectChiHand(context_, caller);
 
         // Act: 立直宣言付き打牌 → 子チー (鳴かれても立直成立)
-        await context_.ResponseDahaiAsync(tile, isRiichi: true);
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateDahai>(context_);
-        // RoundStateCall 経由で再度 RoundStateDahai に戻る遷移を待つ
-        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var sawCall = false;
-        context_.RoundStateChanged += (_, e) =>
-        {
-            if (e.State is RoundStateCall) { sawCall = true; }
-            else if (sawCall && e.State is RoundStateDahai) { tcs.TrySetResult(); }
-        };
-        await context_.ResponseCallAsync(caller, CallType.Chi, RoundStateContextTestHelper.DummyChiHandTiles(), tile);
-        // RoundStateCall は OK 応答を待つ
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateCall>(context_);
-        await context_.ResponseOkAsync();
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        RoundStateContextTestHelper.DriveResponseDahai(context_, tile, isRiichi: true);
+        var passedTypes = new List<Type>();
+        context_.RoundStateChanged += (_, e) => passedTypes.Add(e.State.GetType());
+        RoundStateContextTestHelper.DriveResponseCall(context_, caller, CallType.Chi, RoundStateContextTestHelper.DummyChiHandTiles(), tile);
+        // RoundStateCall 経由で再度 RoundStateDahai に戻る
+        RoundStateContextTestHelper.DriveResponseOk(context_);
 
         // Assert: 立直成立
+        Assert.Contains(typeof(RoundStateCall), passedTypes);
         Assert.Equal(initialPoint - 1000, context_.Round.PointArray[dealer].Value);
         Assert.Equal(1, context_.Round.KyoutakuRiichiCount.Value);
         Assert.True(context_.Round.PlayerRoundStatusArray[dealer].IsRiichi);

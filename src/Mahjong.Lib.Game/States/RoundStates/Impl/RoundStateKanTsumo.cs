@@ -18,7 +18,7 @@ public record RoundStateKanTsumo : RoundState
     {
         base.ResponseOk(context, evt);
         // TODO: 四槓流れ判定 (4人目の槓で流局)
-        Transit(context, new RoundStateAfterKanTsumo());
+        Transit(context, () => new RoundStateAfterKanTsumo());
     }
 
     public override void ResponseWin(RoundStateContext context, RoundEventResponseWin evt)
@@ -35,7 +35,7 @@ public record RoundStateKanTsumo : RoundState
         var winTile = context.Round.HandArray[context.Round.Turn].Last();
         var (settledRound, details) = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, winTile, context.ScoreCalculator);
         var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType, details.Winners, details.Honba, details.KyoutakuRiichiAward);
-        Transit(context, new RoundStateWin(eventArgs), _ => settledRound);
+        Transit(context, () => new RoundStateWin(eventArgs), _ => settledRound);
     }
 
     public override RoundInquirySpec CreateInquirySpec(Round round, IResponseCandidateEnumerator enumerator)

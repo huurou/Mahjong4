@@ -20,7 +20,7 @@ public record RoundStateCall : RoundState
     /// <summary>
     /// 副露直後・後続の RinshanTsumo 実行前の Round スナップショット。
     /// 大明槓時は本状態の後に RinshanTsumo() を伴う KanTsumo へ遷移するため、
-    /// RoundManager が副露通知を送る時点では context.Round が既に RinshanTsumo 後になる可能性がある。
+    /// RoundStateContext が副露通知を送る時点では context.Round が既に RinshanTsumo 後になる可能性がある。
     /// 副露通知の整合を保つため遷移時に副露直後の Round を封入する
     /// </summary>
     public Round? SnapshotRound { get; init; }
@@ -30,11 +30,11 @@ public record RoundStateCall : RoundState
         base.ResponseOk(context, evt);
         if (IsDaiminkan(context))
         {
-            Transit(context, new RoundStateKanTsumo(), round => round.RinshanTsumo());
+            Transit(context, () => new RoundStateKanTsumo(), round => round.RinshanTsumo());
         }
         else
         {
-            Transit(context, new RoundStateDahai());
+            Transit(context, () => new RoundStateDahai());
         }
     }
 

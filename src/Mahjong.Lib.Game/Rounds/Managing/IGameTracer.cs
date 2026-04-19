@@ -20,7 +20,7 @@ public interface IGameTracer
     void OnResponseException(NotificationId notificationId, PlayerIndex recipientIndex, Exception ex);
     /// <summary>
     /// プレイヤー応答が提示済み候補に含まれない候補外応答であった場合に呼ばれる。
-    /// RoundManager は <see cref="IDefaultResponseFactory"/> のフォールバック応答に差し替えて進行を継続する
+    /// RoundStateContext の通知・応答集約ループは <see cref="IDefaultResponseFactory"/> のフォールバック応答に差し替えて進行を継続する
     /// </summary>
     void OnInvalidResponse(NotificationId notificationId, PlayerIndex senderIndex, PlayerResponse invalidResponse, CandidateList presentedCandidates);
     void OnAdoptedAction(RoundInquiryPhase phase, AdoptedPlayerResponse adopted);

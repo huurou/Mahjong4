@@ -68,35 +68,17 @@ public abstract record RoundState
     public abstract RoundInquirySpec CreateInquirySpec(Round round, IResponseCandidateEnumerator enumerator);
 
     /// <summary>
-    /// 指定された状態に遷移します (Round の更新なし)
+    /// 遷移先状態を生成して遷移します。
+    /// 順序は Exit → updateRound 適用 (null 以外のとき) → createNextState 評価 → State 差替 → Entry。
+    /// イミュータブル集約 <see cref="Round"/> の外部書き換えを防ぐため、状態遷移時の Round 更新はこの経路のみで行う。
+    /// updateRound 適用後の <see cref="RoundStateContext.Round"/> を遷移先のプロパティへ封入したい場合は
+    /// createNextState 内で <c>context.Round</c> を参照する (例: <see cref="Impl.RoundStateCall.SnapshotRound"/>)
     /// </summary>
     /// <param name="context">状態遷移コンテキスト</param>
-    /// <param name="nextState">遷移先状態</param>
-    protected static void Transit(RoundStateContext context, RoundState nextState)
+    /// <param name="createNextState">updateRound 適用後に評価される遷移先状態ファクトリ</param>
+    /// <param name="updateRound">遷移時 Round 更新関数 (現 Round を受け取り新 Round を返す)。null の場合は Round を更新しない</param>
+    protected static void Transit(RoundStateContext context, Func<RoundState> createNextState, Func<Round, Round>? updateRound = null)
     {
-        context.Transit(nextState);
-    }
-
-    /// <summary>
-    /// Round を <paramref name="updateRound"/> で更新してから指定された状態へ遷移します。
-    /// イミュータブル集約 <see cref="Round"/> の外部書き換えを防ぐため、状態遷移時の Round 更新はこの経路のみで行う
-    /// </summary>
-    /// <param name="context">状態遷移コンテキスト</param>
-    /// <param name="nextState">遷移先状態</param>
-    /// <param name="updateRound">遷移時 Round 更新関数 (現 Round を受け取り新 Round を返す)</param>
-    protected static void Transit(RoundStateContext context, RoundState nextState, Func<Round, Round> updateRound)
-    {
-        context.Transit(nextState, updateRound);
-    }
-
-    /// <summary>
-    /// Round を <paramref name="updateRound"/> で更新後に遷移先状態を生成して遷移します
-    /// </summary>
-    /// <param name="context">状態遷移コンテキスト</param>
-    /// <param name="nextStateFactory">更新後に評価される遷移先状態ファクトリ</param>
-    /// <param name="updateRound">遷移時 Round 更新関数</param>
-    protected static void Transit(RoundStateContext context, Func<RoundState> nextStateFactory, Func<Round, Round> updateRound)
-    {
-        context.Transit(nextStateFactory, updateRound);
+        context.Transit(createNextState, updateRound);
     }
 }

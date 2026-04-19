@@ -5,7 +5,7 @@ namespace Mahjong.Lib.Game.Inquiries;
 
 /// <summary>
 /// 局面ごとのプレイヤー問い合わせ仕様 (誰に・何を聞くか)
-/// RoundState が生成し RoundManager が通知・応答に変換する
+/// RoundState が生成し RoundStateContext の通知・応答集約ループが通知・応答に変換する
 /// <para>
 /// 通知自体は全プレイヤーへ送信される (表示目的)。そのうち「問い合わせ対象」
 /// (= 意味のある入力を期待するプレイヤー) は <see cref="InquiredPlayerIndices"/>

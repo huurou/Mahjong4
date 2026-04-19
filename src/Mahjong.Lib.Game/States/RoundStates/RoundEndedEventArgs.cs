@@ -18,7 +18,7 @@ public abstract record RoundEndedEventArgs;
 /// <param name="LoserIndex">放銃者。ロン/槍槓では打牌者/加槓宣言者、ツモ/嶺上では <paramref name="WinnerIndices"/>[0] と同値</param>
 /// <param name="WinType">和了種別</param>
 /// <param name="Winners">和了者毎の明細 (Index / 和了牌 / スコア計算結果)。
-/// 既存テスト互換のため null 可、RoundStateContext 直接駆動経路では null、RoundManager 経由では常に付与される</param>
+/// 既存テスト互換のため null 可、state 直接駆動 (Drive*) 経路では null、StartAsync 経由では常に付与される</param>
 /// <param name="Honba">精算前の本場</param>
 /// <param name="KyoutakuRiichiAward">供託立直棒の受取情報 (供託がない場合は <see cref="KyoutakuRiichiAward.Count"/> = 0)</param>
 public record RoundEndedByWinEventArgs(

@@ -6,9 +6,9 @@ using Mahjong.Lib.Game.States.RoundStates;
 using Mahjong.Lib.Game.Tests.Players;
 using Mahjong.Lib.Game.Tests.Rounds;
 
-namespace Mahjong.Lib.Game.Tests.Rounds.Managing;
+namespace Mahjong.Lib.Game.Tests.States.RoundStates;
 
-public class RoundManager_StartAsyncTests
+public class RoundStateContext_RuntimeStartAsyncTests
 {
     [Fact]
     public async Task ツモ局面で手番プレイヤーがツモ和了応答_RoundEndedByWinが発火する()
@@ -21,11 +21,11 @@ public class RoundManager_StartAsyncTests
             FakePlayer.Create(2),
             FakePlayer.Create(3),
         };
-        using var manager = RoundManagerTestHelper.CreatePermissiveManager(players);
+        using var ctx = RoundStateContextRuntimeTestHelper.CreatePermissiveContext(players);
 
         // Act
-        var task = manager.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
-        var result = await RoundManagerTestHelper.AwaitRoundEndAsync(task, RoundManagerTestHelper.DEFAULT_TEST_TIMEOUT);
+        var task = ctx.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
+        var result = await RoundStateContextRuntimeTestHelper.AwaitRoundEndAsync(task, RoundStateContextRuntimeTestHelper.DEFAULT_TEST_TIMEOUT);
 
         // Assert
         var win = Assert.IsType<RoundEndedByWinEventArgs>(result);
@@ -38,12 +38,12 @@ public class RoundManager_StartAsyncTests
     public async Task 全員規定応答_Wall消尽で荒牌平局が発生する()
     {
         // Arrange
-        var players = RoundManagerTestHelper.CreateFakePlayers();
-        using var manager = RoundManagerTestHelper.CreatePermissiveManager(players);
+        var players = RoundStateContextRuntimeTestHelper.CreateFakePlayers();
+        using var ctx = RoundStateContextRuntimeTestHelper.CreatePermissiveContext(players);
 
         // Act
-        var task = manager.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
-        var result = await RoundManagerTestHelper.AwaitRoundEndAsync(task, TimeSpan.FromSeconds(15));
+        var task = ctx.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
+        var result = await RoundStateContextRuntimeTestHelper.AwaitRoundEndAsync(task, TimeSpan.FromSeconds(15));
 
         // Assert
         var ryu = Assert.IsType<RoundEndedByRyuukyokuEventArgs>(result);
@@ -61,11 +61,11 @@ public class RoundManager_StartAsyncTests
             FakePlayer.Create(2),
             FakePlayer.Create(3),
         };
-        using var manager = RoundManagerTestHelper.CreatePermissiveManager(players);
+        using var ctx = RoundStateContextRuntimeTestHelper.CreatePermissiveContext(players);
 
         // Act
-        var task = manager.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
-        await RoundManagerTestHelper.AwaitRoundEndAsync(task, RoundManagerTestHelper.DEFAULT_TEST_TIMEOUT);
+        var task = ctx.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
+        await RoundStateContextRuntimeTestHelper.AwaitRoundEndAsync(task, RoundStateContextRuntimeTestHelper.DEFAULT_TEST_TIMEOUT);
 
         // Assert
         Assert.All(players, p => Assert.Contains(p.ReceivedNotifications, x => x is HaipaiNotification));
@@ -82,11 +82,11 @@ public class RoundManager_StartAsyncTests
             FakePlayer.Create(2),
             FakePlayer.Create(3),
         };
-        using var manager = RoundManagerTestHelper.CreateDefaultManager(players);
+        using var ctx = RoundStateContextRuntimeTestHelper.CreateDefaultContext(players);
 
         // Act
-        var task = manager.StartAsync(RoundTestHelper.CreateRoundWithDealerKyuushuHand(), TestContext.Current.CancellationToken);
-        var result = await RoundManagerTestHelper.AwaitRoundEndAsync(task, RoundManagerTestHelper.DEFAULT_TEST_TIMEOUT);
+        var task = ctx.StartAsync(RoundTestHelper.CreateRoundWithDealerKyuushuHand(), TestContext.Current.CancellationToken);
+        var result = await RoundStateContextRuntimeTestHelper.AwaitRoundEndAsync(task, RoundStateContextRuntimeTestHelper.DEFAULT_TEST_TIMEOUT);
 
         // Assert
         var ryu = Assert.IsType<RoundEndedByRyuukyokuEventArgs>(result);

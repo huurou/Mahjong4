@@ -14,14 +14,13 @@ public class RoundStateHaipai_ResponseOkTests : IDisposable
     }
 
     [Fact]
-    public async Task OK応答_ツモ状態に遷移する()
+    public void OK応答_ツモ状態に遷移する()
     {
         // Arrange
-        context_.Init(RoundStateContextTestHelper.CreateRound());
+        RoundStateContextTestHelper.InitDirect(context_, RoundStateContextTestHelper.CreateRound());
 
         // Act
-        await context_.ResponseOkAsync();
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
+        RoundStateContextTestHelper.DriveResponseOk(context_);
 
         // Assert
         Assert.IsType<RoundStateTsumo>(context_.State);

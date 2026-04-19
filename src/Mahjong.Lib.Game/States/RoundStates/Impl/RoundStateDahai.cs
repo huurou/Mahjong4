@@ -21,7 +21,7 @@ public record RoundStateDahai : RoundState
     {
         base.ResponseOk(context, evt);
         // ロン応答なし 保留中の立直宣言があれば確定 (持ち点-1000・供託+1)
-        // 同巡フリテン適用は本イベント到達前に RoundManager が context.ApplyTemporaryFuriten で反映済
+        // 同巡フリテン適用は本イベント到達前に RoundStateContext が ApplyTemporaryFuriten で反映済
         var confirmedRound = context.Round.ConfirmRiichi();
         if (IsRyuukyoku(confirmedRound))
         {
@@ -30,11 +30,11 @@ public record RoundStateDahai : RoundState
             var nagashiManganPlayers = EnumerateNagashiManganPlayers(confirmedRound);
             var eventArgs = new RoundEndedByRyuukyokuEventArgs(RyuukyokuType.KouhaiHeikyoku, tenpaiPlayers, nagashiManganPlayers);
             var settledRound = confirmedRound.SettleRyuukyoku(RyuukyokuType.KouhaiHeikyoku, tenpaiPlayers, nagashiManganPlayers);
-            Transit(context, new RoundStateRyuukyoku(eventArgs), _ => settledRound);
+            Transit(context, () => new RoundStateRyuukyoku(eventArgs), _ => settledRound);
         }
         else
         {
-            Transit(context, new RoundStateTsumo(), _ => confirmedRound.NextTurn().Tsumo());
+            Transit(context, () => new RoundStateTsumo(), _ => confirmedRound.NextTurn().Tsumo());
         }
     }
 
@@ -42,7 +42,7 @@ public record RoundStateDahai : RoundState
     {
         base.ResponseCall(context, evt);
 
-        // 副露処理は遷移時 Round 更新関数内で行い、他の Response* との一貫性を保つ。
+        // 副露処理は遷移時 updateRound 内で行い、他の Response* との一貫性を保つ。
         // SnapshotRound には副露直後の Round (= updateRound 後の Round) を封入したいため、nextStateFactory 版 Transit を使用する。
         // 大明槓時の後続 RinshanTsumo は RoundStateCall の ResponseOk 受信後に行う
         Transit(
@@ -51,7 +51,7 @@ public record RoundStateDahai : RoundState
             round =>
             {
                 // 鳴かれても立直は成立する (リーチ棒は供託される)
-                // 同巡フリテン適用は本イベント到達前に RoundManager が context.ApplyTemporaryFuriten で反映済
+                // 同巡フリテン適用は本イベント到達前に RoundStateContext が ApplyTemporaryFuriten で反映済
                 var preparedRound = round.ConfirmRiichi();
                 return evt.CallType switch
                 {
@@ -80,7 +80,7 @@ public record RoundStateDahai : RoundState
         var winTile = round.RiverArray[loserIndex].Last();
         var (settledRound, details) = round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, winTile, context.ScoreCalculator);
         var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType, details.Winners, details.Honba, details.KyoutakuRiichiAward);
-        Transit(context, new RoundStateWin(eventArgs), _ => settledRound);
+        Transit(context, () => new RoundStateWin(eventArgs), _ => settledRound);
     }
 
     public override RoundInquirySpec CreateInquirySpec(Round round, IResponseCandidateEnumerator enumerator)

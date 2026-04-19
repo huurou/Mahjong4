@@ -17,7 +17,7 @@ namespace Mahjong.Lib.Game.States.GameStates;
 
 /// <summary>
 /// 対局状態遷移コンテキスト
-/// 通知・応答集約経路で動作する (<see cref="StartRound"/> で <see cref="RoundManager"/> を生成する)
+/// 通知・応答集約経路で動作する (<see cref="StartRound"/> で <see cref="RoundStateContext"/> を生成する)
 /// </summary>
 public class GameStateContext(
     IWallGenerator wallGenerator,
@@ -28,10 +28,9 @@ public class GameStateContext(
     IResponseCandidateEnumerator enumerator,
     IResponsePriorityPolicy priorityPolicy,
     IDefaultResponseFactory defaultFactory,
-    IRoundNotificationBuilder notificationBuilder,
-    IResponseDispatcher dispatcher,
     IGameTracer tracer,
-    ILoggerFactory loggerFactory
+    ILogger<GameStateContext> logger,
+    ILogger<RoundStateContext> roundStateContextLogger
 ) : IDisposable
 {
     public event EventHandler<GameStateChangedEventArgs>? GameStateChanged;
@@ -40,6 +39,7 @@ public class GameStateContext(
     private readonly Channel<GameEvent> eventChannel_ = Channel.CreateBounded<GameEvent>(new BoundedChannelOptions(100) { SingleReader = true });
     private readonly CancellationTokenSource cancellationTokenSource_ = new();
     private Task? eventProcessingTask_;
+    private readonly ILogger<GameStateContext> logger_ = logger;
 
     public GameState State
     {
@@ -72,11 +72,6 @@ public class GameStateContext(
     /// 現在進行中の局の RoundStateContext 局終了と共に破棄される
     /// </summary>
     public RoundStateContext? RoundStateContext { get; private set; }
-
-    /// <summary>
-    /// 現在進行中の局の RoundManager (通知・応答集約経路)
-    /// </summary>
-    public RoundManager? RoundManager { get; private set; }
 
     protected virtual TimeSpan DisposeTimeout => TimeSpan.FromSeconds(5);
 
@@ -137,47 +132,43 @@ public class GameStateContext(
     }
 
     /// <summary>
-    /// 新しい <see cref="RoundManager"/> を生成し指定の Round で初期化します。
-    /// RoundManager が内部で <see cref="RoundStateContext"/> を生成・保持し、通知・応答集約を担う
+    /// 新しい <see cref="RoundStateContext"/> を生成し指定の Round で初期化します。
+    /// RoundStateContext が状態機械と通知・応答集約ループ (StartAsync) を所有する。
+    /// <see cref="RoundStateContext.StartAsync"/> の戻り値 Task が faulted した場合はログに記録する
+    /// (RoundEnded イベントが発火されないまま runtime が死んだケースを観測するため)
     /// </summary>
     internal void StartRound(Round round)
     {
         ObjectDisposedException.ThrowIf(disposed_, this);
 
-        var manager = new RoundManager(
+        var ctx = new RoundStateContext(
             players,
             projector,
             enumerator,
             priorityPolicy,
             defaultFactory,
-            notificationBuilder,
-            dispatcher,
             TenpaiChecker,
             ScoreCalculator,
             tracer,
-            loggerFactory.CreateLogger<RoundManager>()
+            roundStateContextLogger
         );
-        manager.RoundEnded += OnRoundEnded;
-        _ = manager.StartAsync(round);
-        RoundManager = manager;
-        RoundStateContext = manager.InternalContext;
+        ctx.RoundEnded += OnRoundEnded;
+        // RoundEndedBy*Async ハンドラから RoundStateContext を参照する経路があるため、StartAsync の前に代入する
+        RoundStateContext = ctx;
+        var runtimeTask = ctx.StartAsync(round);
+        _ = runtimeTask.ContinueWith(
+            t => logger_.LogError(t.Exception, "RoundStateContext.StartAsync が faulted しました。"),
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default
+        );
     }
 
     /// <summary>
-    /// 現在の RoundStateContext / RoundManager の購読を解除し破棄します。
-    /// RoundManager 経路の場合は RoundManager が内部 RoundStateContext も破棄する
+    /// 現在の <see cref="RoundStateContext"/> の購読を解除し破棄します。
     /// </summary>
     internal void DisposeRoundContext()
     {
-        if (RoundManager is not null)
-        {
-            RoundManager.RoundEnded -= OnRoundEnded;
-            RoundManager.Dispose();
-            RoundManager = null;
-            RoundStateContext = null;
-            return;
-        }
-
         if (RoundStateContext is null) { return; }
 
         RoundStateContext.RoundEnded -= OnRoundEnded;
@@ -254,7 +245,7 @@ public class GameStateContext(
         }
         catch (OperationCanceledException)
         {
-            loggerFactory.CreateLogger<GameStateContext>().LogWarning(
+            logger_.LogWarning(
                 "GameNotification ACK タイムアウト player:{Index} notification:{Notification}",
                 recipientIndex.Value,
                 notification.GetType().Name
@@ -262,7 +253,7 @@ public class GameStateContext(
         }
         catch (Exception ex)
         {
-            loggerFactory.CreateLogger<GameStateContext>().LogWarning(
+            logger_.LogWarning(
                 ex,
                 "GameNotification ACK 例外 player:{Index} notification:{Notification}",
                 recipientIndex.Value,

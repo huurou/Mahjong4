@@ -8,14 +8,16 @@ using Mahjong.Lib.Game.States.RoundStates;
 using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Tests.Players;
 using Mahjong.Lib.Game.Tests.Rounds;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using System.Collections.Immutable;
 
-namespace Mahjong.Lib.Game.Tests.Rounds.Managing;
+namespace Mahjong.Lib.Game.Tests.States.RoundStates;
 
-internal static class RoundManagerTestHelper
+/// <summary>
+/// 通知・応答集約ループ (本番経路) を駆動する <see cref="RoundStateContext"/> 用のテストヘルパ。
+/// state 単体テスト用のヘルパは <see cref="RoundStateContextTestHelper"/> を使用する。
+/// </summary>
+internal static class RoundStateContextRuntimeTestHelper
 {
     internal static readonly TimeSpan DEFAULT_TEST_TIMEOUT = TimeSpan.FromSeconds(5);
 
@@ -43,56 +45,54 @@ internal static class RoundManagerTestHelper
     }
 
     /// <summary>
-    /// NoOp サービスを注入した <see cref="RoundManager"/> を生成する
+    /// NoOp サービスを注入した <see cref="RoundStateContext"/> を生成する
     /// </summary>
-    internal static RoundManager CreateDefaultManager(IEnumerable<Player> players)
+    internal static RoundStateContext CreateDefaultContext(IEnumerable<Player> players)
     {
-        return CreateManager(
+        return CreateContext(
             players,
             RoundTestHelper.NoOpTenpaiChecker,
             RoundTestHelper.NoOpScoreCalculator,
             new GameRules(),
             NullGameTracer.Instance,
-            NullLogger<RoundManager>.Instance
+            NullLogger<RoundStateContext>.Instance
         );
     }
 
     /// <summary>
-    /// 全牌種を待ち牌とする緩和 TenpaiChecker を使って <see cref="RoundManager"/> を生成する。
+    /// 全牌種を待ち牌とする緩和 TenpaiChecker を使って <see cref="RoundStateContext"/> を生成する。
     /// H4 合法応答検証の下で Ron/TsumoAgari を任意のタイミングで成立させたいテストで使用する
     /// </summary>
-    internal static RoundManager CreatePermissiveManager(IEnumerable<Player> players)
+    internal static RoundStateContext CreatePermissiveContext(IEnumerable<Player> players)
     {
-        return CreateManager(
+        return CreateContext(
             players,
             CreatePermissiveTenpaiChecker(),
             RoundTestHelper.NoOpScoreCalculator,
             new GameRules(),
             NullGameTracer.Instance,
-            NullLogger<RoundManager>.Instance
+            NullLogger<RoundStateContext>.Instance
         );
     }
 
     /// <summary>
-    /// 全依存を明示指定した <see cref="RoundManager"/> を生成する
+    /// 全依存を明示指定した <see cref="RoundStateContext"/> を生成する
     /// </summary>
-    internal static RoundManager CreateManager(
+    internal static RoundStateContext CreateContext(
         IEnumerable<Player> players,
         ITenpaiChecker tenpaiChecker,
         IScoreCalculator scoreCalculator,
         GameRules rules,
         IGameTracer tracer,
-        ILogger<RoundManager> logger
+        Microsoft.Extensions.Logging.ILogger<RoundStateContext> logger
     )
     {
-        return new RoundManager(
+        return new RoundStateContext(
             new PlayerList(players),
             new RoundViewProjector(),
             new ResponseCandidateEnumerator(tenpaiChecker, rules),
             new TenhouResponsePriorityPolicy(),
             new DefaultResponseFactory(),
-            new RoundNotificationBuilder(),
-            new ResponseDispatcher(),
             tenpaiChecker,
             scoreCalculator,
             tracer,

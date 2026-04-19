@@ -15,7 +15,7 @@ public class GameEndPolicy_ShouldEndAfterRoundTests
             [winner],
             loser,
             winType,
-            ImmutableArray<AdoptedWinner>.Empty,
+            [],
             new Honba(0),
             new KyoutakuRiichiAward(winner, 0)
         );

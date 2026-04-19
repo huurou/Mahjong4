@@ -15,42 +15,35 @@ public class RoundStateKanTsumo_ResponseWinTests : IDisposable
     }
 
     [Fact]
-    public async Task 嶺上和了応答_和了状態に遷移する()
+    public void 嶺上和了応答_和了状態に遷移する()
     {
         // Arrange
-        context_.Init(RoundStateContextTestHelper.CreateRound());
-        await context_.ResponseOkAsync();
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
-        await context_.ResponseKanAsync(CallType.Ankan, RoundStateContextTestHelper.PickAnkanTile(context_));
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateKan>(context_);
-        await context_.ResponseOkAsync();
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateKanTsumo>(context_);
+        RoundStateContextTestHelper.InitDirect(context_, RoundStateContextTestHelper.CreateRound());
+        RoundStateContextTestHelper.DriveResponseOk(context_);
+        RoundStateContextTestHelper.DriveResponseKan(context_, CallType.Ankan, RoundStateContextTestHelper.PickAnkanTile(context_));
+        RoundStateContextTestHelper.DriveResponseOk(context_);
 
         // Act: Rinshan で和了
-        await RoundStateContextTestHelper.ResponseRinshanWinAsync(context_);
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateWin>(context_);
+        RoundStateContextTestHelper.DriveRinshanWin(context_);
 
         // Assert
         Assert.IsType<RoundStateWin>(context_.State);
     }
 
     [Fact]
-    public async Task ツモ和了応答_例外で和了状態に遷移しない()
+    public void ツモ和了応答_例外で和了状態に遷移しない()
     {
         // Arrange: 槓ツモ状態へ遷移
-        context_.Init(RoundStateContextTestHelper.CreateRound());
-        await context_.ResponseOkAsync();
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
-        await context_.ResponseKanAsync(CallType.Ankan, RoundStateContextTestHelper.PickAnkanTile(context_));
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateKan>(context_);
-        await context_.ResponseOkAsync();
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateKanTsumo>(context_);
+        RoundStateContextTestHelper.InitDirect(context_, RoundStateContextTestHelper.CreateRound());
+        RoundStateContextTestHelper.DriveResponseOk(context_);
+        RoundStateContextTestHelper.DriveResponseKan(context_, CallType.Ankan, RoundStateContextTestHelper.PickAnkanTile(context_));
+        RoundStateContextTestHelper.DriveResponseOk(context_);
 
         // Act: Tsumo (不正) を渡す
-        await RoundStateContextTestHelper.ResponseTsumoWinAsync(context_);
+        var ex = Record.Exception(() => RoundStateContextTestHelper.DriveTsumoWin(context_));
 
         // Assert: 例外で遷移しない
-        await Task.Delay(100, TestContext.Current.CancellationToken);
+        Assert.NotNull(ex);
         Assert.IsType<RoundStateKanTsumo>(context_.State);
     }
 }

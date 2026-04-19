@@ -7,9 +7,9 @@ using Mahjong.Lib.Game.States.RoundStates;
 using Mahjong.Lib.Game.Tests.Players;
 using Mahjong.Lib.Game.Tests.Rounds;
 
-namespace Mahjong.Lib.Game.Tests.Rounds.Managing;
+namespace Mahjong.Lib.Game.Tests.States.RoundStates;
 
-public class RoundManager_TimeoutTests
+public class RoundStateContext_RuntimeTimeoutTests
 {
     [Fact]
     public async Task 他家プレイヤーがキャンセル例外_DefaultResponseFactoryのOK応答で継続進行する()
@@ -25,11 +25,11 @@ public class RoundManager_TimeoutTests
             },
             FakePlayer.Create(3),
         };
-        using var manager = RoundManagerTestHelper.CreatePermissiveManager(players);
+        using var ctx = RoundStateContextRuntimeTestHelper.CreatePermissiveContext(players);
 
         // Act: 例外は DefaultResponseFactory で OkResponse に置換され進行継続。2 巡目ツモでツモ和了して終了する
-        var task = manager.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
-        var result = await RoundManagerTestHelper.AwaitRoundEndAsync(task, RoundManagerTestHelper.DEFAULT_TEST_TIMEOUT);
+        var task = ctx.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
+        var result = await RoundStateContextRuntimeTestHelper.AwaitRoundEndAsync(task, RoundStateContextRuntimeTestHelper.DEFAULT_TEST_TIMEOUT);
 
         // Assert
         var win = Assert.IsType<RoundEndedByWinEventArgs>(result);
@@ -50,11 +50,11 @@ public class RoundManager_TimeoutTests
             FakePlayer.Create(2),
             FakePlayer.Create(3),
         };
-        using var manager = RoundManagerTestHelper.CreatePermissiveManager(players);
+        using var ctx = RoundStateContextRuntimeTestHelper.CreatePermissiveContext(players);
 
         // Act
-        var task = manager.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
-        var result = await RoundManagerTestHelper.AwaitRoundEndAsync(task, RoundManagerTestHelper.DEFAULT_TEST_TIMEOUT);
+        var task = ctx.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
+        var result = await RoundStateContextRuntimeTestHelper.AwaitRoundEndAsync(task, RoundStateContextRuntimeTestHelper.DEFAULT_TEST_TIMEOUT);
 
         // Assert
         var win = Assert.IsType<RoundEndedByWinEventArgs>(result);

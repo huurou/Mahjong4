@@ -15,20 +15,16 @@ public class RoundStateKanTsumo_ResponseOkTests : IDisposable
     }
 
     [Fact]
-    public async Task OK応答_四槓流れでない場合_槓ツモ後状態に遷移する()
+    public void OK応答_四槓流れでない場合_槓ツモ後状態に遷移する()
     {
         // Arrange
-        context_.Init(RoundStateContextTestHelper.CreateRound());
-        await context_.ResponseOkAsync();
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
-        await context_.ResponseKanAsync(CallType.Ankan, RoundStateContextTestHelper.PickAnkanTile(context_));
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateKan>(context_);
-        await context_.ResponseOkAsync();
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateKanTsumo>(context_);
+        RoundStateContextTestHelper.InitDirect(context_, RoundStateContextTestHelper.CreateRound());
+        RoundStateContextTestHelper.DriveResponseOk(context_);
+        RoundStateContextTestHelper.DriveResponseKan(context_, CallType.Ankan, RoundStateContextTestHelper.PickAnkanTile(context_));
+        RoundStateContextTestHelper.DriveResponseOk(context_);
 
         // Act
-        await context_.ResponseOkAsync();
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateAfterKanTsumo>(context_);
+        RoundStateContextTestHelper.DriveResponseOk(context_);
 
         // Assert
         Assert.IsType<RoundStateAfterKanTsumo>(context_.State);

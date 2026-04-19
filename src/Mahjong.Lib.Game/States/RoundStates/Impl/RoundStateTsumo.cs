@@ -18,11 +18,12 @@ public record RoundStateTsumo : RoundState
     public override void ResponseDahai(RoundStateContext context, RoundEventResponseDahai evt)
     {
         base.ResponseDahai(context, evt);
-        Transit(context, new RoundStateDahai(), round =>
+        Transit(context, () => new RoundStateDahai(), round =>
         {
+            // 立直宣言は保留のみ。持ち点・供託は ResponseOk (ロン応答なし) または鳴き発生時に確定
+            // PendRiichi と Dahai を単一関数で適用することで、Dahai 例外時に Round が部分更新されないことを保証する
             if (evt.IsRiichi)
             {
-                // 立直宣言は保留のみ。持ち点・供託は ResponseOk (ロン応答なし) または鳴き発生時に確定
                 round = round.PendRiichi(round.Turn);
             }
             return round.Dahai(evt.Tile, context.TenpaiChecker);
@@ -40,7 +41,7 @@ public record RoundStateTsumo : RoundState
         };
         Transit(
             context,
-            new RoundStateKan(evt.CallType, kanTiles),
+            () => new RoundStateKan(evt.CallType, kanTiles),
             round => evt.CallType switch
             {
                 CallType.Ankan => round.Ankan(evt.Tile),
@@ -64,7 +65,7 @@ public record RoundStateTsumo : RoundState
         var winTile = context.Round.HandArray[context.Round.Turn].Last();
         var (settledRound, details) = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, winTile, context.ScoreCalculator);
         var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType, details.Winners, details.Honba, details.KyoutakuRiichiAward);
-        Transit(context, new RoundStateWin(eventArgs), _ => settledRound);
+        Transit(context, () => new RoundStateWin(eventArgs), _ => settledRound);
     }
 
     public override void ResponseRyuukyoku(RoundStateContext context, RoundEventResponseRyuukyoku evt)
@@ -73,7 +74,7 @@ public record RoundStateTsumo : RoundState
         // 途中流局 (九種九牌・四風連打・四槓流れ・四家立直・三家和了) 流し満貫は荒牌平局のみなので空
         var settledRound = context.Round.SettleRyuukyoku(evt.Type, evt.TenpaiPlayers, []);
         var eventArgs = new RoundEndedByRyuukyokuEventArgs(evt.Type, evt.TenpaiPlayers, []);
-        Transit(context, new RoundStateRyuukyoku(eventArgs), _ => settledRound);
+        Transit(context, () => new RoundStateRyuukyoku(eventArgs), _ => settledRound);
     }
 
     public override RoundInquirySpec CreateInquirySpec(Round round, IResponseCandidateEnumerator enumerator)

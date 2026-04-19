@@ -13,11 +13,10 @@ using Mahjong.Lib.Game.Tests.Players;
 using Mahjong.Lib.Game.Tests.Rounds;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using System.Collections.Immutable;
 
-namespace Mahjong.Lib.Game.Tests.Rounds.Managing;
+namespace Mahjong.Lib.Game.Tests.States.RoundStates;
 
-public class RoundManager_DahaiFlowTests
+public class RoundStateContext_RuntimeDahaiFlowTests
 {
     [Fact]
     public async Task 他家がRonResponse_放銃者と和了者が正しく設定される()
@@ -35,18 +34,18 @@ public class RoundManager_DahaiFlowTests
             new(PlayerId.NewId(), "F2", new PlayerIndex(2)) { OnDahai = (_, _) => new RonResponse() },
             FakePlayer.Create(3),
         };
-        using var manager = RoundManagerTestHelper.CreateManager(
+        using var ctx = RoundStateContextRuntimeTestHelper.CreateContext(
             players,
             tenpaiMock.Object,
             RoundTestHelper.NoOpScoreCalculator,
             new GameRules(),
             NullGameTracer.Instance,
-            NullLogger<RoundManager>.Instance
+            NullLogger<RoundStateContext>.Instance
         );
 
         // Act
-        var task = manager.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
-        var result = await RoundManagerTestHelper.AwaitRoundEndAsync(task, RoundManagerTestHelper.DEFAULT_TEST_TIMEOUT);
+        var task = ctx.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
+        var result = await RoundStateContextRuntimeTestHelper.AwaitRoundEndAsync(task, RoundStateContextRuntimeTestHelper.DEFAULT_TEST_TIMEOUT);
 
         // Assert
         var win = Assert.IsType<RoundEndedByWinEventArgs>(result);
@@ -71,18 +70,18 @@ public class RoundManager_DahaiFlowTests
             new(PlayerId.NewId(), "F2", new PlayerIndex(2)) { OnDahai = (_, _) => new RonResponse() },
             FakePlayer.Create(3),
         };
-        using var manager = RoundManagerTestHelper.CreateManager(
+        using var ctx = RoundStateContextRuntimeTestHelper.CreateContext(
             players,
             tenpaiMock.Object,
             RoundTestHelper.NoOpScoreCalculator,
             new GameRules(),
             NullGameTracer.Instance,
-            NullLogger<RoundManager>.Instance
+            NullLogger<RoundStateContext>.Instance
         );
 
         // Act
-        var task = manager.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
-        var result = await RoundManagerTestHelper.AwaitRoundEndAsync(task, RoundManagerTestHelper.DEFAULT_TEST_TIMEOUT);
+        var task = ctx.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
+        var result = await RoundStateContextRuntimeTestHelper.AwaitRoundEndAsync(task, RoundStateContextRuntimeTestHelper.DEFAULT_TEST_TIMEOUT);
 
         // Assert
         var win = Assert.IsType<RoundEndedByWinEventArgs>(result);
@@ -97,7 +96,7 @@ public class RoundManager_DahaiFlowTests
     public async Task RonCandidateありでもOkResponse_見逃しとして受理される()
     {
         // Arrange: 全員 OkResponse (=見逃し) でも次ツモへ進行、2 ツモ目でツモ和了させて終了。
-        // H4 合法応答検証下で TsumoAgari を成立させるため CreatePermissiveManager (全牌種 waits) を使用
+        // H4 合法応答検証下で TsumoAgari を成立させるため CreatePermissiveContext (全牌種 waits) を使用
         var players = new FakePlayer[]
         {
             new(PlayerId.NewId(), "F0", new PlayerIndex(0))
@@ -108,11 +107,11 @@ public class RoundManager_DahaiFlowTests
             FakePlayer.Create(2),
             FakePlayer.Create(3),
         };
-        using var manager = RoundManagerTestHelper.CreatePermissiveManager(players);
+        using var ctx = RoundStateContextRuntimeTestHelper.CreatePermissiveContext(players);
 
         // Act
-        var task = manager.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
-        var result = await RoundManagerTestHelper.AwaitRoundEndAsync(task, RoundManagerTestHelper.DEFAULT_TEST_TIMEOUT);
+        var task = ctx.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
+        var result = await RoundStateContextRuntimeTestHelper.AwaitRoundEndAsync(task, RoundStateContextRuntimeTestHelper.DEFAULT_TEST_TIMEOUT);
 
         // Assert
         var win = Assert.IsType<RoundEndedByWinEventArgs>(result);

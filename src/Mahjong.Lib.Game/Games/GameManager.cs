@@ -2,10 +2,10 @@
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds.Managing;
 using Mahjong.Lib.Game.States.GameStates;
+using Mahjong.Lib.Game.States.RoundStates;
 using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Walls;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Mahjong.Lib.Game.Games;
 
@@ -22,10 +22,9 @@ namespace Mahjong.Lib.Game.Games;
 /// <param name="enumerator">合法応答候補列挙</param>
 /// <param name="priorityPolicy">応答優先順位解決</param>
 /// <param name="defaultFactory">タイムアウト時既定応答生成</param>
-/// <param name="notificationBuilder">通知ビルダー (既定実装: <see cref="RoundNotificationBuilder"/>)</param>
-/// <param name="dispatcher">応答ディスパッチャ (既定実装: <see cref="ResponseDispatcher"/>)</param>
 /// <param name="tracer">対局トレーサー (no-op が必要な場合は <see cref="NullGameTracer.Instance"/> を明示的に渡す)</param>
-/// <param name="loggerFactory">ロガーファクトリ (no-op が必要な場合は <see cref="NullLoggerFactory.Instance"/> を明示的に渡す)</param>
+/// <param name="gameStateContextLogger">対局状態遷移コンテキスト用ロガー</param>
+/// <param name="roundStateContextLogger">局進行コンテキスト用ロガー</param>
 public class GameManager(
     PlayerList playerList,
     GameRules rules,
@@ -36,10 +35,9 @@ public class GameManager(
     IResponseCandidateEnumerator enumerator,
     IResponsePriorityPolicy priorityPolicy,
     IDefaultResponseFactory defaultFactory,
-    IRoundNotificationBuilder notificationBuilder,
-    IResponseDispatcher dispatcher,
     IGameTracer tracer,
-    ILoggerFactory loggerFactory
+    ILogger<GameStateContext> gameStateContextLogger,
+    ILogger<RoundStateContext> roundStateContextLogger
 ) : IDisposable
 {
     private GameStateContext? context_;
@@ -72,10 +70,9 @@ public class GameManager(
             enumerator,
             priorityPolicy,
             defaultFactory,
-            notificationBuilder,
-            dispatcher,
             tracer,
-            loggerFactory
+            gameStateContextLogger,
+            roundStateContextLogger
         );
         await context_.InitAsync(Game.Create(playerList, rules), ct);
     }

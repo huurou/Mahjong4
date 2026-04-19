@@ -18,7 +18,7 @@ Phase 5 以前は「意思決定通知」と「観測通知」で別経路 (`pro
 
 ## 問い合わせ外プレイヤーの非 OK 応答は例外
 
-`RoundManager.CollectSingleAsync` は各応答に対して以下の順で処理する:
+`RoundStateContext.CollectSingleAsync` (内部 private) は各応答に対して以下の順で処理する:
 
 1. `InvokePlayerAsync` (`OperationCanceledException` → timeout fallback / その他 `Exception` → exception fallback)
 2. `ResponseValidator.IsResponseInCandidates` 候補集合照合
@@ -39,57 +39,57 @@ Phase 5 以前は「意思決定通知」と「観測通知」で別経路 (`pro
 
 ## パイプライン全体像
 
-`RoundManager.ProcessAsync` は 1 局分のメインループで、`stateChannel_` から次状態を取り出すたびに以下のステップを**直列**に実行する。各ステップは独立して差し替え可能な DI 境界を持つ (`IResponseCandidateEnumerator` / `IRoundViewProjector` / `IRoundNotificationBuilder` / `IResponsePriorityPolicy` / `IDefaultResponseFactory` / `IResponseDispatcher` / `IGameTracer`)。
+`RoundStateContext.ProcessRuntimeAsync` (partial: `RoundStateContext.Runtime.cs`) は 1 局分のメインループで、`stateChannel_` から次状態を取り出すたびに以下のステップを**直列**に実行する。各ステップは独立して差し替え可能な DI 境界を持つ (`IResponseCandidateEnumerator` / `IRoundViewProjector` / `IResponsePriorityPolicy` / `IDefaultResponseFactory` / `IGameTracer`)。通知ビルダー / ディスパッチャは `RoundStateContext.PlayerIo.cs` 内に inline 化されており、外部 DI ポイントは持たない。
 
 ```
 [1] RoundStateContext.RoundStateChanged
       → stateChannel_ (Channel<RoundState>, SingleReader/SingleWriter)
-[2] RoundManager.ProcessAsync が次状態を 1 件取り出す
+[2] RoundStateContext.ProcessRuntimeAsync が次状態を 1 件取り出す
 [3] KanTsumo pending 消費判定
       state is RoundStateAfterKanTsumo && pendingAfterKanTsumoResponse_ != null
-        → dispatcher.DispatchAfterKanTsumoAsync(context, pending) で消費して continue
+        → DispatchAfterKanTsumoAsync(pending) で消費して continue
 [4] Round スナップショット解決
       state is RoundStateCall call && call.SnapshotRound != null
         ? call.SnapshotRound
-        : context_.Round
-[5] state.CreateInquirySpec(round, enumerator)
+        : Round
+[5] state.CreateInquirySpec(round, enumerator_)
       → RoundInquirySpec { Phase, PlayerSpecs[4人分], InquiredPlayerIndices, LoserIndex? }
 [6] CollectResponsesAsync (全員並列 Task.WhenAll)
       各プレイヤーについて:
         a. NotificationId.NewId() (UUIDv7)
-        b. notificationBuilder.Build(state, round, spec, playerSpec, projector)
-             内部で projector.Project(round, playerIndex) により視点射影
+        b. BuildNotification(state, round, spec, playerSpec)
+             内部で projector_.Project(round, playerIndex) により視点射影
              問い合わせ対象/非対象で通知型を切り替え (後述)
-        c. tracer.OnNotificationSent
-        d. InvokePlayerAsync (11 種の Player.On***Async にディスパッチ)
+        c. tracer_.OnNotificationSent
+        d. InvokePlayerAsync (10 種の Player.On***Async にディスパッチ)
              DefaultTimeout = 10 秒 で LinkedTokenSource
         e. 例外制御:
-             OperationCanceledException → tracer.OnResponseTimeout → defaultFactory
-             その他 Exception → tracer.OnResponseException → defaultFactory
-        f. tracer.OnResponseReceived
+             OperationCanceledException → tracer_.OnResponseTimeout → defaultFactory_
+             その他 Exception → tracer_.OnResponseException → defaultFactory_
+        f. tracer_.OnResponseReceived
         g. ResponseValidator.IsResponseInCandidates で候補集合と照合
         h. 候補外:
              問い合わせ外 → InvalidOperationException を throw
-             問い合わせ対象 → tracer.OnInvalidResponse → defaultFactory にフォールバック
-[7] priorityPolicy.Resolve(spec, responses)
+             問い合わせ対象 → tracer_.OnInvalidResponse → defaultFactory_ にフォールバック
+[7] priorityPolicy_.Resolve(spec, responses)
       → ImmutableArray<AdoptedPlayerResponse>
 [8] DetectRonMissedFuritenPlayers (Dahai フェーズのみ)
       Ron 候補を提示されたが Ron 以外で応答したプレイヤーを同巡フリテン対象として検出
       ロン応答が 1 件でも含まれる場合は空配列
-[9] tracer.OnAdoptedAction (採用応答を 1 件ずつ記録)
-[10] RoundStateContext.ApplyTemporaryFuriten(temporaryFuritenPlayers) を同期直接呼び出し
+[9] tracer_.OnAdoptedAction (採用応答を 1 件ずつ記録)
+[10] ApplyTemporaryFuriten(temporaryFuritenPlayers) を同期直接呼び出し
       Dahai フェーズで同巡フリテン対象がある場合のみ、状態遷移を伴わない局所更新として Round を書き換える
-[11] dispatcher.DispatchAsync(context, spec, adopted)
-      Phase に応じて context_.Response*Async を発火
-        → RoundStateContext.Channel<RoundEvent> に積まれ、次状態へ遷移
+[11] DispatchAsync(spec, adopted)
+      Phase に応じて Response*Async (private) を発火
+        → eventChannel_ (Channel<RoundEvent>) に積まれ、ProcessEventAsync が次状態へ遷移
       KanTsumo でアクション応答が採用された場合は PlayerResponse? を返し、
         pendingAfterKanTsumoResponse_ にセット → [3] で後続 AfterKanTsumo 消費
       → [1] に戻る
 ```
 
-終了条件は `RoundStateContext.RoundEnded` イベント (終端状態 `RoundStateWin` / `RoundStateRyuukyoku` の OK 応答で発火) で `stateChannel_.Writer.TryComplete()` を呼び、`ProcessAsync` の `await foreach` が自然終了する。
+終了条件は `RoundEnded` イベント (終端状態 `RoundStateWin` / `RoundStateRyuukyoku` の OK 応答で発火) で `stateChannel_.Writer.TryComplete()` を呼び、`ProcessRuntimeAsync` の `await foreach` が自然終了する。
 
-同巡フリテンは `RoundManager` が優先順位解決後・ディスパッチ前に `RoundStateContext.ApplyTemporaryFuriten` を**同期呼び出し**して `Round` を局所更新する。状態遷移を伴わない更新のためイベントキュー (`Channel<RoundEvent>`) は介さず、`private setter` 経由で `Round` を直接書き換える例外経路として設計されている。
+同巡フリテンは優先順位解決後・ディスパッチ前に `ApplyTemporaryFuriten` (private) を**同期呼び出し**して `Round` を局所更新する。状態遷移を伴わない更新のためイベントキュー (`eventChannel_`) は介さず、`internal setter` 経由で `Round` を直接書き換える例外経路として設計されている。
 
 ## フェーズ別 `RoundInquirySpec`
 
@@ -111,7 +111,7 @@ Phase 5 以前は「意思決定通知」と「観測通知」で別経路 (`pro
 
 ## フェーズ別通知マッピング
 
-`IRoundNotificationBuilder` 実装 (`RoundNotificationBuilder`) はプレイヤーが問い合わせ対象か否かで通知型を切り替える (私的情報遮断のため):
+`RoundStateContext.PlayerIo.cs` の `BuildNotification` (旧 `RoundNotificationBuilder.Build`) はプレイヤーが問い合わせ対象か否かで通知型を切り替える (私的情報遮断のため):
 
 | State                      | 問い合わせ対象 (手番) への通知                  | 問い合わせ外 (他家) への通知                           | 主な内容                                                    |
 | -------------------------- | ----------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------- |
@@ -151,14 +151,14 @@ switch (spec.Phase)
 
 `FindInquiredResponse` は単一対象フェーズで `spec.InquiredPlayerIndices[0]` の応答を引く。`FilterInquiredResponses` は複数対象フェーズで問い合わせ対象の応答だけを残す (非対象プレイヤーの OK は優先順位解決前に除外される)。
 
-`Dahai` / `Kan` のダブロン判定は `DispatchDahaiAsync` / `DispatchKanAsync` 内で `adopted.Where(x => x.Response is RonResponse or ChankanRonResponse)` を配列のまま `context.ResponseWinAsync(winners, loserIndex, winType)` に渡す (天鳳準拠でダブロン成立、トリプルロンはルール未確定)。
+`Dahai` / `Kan` のダブロン判定は `DispatchDahaiAsync` / `DispatchKanAsync` 内で `adopted.Where(x => x.Response is RonResponse or ChankanRonResponse)` を配列のまま `ResponseWinAsync(winners, loserIndex, winType)` に渡す (天鳳準拠でダブロン成立、トリプルロンはルール未確定)。
 
 ## KanTsumo の 2 段階ディスパッチ
 
 `RoundStateKanTsumo` で「嶺上ツモ和了 / 打牌 / 暗槓 / 加槓」を 1 通知・1 応答で受けるが、嶺上ツモ和了 (`RinshanTsumoResponse`) とそれ以外で遷移先が異なる:
 
 - **嶺上ツモ和了**: `ResponseWinAsync([self], self, WinType.Rinshan)` を直接発火 → `RoundStateWin` へ。`DispatchKanTsumoAsync` は `null` を返す
-- **打牌/暗槓/加槓**: `DispatchKanTsumoAsync` が採用応答を返し、`RoundManager` が `pendingAfterKanTsumoResponse_` にセット → `ResponseOkAsync()` で `RoundStateAfterKanTsumo` に遷移 → メインループ [3] で state が `RoundStateAfterKanTsumo` に切り替わったタイミングで `pending` を消費して `DispatchAfterKanTsumoAsync` を呼ぶ
+- **打牌/暗槓/加槓**: `DispatchKanTsumoAsync` が採用応答を返し、`ProcessRuntimeAsync` が `pendingAfterKanTsumoResponse_` にセット → `ResponseOkAsync()` で `RoundStateAfterKanTsumo` に遷移 → メインループ [3] で state が `RoundStateAfterKanTsumo` に切り替わったタイミングで `pending` を消費して `DispatchAfterKanTsumoAsync` を呼ぶ
 
 この 2 段階化により、`AfterKanTsumo` 状態での候補再計算 (四槓流れ除外後) を挟まずに済む。`pending` のセット漏れ防止のため `try/catch` で例外時は `null` に戻す。
 
@@ -214,26 +214,23 @@ Dahai --(ResponseCall: Daiminkan)--> Call --(ResponseOk)--> KanTsumo
                                          (RinshanTsumo 未実行)
 ```
 
-`RoundStateCall.ResponseOk` が大明槓判定時に `Transit(context, new RoundStateKanTsumo(), round => round.RinshanTsumo())` を呼ぶため、`RoundStateCall.Entry` の時点では `Round` は副露直後だが、`RoundStateKanTsumo.Entry` が走った直後には嶺上ツモ後になる。
+`RoundStateCall.ResponseOk` が大明槓判定時に `Transit(context, new RoundStateKanTsumo(), () => context.Round = context.Round.RinshanTsumo())` を呼ぶため、`RoundStateCall.Entry` の時点では `Round` は副露直後だが、`RoundStateKanTsumo.Entry` が走った直後には嶺上ツモ後になる。
 
-`stateChannel_` が `RoundStateCall` を流した時点で `context.Round` を読んでも、`RoundManager.ProcessAsync` が非同期ループで読む順序によっては RinshanTsumo 後の `Round` が観測される可能性がある (`RoundStateContext` の `Channel<RoundEvent>` と `stateChannel_` は独立キューのため)。副露通知に嶺上ツモ牌が混入するとクライアント表示がずれる。
+`stateChannel_` が `RoundStateCall` を流した時点で `context.Round` を読んでも、`ProcessRuntimeAsync` が非同期ループで読む順序によっては RinshanTsumo 後の `Round` が観測される可能性がある (`eventChannel_` と `stateChannel_` は独立キューのため)。副露通知に嶺上ツモ牌が混入するとクライアント表示がずれる。
 
-解決策として `RoundStateCall.SnapshotRound` を `init` プロパティで持ち、遷移時に `RoundStateDahai.ResponseCall` が `Transit(context, () => new RoundStateCall { SnapshotRound = context.Round }, round => ...)` の**ファクトリ版 `Transit`** を使い、副露実行後・`Entry` 前の `Round` を封入する。
+解決策として `RoundStateCall.SnapshotRound` を `init` プロパティで持ち、遷移時に `RoundStateDahai.ResponseCall` が `Transit(context, () => new RoundStateCall { SnapshotRound = context.Round }, () => ...)` の**ファクトリ版 `Transit`** を使い、副露実行後・`Entry` 前の `Round` を封入する。
 
-`RoundState.Transit` は 3 オーバーロード:
+`RoundState.Transit` は 2 オーバーロード:
 
 ```csharp
-// [1] Round 更新なしの遷移
-protected static void Transit(RoundStateContext context, RoundState nextState);
+// [1] action 実行後に遷移
+protected static void Transit(RoundStateContext context, RoundState nextState, Action? action = null);
 
-// [2] Round を updateRound で更新してから遷移
-protected static void Transit(RoundStateContext context, RoundState nextState, Func<Round, Round> updateRound);
-
-// [3] Round 更新後に状態ファクトリで次状態を生成して遷移 (SnapshotRound 等で使用)
-protected static void Transit(RoundStateContext context, Func<RoundState> nextStateFactory, Func<Round, Round> updateRound);
+// [2] action 実行後に状態ファクトリで次状態を生成して遷移 (SnapshotRound 等で使用)
+protected static void Transit(RoundStateContext context, Func<RoundState> nextStateFactory, Action? action = null);
 ```
 
-`RoundStateContext.Transit` の内部実装は `Exit → updateRound → nextStateFactory() → Entry` の順で評価するため、ファクトリ版の中で `context.Round` を参照した時点の値は `updateRound` 適用後の副露直後 `Round` になる。
+`RoundStateContext.Transit` の内部実装は `Exit → action → nextStateFactory() → Entry` の順で評価するため、ファクトリ版の中で `context.Round` を参照した時点の値は `action` 適用後の副露直後 `Round` になる。`action` は `Action?` (任意の副作用、null 可) であり、Round 更新は action 内部で `context.Round = ...` と書く (Round 更新以外にも使える汎用パターン、`GameStates.GameStateContext.TransitAsync` と同じ意味論)。
 
 ファクトリ版が必要な本質的理由は「State パターンの `Exit → 副作用 → Entry` 順序を崩さずに、副作用適用後の `context.Round` を次状態のコンストラクタ引数に使いたい」ため。Immutable 性維持のためではなく、遷移順序の契約を保ちつつ派生情報を伝搬するための追加オーバーロード。
 
@@ -244,6 +241,8 @@ Phase 5 レビュー前の設計で存在していた以下は全て撤去:
 - `CallPerformed` イベント (`RoundStateContext` 上で副露時のみ発火されていた個別チャネル)
 - `progressChannel` の union 型 (`OneOf<State, CallEvent>` 風に通知観測と状態遷移を混在させていた)
 - `BroadcastCallNotificationAsync` / `BroadcastDahaiNotificationAsync` / `BroadcastWinNotificationAsync` の 3 メソッド (state なしで引数直接渡しだった観測通知専用の送信経路)
-- `ApplyTemporaryFuritenIfRonMissed` として `RoundManager` が直接 `context.Round` を書き換えていた経路 (現在は `DetectRonMissedFuritenPlayers` が `PlayerIndex[]` を返し、`RoundManager` が `RoundStateContext.ApplyTemporaryFuriten` を同期直接呼び出しする。`RoundStateContext` 側で `private setter` 経由の局所更新として吸収しており、状態遷移を伴わない更新のためイベントキューは介さない明示的な例外経路)
+- `ApplyTemporaryFuritenIfRonMissed` として外部から `context.Round` を書き換えていた経路 (現在は `DetectRonMissedFuritenPlayers` が `PlayerIndex[]` を返し、`RoundStateContext.ApplyTemporaryFuriten` (private) を内部から同期呼び出しする。`internal setter` 経由の局所更新として吸収しており、状態遷移を伴わない更新のためイベントキューは介さない明示的な例外経路)
+- `RoundManager` クラス (旧 3 層所有 `GameStateContext → RoundManager → RoundStateContext`)。`RoundStateContext` への統合により 2 層化 (`GameStateContext → RoundStateContext`)。同 ctx を 2 つの async ループ (manager 側 `stateChannel_` と context 側 `eventChannel_`) で駆動していた race を構造的に除去
+- `IResponseDispatcher` / `ResponseDispatcher` / `IRoundNotificationBuilder` / `RoundNotificationBuilder` (4 ファイル)。ロジックは `RoundStateContext.PlayerIo.cs` に inline 化
 
 通知観測点と意思決定点は通知プロトコル上で区別せず、応答候補集合 (`OkCandidate` のみ vs それ以外) とフェーズ列挙値 (`RoundInquiryPhase`) だけで表現する。これにより Wire DTO 層も通知種別に閉じ、リプレイ・牌譜再生が一本化される。

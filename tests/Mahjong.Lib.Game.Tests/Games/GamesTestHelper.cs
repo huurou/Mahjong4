@@ -2,6 +2,8 @@
 using Mahjong.Lib.Game.Games.Scoring;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds.Managing;
+using Mahjong.Lib.Game.States.GameStates;
+using Mahjong.Lib.Game.States.RoundStates;
 using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Tests.Players;
 using Mahjong.Lib.Game.Tests.States.RoundStates;
@@ -45,7 +47,7 @@ internal static class GamesTestHelper
     }
 
     /// <summary>
-    /// Phase 5 RoundManager 経路用の視点射影の既定実装を返す
+    /// 視点射影の既定実装を返す
     /// </summary>
     internal static IRoundViewProjector CreateProjector()
     {
@@ -53,7 +55,7 @@ internal static class GamesTestHelper
     }
 
     /// <summary>
-    /// Phase 5 RoundManager 経路用の合法応答候補列挙の既定実装を返す
+    /// 合法応答候補列挙の既定実装を返す
     /// </summary>
     internal static IResponseCandidateEnumerator CreateEnumerator(GameRules? rules = null)
     {
@@ -61,7 +63,7 @@ internal static class GamesTestHelper
     }
 
     /// <summary>
-    /// Phase 5 RoundManager 経路用の応答優先順位ポリシーの既定実装を返す
+    /// 応答優先順位ポリシーの既定実装を返す
     /// </summary>
     internal static IResponsePriorityPolicy CreatePriorityPolicy()
     {
@@ -69,7 +71,7 @@ internal static class GamesTestHelper
     }
 
     /// <summary>
-    /// Phase 5 RoundManager 経路用のタイムアウト時既定応答生成の既定実装を返す
+    /// タイムアウト時既定応答生成の既定実装を返す
     /// </summary>
     internal static IDefaultResponseFactory CreateDefaultFactory()
     {
@@ -77,35 +79,11 @@ internal static class GamesTestHelper
     }
 
     /// <summary>
-    /// Phase 5 RoundManager 経路用の通知ビルダーの既定実装を返す
-    /// </summary>
-    internal static IRoundNotificationBuilder CreateNotificationBuilder()
-    {
-        return new RoundNotificationBuilder();
-    }
-
-    /// <summary>
-    /// Phase 5 RoundManager 経路用の応答ディスパッチャの既定実装を返す
-    /// </summary>
-    internal static IResponseDispatcher CreateDispatcher()
-    {
-        return new ResponseDispatcher();
-    }
-
-    /// <summary>
-    /// Phase 5 RoundManager 経路用の no-op トレーサーを返す
+    /// no-op トレーサーを返す
     /// </summary>
     internal static IGameTracer CreateTracer()
     {
         return NullGameTracer.Instance;
-    }
-
-    /// <summary>
-    /// Phase 5 RoundManager 経路用の no-op ロガーファクトリを返す
-    /// </summary>
-    internal static ILoggerFactory CreateLoggerFactory()
-    {
-        return NullLoggerFactory.Instance;
     }
 
     /// <summary>
@@ -123,17 +101,16 @@ internal static class GamesTestHelper
             CreateEnumerator(rules),
             CreatePriorityPolicy(),
             CreateDefaultFactory(),
-            CreateNotificationBuilder(),
-            CreateDispatcher(),
             CreateTracer(),
-            CreateLoggerFactory()
+            NullLogger<GameStateContext>.Instance,
+            NullLogger<RoundStateContext>.Instance
         );
     }
 
     /// <summary>
     /// 既定のサービス群で <see cref="Mahjong.Lib.Game.States.GameStates.GameStateContext"/> を生成する
     /// </summary>
-    internal static Mahjong.Lib.Game.States.GameStates.GameStateContext CreateContext(
+    internal static GameStateContext CreateContext(
         IWallGenerator? wallGenerator = null,
         IScoreCalculator? scoreCalculator = null,
         ITenpaiChecker? tenpaiChecker = null,
@@ -141,7 +118,7 @@ internal static class GamesTestHelper
         GameRules? rules = null
     )
     {
-        return new Mahjong.Lib.Game.States.GameStates.GameStateContext(
+        return new GameStateContext(
             wallGenerator ?? CreateWallGenerator(),
             scoreCalculator ?? CreateNoOpScoreCalculator(),
             tenpaiChecker ?? CreateNoOpTenpaiChecker(),
@@ -150,10 +127,9 @@ internal static class GamesTestHelper
             CreateEnumerator(rules),
             CreatePriorityPolicy(),
             CreateDefaultFactory(),
-            CreateNotificationBuilder(),
-            CreateDispatcher(),
             CreateTracer(),
-            CreateLoggerFactory()
+            NullLogger<GameStateContext>.Instance,
+            NullLogger<RoundStateContext>.Instance
         );
     }
 }

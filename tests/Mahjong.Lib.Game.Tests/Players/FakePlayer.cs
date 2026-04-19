@@ -194,7 +194,7 @@ internal sealed class FakePlayer(PlayerId playerId, string displayName, PlayerIn
             return OnDahaiHandler(notification, ct);
         }
 
-        return Task.FromResult(OnDahai?.Invoke(notification, ct) ?? (PlayerResponse)new OkResponse());
+        return Task.FromResult(OnDahai?.Invoke(notification, ct) ?? new OkResponse());
     }
 
     public override Task<PlayerResponse> OnKanAsync(KanNotification notification, CancellationToken ct = default)
@@ -210,7 +210,7 @@ internal sealed class FakePlayer(PlayerId playerId, string displayName, PlayerIn
             return OnKanHandler(notification, ct);
         }
 
-        return Task.FromResult(OnKan?.Invoke(notification, ct) ?? (PlayerResponse)new OkResponse());
+        return Task.FromResult(OnKan?.Invoke(notification, ct) ?? new OkResponse());
     }
 
     public override Task<AfterKanTsumoResponse> OnKanTsumoAsync(KanTsumoNotification notification, CancellationToken ct = default)

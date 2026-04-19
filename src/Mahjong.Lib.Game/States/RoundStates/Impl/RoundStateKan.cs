@@ -25,7 +25,7 @@ public record RoundStateKan(CallType KanType, ImmutableArray<Tile> KanTiles) : R
     public override void ResponseOk(RoundStateContext context, RoundEventResponseOk evt)
     {
         base.ResponseOk(context, evt);
-        Transit(context, new RoundStateKanTsumo(), round => round.RinshanTsumo());
+        Transit(context, () => new RoundStateKanTsumo(), round => round.RinshanTsumo());
     }
 
     public override void ResponseWin(RoundStateContext context, RoundEventResponseWin evt)
@@ -44,7 +44,7 @@ public record RoundStateKan(CallType KanType, ImmutableArray<Tile> KanTiles) : R
         var winTile = KanTiles[^1];
         var (settledRound, details) = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, winTile, context.ScoreCalculator);
         var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType, details.Winners, details.Honba, details.KyoutakuRiichiAward);
-        Transit(context, new RoundStateWin(eventArgs), _ => settledRound);
+        Transit(context, () => new RoundStateWin(eventArgs), _ => settledRound);
     }
 
     public override RoundInquirySpec CreateInquirySpec(Round round, IResponseCandidateEnumerator enumerator)

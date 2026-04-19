@@ -11,7 +11,7 @@ namespace Mahjong.Lib.Game.Rounds;
 ///
 /// <see cref="Round.Pon"/> / <see cref="Round.Daiminkan"/> / <see cref="Round.Kakan"/> 内で副露履歴更新と同じ
 /// <c>with</c> 式で <see cref="Round.PaoResponsibleArray"/> を確定させるため、本検出は Round 内で呼ばれる
-/// (副露履歴と責任者更新の atomicity を優先し、RoundState / RoundManager 側には切り出していない)
+/// (副露履歴と責任者更新の atomicity を優先し、RoundState / RoundStateContext 側には切り出していない)
 /// </summary>
 public static class PaoDetector
 {

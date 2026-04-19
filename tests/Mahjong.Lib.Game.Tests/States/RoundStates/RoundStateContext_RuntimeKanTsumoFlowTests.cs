@@ -15,12 +15,12 @@ using Mahjong.Lib.Game.Tiles;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
-namespace Mahjong.Lib.Game.Tests.Rounds.Managing;
+namespace Mahjong.Lib.Game.Tests.States.RoundStates;
 
 // KanTsumo (嶺上ツモ) 局面の 2 段階ディスパッチ (pendingAfterKanTsumoResponse_) を通る
 // 4 系統: RinshanTsumo 和了 / KanTsumoDahai / KanTsumoAnkan / KanTsumoKakan のうち和了/打牌フローを検証する
 // Ankan / Kakan 連鎖は設定が複雑なため基本 2 系統に留める
-public class RoundManager_KanTsumoFlowTests
+public class RoundStateContext_RuntimeKanTsumoFlowTests
 {
     // 親の既定 Haipai (末尾から 4 枚): Tile(135)/Tile(134)/Tile(133)/Tile(132) いずれも Kind 33 (中)
     // → 親は 1 巡目ツモ直後に Kind 33 の暗槓が可能
@@ -35,15 +35,15 @@ public class RoundManager_KanTsumoFlowTests
         return mock.Object;
     }
 
-    private static RoundManager CreateManager(IEnumerable<Player> players, ITenpaiChecker checker)
+    private static RoundStateContext CreateContext(IEnumerable<Player> players, ITenpaiChecker checker)
     {
-        return RoundManagerTestHelper.CreateManager(
+        return RoundStateContextRuntimeTestHelper.CreateContext(
             players,
             checker,
             RoundTestHelper.NoOpScoreCalculator,
             new GameRules(),
             NullGameTracer.Instance,
-            NullLogger<RoundManager>.Instance
+            NullLogger<RoundStateContext>.Instance
         );
     }
 
@@ -62,11 +62,11 @@ public class RoundManager_KanTsumoFlowTests
             FakePlayer.Create(2),
             FakePlayer.Create(3),
         };
-        using var manager = CreateManager(players, CreateMock(0));
+        using var ctx = CreateContext(players, CreateMock(0));
 
         // Act
-        var task = manager.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
-        var result = await RoundManagerTestHelper.AwaitRoundEndAsync(task, RoundManagerTestHelper.DEFAULT_TEST_TIMEOUT);
+        var task = ctx.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
+        var result = await RoundStateContextRuntimeTestHelper.AwaitRoundEndAsync(task, RoundStateContextRuntimeTestHelper.DEFAULT_TEST_TIMEOUT);
 
         // Assert
         var win = Assert.IsType<RoundEndedByWinEventArgs>(result);
@@ -95,13 +95,13 @@ public class RoundManager_KanTsumoFlowTests
             FakePlayer.Create(2),
             FakePlayer.Create(3),
         };
-        using var manager = CreateManager(players, CreateMock());
+        using var ctx = CreateContext(players, CreateMock());
 
         // Act
-        var task = manager.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
-        var result = await RoundManagerTestHelper.AwaitRoundEndAsync(task, TimeSpan.FromSeconds(15));
+        var task = ctx.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
+        var result = await RoundStateContextRuntimeTestHelper.AwaitRoundEndAsync(task, TimeSpan.FromSeconds(15));
 
-        // Assert: 嶺上打牌で Ryuukyoku へ進行したこと + 子全員に嶺上打牌を含む DahaiNotification が届いたこと
+        // Assert: 嶺上打牌で Ryuukyoku へ進行したこと + 親が KanTsumoNotification を受信していたこと
         Assert.IsType<RoundEndedByRyuukyokuEventArgs>(result);
         // 親 (player 0) が KanTsumoNotification を受信している (= KanTsumo 局面を通過した)
         Assert.Contains(players[0].ReceivedNotifications, x => x is KanTsumoNotification);
