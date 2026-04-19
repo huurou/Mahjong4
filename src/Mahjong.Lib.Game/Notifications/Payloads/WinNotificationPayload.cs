@@ -1,4 +1,5 @@
-﻿using Mahjong.Lib.Game.Decisions;
+﻿using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Adoptions;
 
 namespace Mahjong.Lib.Game.Notifications.Payloads;
 
@@ -6,4 +7,4 @@ namespace Mahjong.Lib.Game.Notifications.Payloads;
 /// 和了通知のペイロード
 /// </summary>
 /// <param name="WinResult">和了結果</param>
-public record WinNotificationPayload(ResolvedWinAction WinResult) : NotificationPayload;
+public record WinNotificationPayload(AdoptedWinAction WinResult) : NotificationPayload;

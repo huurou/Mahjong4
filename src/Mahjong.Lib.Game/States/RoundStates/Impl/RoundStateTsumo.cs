@@ -1,5 +1,6 @@
 ﻿using Mahjong.Lib.Game.Calls;
-using Mahjong.Lib.Game.Decisions;
+using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Rounds.Managing;
 
@@ -58,8 +59,8 @@ public record RoundStateTsumo : RoundState
 
         // Loser は和了者自身 (= 現手番)
         var loserIndex = context.Round.Turn;
-        var settledRound = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, context.ScoreCalculator);
-        var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType);
+        var settledRound = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, context.ScoreCalculator, out var details);
+        var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType, details.Winners, details.Honba, details.KyoutakuRiichiAward);
         Transit(context, new RoundStateWin(eventArgs), () => context.Round = settledRound);
     }
 
@@ -72,9 +73,9 @@ public record RoundStateTsumo : RoundState
         Transit(context, new RoundStateRyuukyoku(eventArgs), () => context.Round = settledRound);
     }
 
-    public override RoundDecisionSpec CreateDecisionSpec(Round round, IResponseCandidateEnumerator enumerator)
+    public override RoundInquirySpec CreateInquirySpec(Round round, IResponseCandidateEnumerator enumerator)
     {
-        var spec = new PlayerDecisionSpec(round.Turn, enumerator.EnumerateForTsumo(round, round.Turn));
-        return new RoundDecisionSpec(RoundDecisionPhase.Tsumo, [spec], null);
+        var spec = new PlayerInquirySpec(round.Turn, enumerator.EnumerateForTsumo(round, round.Turn));
+        return new RoundInquirySpec(RoundInquiryPhase.Tsumo, [spec], null);
     }
 }

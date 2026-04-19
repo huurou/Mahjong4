@@ -1,4 +1,5 @@
-﻿using Mahjong.Lib.Game.Decisions;
+﻿using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Responses;
 using System.Collections.Immutable;
@@ -14,24 +15,24 @@ namespace Mahjong.Lib.Game.Rounds.Managing;
 /// </summary>
 public sealed class TenhouResponsePriorityPolicy : IResponsePriorityPolicy
 {
-    public ImmutableArray<ResolvedPlayerResponse> Resolve(
-        RoundDecisionSpec spec,
-        ImmutableArray<ResolvedPlayerResponse> responses
+    public ImmutableArray<AdoptedPlayerResponse> Resolve(
+        RoundInquirySpec spec,
+        ImmutableArray<AdoptedPlayerResponse> responses
     )
     {
         ArgumentNullException.ThrowIfNull(spec);
 
         return spec.Phase switch
         {
-            RoundDecisionPhase.Dahai => ResolveDahai(responses, RequireLoserIndex(spec)),
-            RoundDecisionPhase.Kan => ResolveKan(responses, RequireLoserIndex(spec)),
+            RoundInquiryPhase.Dahai => ResolveDahai(responses, RequireLoserIndex(spec)),
+            RoundInquiryPhase.Kan => ResolveKan(responses, RequireLoserIndex(spec)),
             // Haipai: 全員 OK / Tsumo / KanTsumo / AfterKanTsumo: 単一プレイヤー応答なので優先順位解決不要
             _ => responses,
         };
     }
 
-    private static ImmutableArray<ResolvedPlayerResponse> ResolveDahai(
-        ImmutableArray<ResolvedPlayerResponse> responses,
+    private static ImmutableArray<AdoptedPlayerResponse> ResolveDahai(
+        ImmutableArray<AdoptedPlayerResponse> responses,
         PlayerIndex loserIndex
     )
     {
@@ -69,8 +70,8 @@ public sealed class TenhouResponsePriorityPolicy : IResponsePriorityPolicy
         return responses;
     }
 
-    private static ImmutableArray<ResolvedPlayerResponse> ResolveKan(
-        ImmutableArray<ResolvedPlayerResponse> responses,
+    private static ImmutableArray<AdoptedPlayerResponse> ResolveKan(
+        ImmutableArray<AdoptedPlayerResponse> responses,
         PlayerIndex loserIndex
     )
     {
@@ -96,11 +97,11 @@ public sealed class TenhouResponsePriorityPolicy : IResponsePriorityPolicy
         return (responder.Value - loser.Value + PlayerIndex.PLAYER_COUNT) % PlayerIndex.PLAYER_COUNT;
     }
 
-    private static PlayerIndex RequireLoserIndex(RoundDecisionSpec spec)
+    private static PlayerIndex RequireLoserIndex(RoundInquirySpec spec)
     {
         return spec.LoserIndex
             ?? throw new ArgumentException(
-                $"フェーズ {spec.Phase} では RoundDecisionSpec.LoserIndex が必須です。",
+                $"フェーズ {spec.Phase} では RoundInquirySpec.LoserIndex が必須です。",
                 nameof(spec)
             );
     }

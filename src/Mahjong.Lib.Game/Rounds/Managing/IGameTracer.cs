@@ -1,4 +1,6 @@
-﻿using Mahjong.Lib.Game.Decisions;
+﻿using Mahjong.Lib.Game.Candidates;
+using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Notifications;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Responses;
@@ -16,7 +18,12 @@ public interface IGameTracer
     void OnResponseReceived(NotificationId notificationId, PlayerIndex senderIndex, PlayerResponse response);
     void OnResponseTimeout(NotificationId notificationId, PlayerIndex recipientIndex);
     void OnResponseException(NotificationId notificationId, PlayerIndex recipientIndex, Exception ex);
-    void OnResolvedAction(RoundDecisionPhase phase, ResolvedPlayerResponse resolved);
+    /// <summary>
+    /// プレイヤー応答が提示済み候補に含まれない候補外応答であった場合に呼ばれる。
+    /// RoundManager は <see cref="IDefaultResponseFactory"/> のフォールバック応答に差し替えて進行を継続する
+    /// </summary>
+    void OnInvalidResponse(NotificationId notificationId, PlayerIndex senderIndex, PlayerResponse invalidResponse, CandidateList presentedCandidates);
+    void OnAdoptedAction(RoundInquiryPhase phase, AdoptedPlayerResponse adopted);
     void OnRoundStarted(Round round);
-    void OnRoundEnded(ResolvedRoundAction action);
+    void OnRoundEnded(AdoptedRoundAction action);
 }

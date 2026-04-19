@@ -1,5 +1,6 @@
 ﻿using Mahjong.Lib.Game.Calls;
-using Mahjong.Lib.Game.Decisions;
+using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Rounds.Managing;
@@ -38,9 +39,13 @@ public record RoundStateDahai : RoundState
     public override void ResponseCall(RoundStateContext context, RoundEventResponseCall evt)
     {
         base.ResponseCall(context, evt);
+
+        // 副露処理は遷移時アクション (Exit → action → Entry) 内で行い、他の Response* との一貫性を保つ。
+        // SnapshotRound には副露直後の Round を封入したいため、nextStateFactory 版の Transit を使用する。
+        // 大明槓時の後続 RinshanTsumo は RoundStateCall の ResponseOk 受信後に行う
         Transit(
             context,
-            new RoundStateCall(),
+            () => new RoundStateCall { SnapshotRound = context.Round },
             () =>
             {
                 // 鳴かれても立直は成立する (リーチ棒は供託される)
@@ -68,22 +73,22 @@ public record RoundStateDahai : RoundState
         var round = context.Round.CancelRiichi();
         // 放銃者は現手番 (= 直前の打牌者)
         var loserIndex = round.Turn;
-        var settledRound = round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, context.ScoreCalculator);
-        var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType);
+        var settledRound = round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, context.ScoreCalculator, out var details);
+        var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType, details.Winners, details.Honba, details.KyoutakuRiichiAward);
         Transit(context, new RoundStateWin(eventArgs), () => context.Round = settledRound);
     }
 
-    public override RoundDecisionSpec CreateDecisionSpec(Round round, IResponseCandidateEnumerator enumerator)
+    public override RoundInquirySpec CreateInquirySpec(Round round, IResponseCandidateEnumerator enumerator)
     {
         var discardedTile = round.RiverArray[round.Turn].Last();
-        var specs = ImmutableList.CreateBuilder<PlayerDecisionSpec>();
+        var specs = ImmutableList.CreateBuilder<PlayerInquirySpec>();
         for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
         {
             var playerIndex = new PlayerIndex(i);
             if (playerIndex == round.Turn) { continue; }
-            specs.Add(new PlayerDecisionSpec(playerIndex, enumerator.EnumerateForDahai(round, playerIndex, discardedTile)));
+            specs.Add(new PlayerInquirySpec(playerIndex, enumerator.EnumerateForDahai(round, playerIndex, discardedTile)));
         }
-        return new RoundDecisionSpec(RoundDecisionPhase.Dahai, specs.ToImmutable(), round.Turn);
+        return new RoundInquirySpec(RoundInquiryPhase.Dahai, specs.ToImmutable(), round.Turn);
     }
 
     private static ImmutableArray<PlayerIndex> EnumerateTenpaiPlayers(Round round, ITenpaiChecker tenpaiChecker)

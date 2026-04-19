@@ -78,4 +78,58 @@ internal static class RoundTestHelper
         }
         return round;
     }
+
+    /// <summary>
+    /// Haipai 実行後に親 (PlayerIndex 0) が幺九 13 種を持つ山牌の <see cref="Round"/> を生成する。
+    /// 九種九牌候補が成立する統合テスト用。
+    /// <see cref="Wall.Draw"/> は末尾 (tiles[135]) から取るため、親の Haipai 対象位置は末尾側になる:
+    /// - 1 巡目 (4 枚): 135, 134, 133, 132
+    /// - 2 巡目 (4 枚): 119, 118, 117, 116
+    /// - 3 巡目 (4 枚): 103, 102, 101, 100
+    /// - 4 巡目 (1 枚): 87
+    /// </summary>
+    internal static Round CreateRoundWithDealerKyuushuHand()
+    {
+        // Kind 0 (m1), 8 (m9), 9 (p1), 17 (p9), 18 (s1), 26 (s9), 27-33 (字牌7種) = 13 種
+        var positions = new Dictionary<int, int>
+        {
+            [135] = 0,    // m1
+            [134] = 32,   // m9
+            [133] = 36,   // p1
+            [132] = 68,   // p9
+            [119] = 72,   // s1
+            [118] = 104,  // s9
+            [117] = 108,  // 東
+            [116] = 112,  // 南
+            [103] = 116,  // 西
+            [102] = 120,  // 北
+            [101] = 124,  // 白
+            [100] = 128,  // 發
+            [87]  = 132,  // 中
+        };
+        var placed = positions.Values.ToHashSet();
+        var remaining = Enumerable.Range(0, 136).Where(x => !placed.Contains(x)).ToList();
+        var tiles = new Tile[136];
+        foreach (var (pos, tileId) in positions)
+        {
+            tiles[pos] = new Tile(tileId);
+        }
+        var remainIdx = 0;
+        for (var i = 0; i < 136; i++)
+        {
+            if (tiles[i] is null)
+            {
+                tiles[i] = new Tile(remaining[remainIdx++]);
+            }
+        }
+        return new Round(
+            RoundWind.East,
+            new RoundNumber(0),
+            new Honba(0),
+            new KyoutakuRiichiCount(0),
+            new PlayerIndex(0),
+            new PointArray(new Point(25000)),
+            new Wall(tiles)
+        );
+    }
 }

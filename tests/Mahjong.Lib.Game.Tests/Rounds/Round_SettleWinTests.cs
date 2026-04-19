@@ -1,6 +1,8 @@
-﻿using Mahjong.Lib.Game.Games.Scoring;
+﻿using Mahjong.Lib.Game.Calls;
+using Mahjong.Lib.Game.Games.Scoring;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
+using Mahjong.Lib.Game.Tiles;
 using Moq;
 using System.Collections.Immutable;
 
@@ -200,5 +202,41 @@ public class Round_SettleWinTests
 
         // Assert
         Assert.IsType<InvalidOperationException>(exception);
+    }
+
+    [Fact]
+    public void 槍槓_元ポンより後の副露があっても加槓牌が和了牌として解決される()
+    {
+        // Arrange: 放銃者の副露リストを [Kakan(Kind4 = 5m), Pon(Kind27 = 東)] に直接構築する。
+        // 旧実装 (CallList.Last) では Pon(東) の末尾牌を WinTile に入れてしまうため、
+        // Kakan/Ankan のみを対象にフィルタした修正を検証する
+        var winner = new PlayerIndex(0);
+        var loser = new PlayerIndex(3);
+        var mock = new Mock<IScoreCalculator>();
+        mock.Setup(x => x.Calculate(It.IsAny<ScoreRequest>()))
+            .Returns(Result((0, 8000), (3, -8000)));
+        var round = CreateBaseRound();
+
+        var kakanAddedTile = new Tile(19);
+        var kakan = new Call(
+            CallType.Kakan,
+            [new Tile(16), new Tile(17), new Tile(18), kakanAddedTile],
+            new PlayerIndex(0),
+            new Tile(16)
+        );
+        var laterPon = new Call(
+            CallType.Pon,
+            [new Tile(108), new Tile(109), new Tile(110)],
+            new PlayerIndex(2),
+            new Tile(108)
+        );
+        var callListArray = round.CallListArray.AddCall(loser, kakan).AddCall(loser, laterPon);
+        round = round with { CallListArray = callListArray };
+
+        // Act
+        round.SettleWin([winner], loser, WinType.Chankan, mock.Object, out var details);
+
+        // Assert
+        Assert.Equal(kakanAddedTile.Id, details.Winners[0].WinTile.Id);
     }
 }

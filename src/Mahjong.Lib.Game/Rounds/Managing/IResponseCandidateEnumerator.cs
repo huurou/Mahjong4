@@ -8,7 +8,7 @@ namespace Mahjong.Lib.Game.Rounds.Managing;
 
 /// <summary>
 /// Round と意思決定フェーズから合法な応答候補を列挙する
-/// RoundManager が CreateDecisionSpec 内で使用する
+/// RoundManager が CreateInquirySpec 内で使用する
 /// </summary>
 public interface IResponseCandidateEnumerator
 {

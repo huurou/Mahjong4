@@ -93,6 +93,9 @@ public class RoundStateContext_IntegrationTests : IDisposable
         var calledTile = context_.Round.RiverArray[context_.Round.Turn].Last();
         RoundStateContextTestHelper.InjectChiHand(context_, caller);
         await context_.ResponseCallAsync(caller, CallType.Chi, RoundStateContextTestHelper.DummyChiHandTiles(), calledTile);
+        // RoundStateCall は OK 応答を待つため明示的に送る
+        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateCall>(context_);
+        await context_.ResponseOkAsync();
         await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         // Assert

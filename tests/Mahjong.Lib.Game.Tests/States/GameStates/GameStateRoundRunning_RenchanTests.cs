@@ -24,7 +24,7 @@ public class GameStateRoundRunning_RenchanTests : IDisposable
         // Arrange
         var rules = new GameRules { Format = GameFormat.Tonpuu, RenchanCondition = RenchanCondition.None };
         var game = GameAggregate.Create(GamesTestHelper.CreatePlayerList(), rules);
-        context_.Init(game);
+        await context_.InitAsync(game, TestContext.Current.CancellationToken);
 
         // Act
         await context_.ResponseOkAsync();
@@ -49,7 +49,7 @@ public class GameStateRoundRunning_RenchanTests : IDisposable
         // Arrange
         var rules = new GameRules { Format = GameFormat.Tonpuu, RenchanCondition = RenchanCondition.AgariOrTenpai };
         var game = GameAggregate.Create(GamesTestHelper.CreatePlayerList(), rules);
-        context_.Init(game);
+        await context_.InitAsync(game, TestContext.Current.CancellationToken);
 
         // Act
         await context_.ResponseOkAsync();
@@ -76,7 +76,7 @@ public class GameStateRoundRunning_RenchanTests : IDisposable
         // Arrange
         var rules = new GameRules { Format = GameFormat.Tonpuu, RenchanCondition = RenchanCondition.AgariOrTenpai };
         var game = GameAggregate.Create(GamesTestHelper.CreatePlayerList(), rules);
-        context_.Init(game);
+        await context_.InitAsync(game, TestContext.Current.CancellationToken);
 
         // Act
         await context_.ResponseOkAsync();
@@ -104,7 +104,7 @@ public class GameStateRoundRunning_RenchanTests : IDisposable
         // Arrange
         var rules = new GameRules { Format = GameFormat.Tonpuu };
         var game = GameAggregate.Create(GamesTestHelper.CreatePlayerList(), rules);
-        context_.Init(game);
+        await context_.InitAsync(game, TestContext.Current.CancellationToken);
 
         // Act
         await context_.ResponseOkAsync();
@@ -129,7 +129,7 @@ public class GameStateRoundRunning_RenchanTests : IDisposable
         // Arrange
         var rules = new GameRules { Format = GameFormat.Tonpuu, RenchanCondition = RenchanCondition.AgariOnly };
         var game = GameAggregate.Create(GamesTestHelper.CreatePlayerList(), rules);
-        context_.Init(game);
+        await context_.InitAsync(game, TestContext.Current.CancellationToken);
 
         // Act
         await context_.ResponseOkAsync();

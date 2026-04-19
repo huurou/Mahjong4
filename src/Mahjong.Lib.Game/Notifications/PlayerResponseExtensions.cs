@@ -7,7 +7,7 @@ namespace Mahjong.Lib.Game.Notifications;
 /// <summary>
 /// C# API 応答型 (PlayerResponse) を Wire DTO 応答本体 (ResponseBody) へ変換する拡張メソッド群
 /// ToBody は多対1写像 (TsumoAgariResponse / RonResponse / ChankanRonResponse / RinshanTsumoResponse は同一の WinResponseBody に収束)
-/// そのため逆変換には PlayerResponseEnvelopeExtensions.FromWire(RoundDecisionPhase) が必須で
+/// そのため逆変換には PlayerResponseEnvelopeExtensions.FromWire(RoundInquiryPhase) が必須で
 /// phase により同一 Body が異なる C# API 応答型へ復元される
 /// 打牌/加槓フェーズのスルーは OkResponse を返し OkResponseBody に変換される
 /// </summary>
@@ -16,7 +16,7 @@ public static class PlayerResponseExtensions
     /// <summary>
     /// C# API 応答を Wire DTO 応答本体に変換する
     /// Envelope 化 (NotificationId / RoundRevision / PlayerIndex 付与) は呼び出し側の責務
-    /// 逆変換は FromWire(RoundDecisionPhase) 経由で phase を指定する必要がある
+    /// 逆変換は FromWire(RoundInquiryPhase) 経由で phase を指定する必要がある
     /// </summary>
     public static ResponseBody ToBody(this PlayerResponse response)
     {

@@ -1,5 +1,6 @@
 ﻿using Mahjong.Lib.Game.Candidates;
-using Mahjong.Lib.Game.Decisions;
+using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Responses;
 
 namespace Mahjong.Lib.Game.Rounds.Managing;
@@ -10,23 +11,23 @@ namespace Mahjong.Lib.Game.Rounds.Managing;
 /// </summary>
 public sealed class DefaultResponseFactory : IDefaultResponseFactory
 {
-    public PlayerResponse CreateDefault(PlayerDecisionSpec spec, RoundDecisionPhase phase)
+    public PlayerResponse CreateDefault(PlayerInquirySpec spec, RoundInquiryPhase phase)
     {
         ArgumentNullException.ThrowIfNull(spec);
 
         return phase switch
         {
-            RoundDecisionPhase.Haipai => new OkResponse(),
-            RoundDecisionPhase.Dahai => new OkResponse(),
-            RoundDecisionPhase.Kan => new OkResponse(),
-            RoundDecisionPhase.Tsumo => CreateDefaultTsumo(spec),
-            RoundDecisionPhase.KanTsumo => CreateDefaultKanTsumo(spec),
-            RoundDecisionPhase.AfterKanTsumo => CreateDefaultAfterKanTsumo(spec),
+            RoundInquiryPhase.Haipai => new OkResponse(),
+            RoundInquiryPhase.Dahai => new OkResponse(),
+            RoundInquiryPhase.Kan => new OkResponse(),
+            RoundInquiryPhase.Tsumo => CreateDefaultTsumo(spec),
+            RoundInquiryPhase.KanTsumo => CreateDefaultKanTsumo(spec),
+            RoundInquiryPhase.AfterKanTsumo => CreateDefaultAfterKanTsumo(spec),
             _ => throw new InvalidOperationException($"未対応のフェーズです。実際:{phase}"),
         };
     }
 
-    private static DahaiResponse CreateDefaultTsumo(PlayerDecisionSpec spec)
+    private static DahaiResponse CreateDefaultTsumo(PlayerInquirySpec spec)
     {
         var dahai = spec.CandidateList.GetCandidates<DahaiCandidate>().FirstOrDefault();
         return dahai is not null && dahai.DahaiOptionList.Count != 0
@@ -34,7 +35,7 @@ public sealed class DefaultResponseFactory : IDefaultResponseFactory
             : throw new InvalidOperationException("ツモフェーズでは DahaiCandidate が必須ですが、候補が提示されていません。");
     }
 
-    private static KanTsumoDahaiResponse CreateDefaultKanTsumo(PlayerDecisionSpec spec)
+    private static KanTsumoDahaiResponse CreateDefaultKanTsumo(PlayerInquirySpec spec)
     {
         var dahai = spec.CandidateList.GetCandidates<DahaiCandidate>().FirstOrDefault();
         return dahai is not null && dahai.DahaiOptionList.Count != 0
@@ -42,7 +43,7 @@ public sealed class DefaultResponseFactory : IDefaultResponseFactory
             : throw new InvalidOperationException("嶺上ツモフェーズでは DahaiCandidate が必須ですが、候補が提示されていません。");
     }
 
-    private static KanTsumoDahaiResponse CreateDefaultAfterKanTsumo(PlayerDecisionSpec spec)
+    private static KanTsumoDahaiResponse CreateDefaultAfterKanTsumo(PlayerInquirySpec spec)
     {
         var dahai = spec.CandidateList.GetCandidates<DahaiCandidate>().FirstOrDefault();
         return dahai is not null && dahai.DahaiOptionList.Count != 0

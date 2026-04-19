@@ -8,4 +8,4 @@ namespace Mahjong.Lib.Game.Rounds.Managing;
 /// </summary>
 /// <param name="PlayerIndex">応答者</param>
 /// <param name="Response">採用された応答</param>
-public record ResolvedPlayerResponse(PlayerIndex PlayerIndex, PlayerResponse Response);
+public record AdoptedPlayerResponse(PlayerIndex PlayerIndex, PlayerResponse Response);

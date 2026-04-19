@@ -69,10 +69,10 @@ stateDiagram-v2
     Tsumo: ツモ<br>ツモ番のプレイヤーにはツモ牌を それ以外のプレイヤーにはツモしたことを通知
     Dahai: 打牌<br>手牌orツモ牌から河に牌を移し、全プレイヤーに打牌されたことを通知<br>和了>ポン/大明槓>チー>OK
     state ChoiceDahai <<choice>>
-    Call: 副露<br>河から打牌を除去し副露したプレイヤーに副露を生成
+    Call: 副露<br>河から打牌を除去し副露したプレイヤーに副露を生成<br>全プレイヤーに副露したことを通知
     state ChoiceCall <<choice>>
     Kan: 槓(暗槓・加槓)<br>暗槓-手牌から牌を除去し副露を生成 加槓-ツモ牌を追加してポン副露を更新<br>全プレイヤーに槓されたことを通知<br>和了>OK
-    KanTsumo: 槓ツモ<br>嶺上牌を引いて手牌に加える 全プレイヤーに槓ツモしたことを通知<br>嶺上ツモ和了判定あり
+    KanTsumo: 槓ツモ<br>嶺上牌を引いて手牌に加える<br>全プレイヤーに槓ツモしたことを通知<br>嶺上ツモ和了判定あり
     AfterKanTsumo: 槓ツモ後<br>嶺上ツモ和了なし
     state ChoiceKanTsumo <<choice>>
     Win: 和了<br>全プレイヤーに和了による局終了を通知
@@ -89,12 +89,12 @@ stateDiagram-v2
     Dahai --> ChoiceDahai: OK応答
     ChoiceDahai --> Tsumo: 流局でない
     ChoiceDahai --> Ryuukyoku: 流局(荒牌平局、四家立直、三家和了、四風連打など)
-    Call --> ChoiceCall: 無条件遷移
+    Call --> ChoiceCall: OK応答
     ChoiceCall --> Dahai: 槓でない
     ChoiceCall --> KanTsumo: 槓(大明槓)
     Kan --> KanTsumo: OK応答
     Kan --> Win: 和了応答(槍槓・加槓のみ)
-    KanTsumo --> ChoiceKanTsumo: OK応答(和了しない)
+    KanTsumo --> ChoiceKanTsumo: OK応答
     KanTsumo --> Win: 和了応答(嶺上ツモ)
     ChoiceKanTsumo --> Ryuukyoku: 四槓流れ
     ChoiceKanTsumo --> AfterKanTsumo: 四槓流れでない
@@ -171,7 +171,7 @@ stateDiagram-v2
   - プレイヤー側に持たせるとルール判定ロジックがサーバー/クライアント二重実装になり、判定ズレのリスクがある
   - 不正クライアント対策として、どのみちサーバー側で応答の合法性を再検証する必要がある
   - AI の思考ルーチンは「候補から選ぶ」ことに集中でき、実装がシンプルになる
-- **実装位置**: `RoundManager` が `RoundDecisionSpec` と現在の `Round` から、`IResponseCandidateEnumerator`(仮) に候補生成を委譲する。`Mahjong.Lib.Scoring` のシャンテン判定や役判定を流用できる場面もあるが、Lib.Game 側で独自にラップする(ライブラリ間の直接依存は避ける)
+- **実装位置**: `RoundManager` が `RoundInquirySpec` と現在の `Round` から、`IResponseCandidateEnumerator`(仮) に候補生成を委譲する。`Mahjong.Lib.Scoring` のシャンテン判定や役判定を流用できる場面もあるが、Lib.Game 側で独自にラップする(ライブラリ間の直接依存は避ける)
 - **プレイヤー側の責務**: 候補の中から1つを選んで応答するだけ。候補を自前で再計算しない
 
 ### 対局(Game)レベル
@@ -198,8 +198,8 @@ stateDiagram-v2
 
 | コンポーネント             | 責務                                                                 |
 | -------------------------- | -------------------------------------------------------------------- |
-| `RoundState`               | 局面の意思決定仕様(`RoundDecisionSpec`)を返し、採用結果を受けて次状態・次`Round`を決める。プレイヤー・通信・タイムアウトは知らない |
-| `RoundStateContext`        | `RoundEvent`を直列処理する既存ステートマシン。採用済み応答を`RoundEvent`として受け取る               |
+| `RoundState`               | 局面の問い合わせ仕様(`RoundInquirySpec`)を返し、採用結果を受けて次状態・次`Round`を決める。プレイヤー・通信・タイムアウトは知らない |
+| `RoundStateContext`        | `RoundEvent`を直列処理する既存ステートマシン。採用応答を`RoundEvent`として受け取る               |
 | `RoundManager` (新設)       | 通知Id発行、プレイヤー視点への射影、通知送信、応答収集、検証、タイムアウトフォールバック、優先順位適用。`ImmutableArray<Player>`(`GameManager`から渡される)を保持 |
 | `IResponsePriorityPolicy`  | 同時応答の優先順位決定(ロン > ポン/大明槓 > チー > OK、ダブロン/トリプルロン、席順優先 等)            |
 | `IRoundViewProjector`      | `Round`からプレイヤー別の公開情報ビュー(`PlayerRoundView`)を生成。情報非対称性をここに閉じ込める     |
@@ -207,8 +207,208 @@ stateDiagram-v2
 | `Player` / `Player`   | プレイヤー抽象(interface) + 共通実装を持つ抽象基底クラス。通知メソッドは**種別ごと**(`OnHaipaiAsync`/`OnTsumoAsync`/`OnDahaiAsync`/`OnCallAsync`/`OnKanAsync`/...)に分割。`Player`は視点卓情報の更新など共通処理を持つ。`Player`自身は`PlayerIndex`を保持せず、`GameManager`が`ImmutableArray<Player>`として`PlayerIndex`→`Player`実体の対応表を保持する |
 | `IGameTracer`              | 構造化イベント記録。**全イベント**(対局/局/配牌/ツモ/打牌/副露/槓/カンドラ/和了/流局/通知送信/応答受信/採用結果等)をトレース可能にし、牌譜・リプレイが再生成できるレベルを目指す。スコープは複数対局を跨ぐグローバル。統計集計は実装側で必要イベントを抽出。差し替え可能(no-op/メモリ/ファイル/DB 等) |
 
-- State は「この局面で何を聞くか」の仕様(`RoundDecisionSpec`)だけ返し、通信待ちは持たない。`Entry`/`Exit`は同期のまま保つ
-- `RoundManager` が仕様を受け取り、`IRoundViewProjector` で視点フィルタ、各プレイヤーへ送信、集約、検証、優先順位適用を行い、採用済み結果(`ResolvedRoundAction`)を `RoundStateContext` にイベントとして渡す
+- State は「この局面で何を聞くか」の仕様(`RoundInquirySpec`)だけ返し、通信待ちは持たない。`Entry`/`Exit`は同期のまま保つ
+- `RoundManager` が仕様を受け取り、`IRoundViewProjector` で視点フィルタ、各プレイヤーへ送信、集約、検証、優先順位適用を行い、採用済み結果(`AdoptedRoundAction`)を `RoundStateContext` にイベントとして渡す
+
+#### 統一通知フロー
+
+全通知 (配牌/ツモ/打牌/副露/槓/嶺上ツモ/嶺上ツモ後/和了/流局) は `RoundState.CreateInquirySpec` を起点とする**単一パイプライン**に乗せる。入力を要求する局面と「通知観測だけ」の局面 (配牌/副露/和了/流局) を個別ルートに分けず、候補を `OkCandidate` 1 択にして同じフローに流す方針。Phase 5 以前は「意思決定通知」と「観測通知」で別経路 (`progressChannel` の union / `Broadcast*NotificationAsync` / `CallPerformed` イベント) を持っていたが、これらは全撤去されている。
+
+##### パイプライン全体像
+
+`RoundManager.ProcessAsync` は 1 局分のメインループで、`stateChannel_` から次状態を取り出すたびに以下のステップを**直列**に実行する。各ステップは独立して差し替え可能 (`IResponseCandidateEnumerator` / `IRoundViewProjector` / `IResponsePriorityPolicy` / `IDefaultResponseFactory` / `IGameTracer`) な DI 境界を持つ。
+
+```
+[1] RoundStateContext.RoundStateChanged
+      → stateChannel_ (Channel<RoundState>, SingleReader/SingleWriter)
+[2] RoundManager.ProcessAsync が次状態を 1 件取り出す
+[3] Round スナップショット解決
+      state is RoundStateCall call && call.SnapshotRound != null
+        ? call.SnapshotRound
+        : context_.Round
+[4] state.CreateInquirySpec(round, enumerator)
+      → RoundInquirySpec { Phase, PlayerSpecs[], LoserIndex? }
+[5] CollectResponsesAsync (全員並列 Task.WhenAll)
+      各プレイヤーについて:
+        a. NotificationId.NewId() (UUIDv7)
+        b. BuildNotification(state, round, playerSpec)
+             projector.Project(round, playerIndex) で視点射影
+        c. tracer.OnNotificationSent
+        d. InvokePlayerAsync (9 種の Player.On***Async)
+             DefaultTimeout=10秒 で LinkedTokenSource
+        e. tracer.OnResponseReceived
+        f. ResponseValidator.IsResponseInCandidates で候補集合と照合
+        g. 候補外 → tracer.OnInvalidResponse → defaultFactory にフォールバック
+        h. OperationCanceledException → tracer.OnResponseTimeout → fallback
+        i. その他 Exception → tracer.OnResponseException → fallback
+[6] priorityPolicy.Resolve(spec, responses)
+      → ImmutableArray<AdoptedPlayerResponse>
+[7] ApplyTemporaryFuritenIfRonMissed (Dahai フェーズのみ)
+      Ron 候補を提示されたが Ron 以外で応答したプレイヤーに同巡フリテンを付与
+[8] tracer.OnAdoptedAction (採用応答を 1 件ずつ記録)
+[9] DispatchAsync
+      Phase に応じて context_.Response*Async を発火
+      → RoundStateContext.Channel<RoundEvent> に積まれ、次状態へ遷移
+      → [1] に戻る
+```
+
+終了条件は `RoundStateContext.RoundEnded` イベント (終端状態 `RoundStateWin` / `RoundStateRyuukyoku` の OK 応答で発火) で `stateChannel_.Writer.TryComplete()` を呼び、`ProcessAsync` の `await foreach` が自然終了する。
+
+##### フェーズ別 `RoundInquirySpec`
+
+| State                      | `RoundInquiryPhase` | 対象プレイヤー               | 候補 (`CandidateList`)                                                | `LoserIndex` | 採用後の遷移                           |
+| -------------------------- | ------------------- | ---------------------------- | --------------------------------------------------------------------- | ------------ | -------------------------------------- |
+| `RoundStateHaipai`         | `Haipai`            | 全員                         | `OkCandidate` のみ                                                    | null         | `ResponseOkAsync` → `Tsumo`            |
+| `RoundStateTsumo`          | `Tsumo`             | 手番のみ (1 人)              | `DahaiCandidate` + (`TsumoAgariCandidate` / `AnkanCandidate[]` / `KakanCandidate[]` / `KyuushuKyuuhaiCandidate`) | null         | 応答種別に応じ個別 `Response*Async`   |
+| `RoundStateDahai`          | `Dahai`             | 他家 3 人 (手番除外)         | `RonCandidate?` + (`ChiCandidate[]` / `PonCandidate[]` / `DaiminkanCandidate[]`) + `OkCandidate` | 手番 (放銃者候補) | 優先順位適用後、Ron (ダブロン対応) / 副露 / OK |
+| `RoundStateKan` (加槓)     | `Kan`               | 他家 3 人                    | `ChankanRonCandidate?` + `OkCandidate`                                | 加槓者       | Chankan Ron (ダブロン対応) / OK       |
+| `RoundStateKanTsumo`       | `KanTsumo`          | 手番のみ (1 人)              | `DahaiCandidate` + (`RinshanTsumoAgariCandidate` / `AnkanCandidate[]` / `KakanCandidate[]`) | null         | 2 段階ディスパッチ (後述)             |
+| `RoundStateAfterKanTsumo`  | `AfterKanTsumo`     | 手番のみ (1 人)              | `DahaiCandidate` + (`AnkanCandidate[]` / `KakanCandidate[]`)          | null         | 応答種別に応じ個別 `Response*Async`   |
+| `RoundStateCall`           | `Call`              | 全員                         | `OkCandidate` のみ (副露直後の通知観測点)                             | null         | `ResponseOkAsync` → `Dahai` or `KanTsumo` |
+| `RoundStateWin`            | `Win`               | 全員                         | `OkCandidate` のみ (終端状態)                                         | null         | `ResponseOkAsync` → 局終了             |
+| `RoundStateRyuukyoku`      | `Ryuukyoku`         | 全員                         | `OkCandidate` のみ (終端状態)                                         | null         | `ResponseOkAsync` → 局終了             |
+
+`LoserIndex` は `Dahai` / `Kan` フェーズのみ非 null。ダブロン判定と「放銃者基準の巡目順」(下家=1 / 対面=2 / 上家=3) による同順位解決で使われる。
+
+##### フェーズ別 `BuildNotification` マッピング
+
+各 `RoundState` → 各 `RoundNotification` 派生型の対応:
+
+| State                      | Notification                                    | 主な内容                                                    |
+| -------------------------- | ----------------------------------------------- | ----------------------------------------------------------- |
+| `RoundStateHaipai`         | `HaipaiNotification(view)`                      | 配牌直後の視点情報のみ (候補は spec 側)                     |
+| `RoundStateTsumo`          | `TsumoNotification(view, tsumoTile, candidates)`| 手番は自ツモ牌を含む、他家は `OtherPlayerTsumoNotification` 相当 (視点射影で隠される) |
+| `RoundStateDahai`          | `DahaiNotification(view, discardedTile, discarder, candidates)` | 直前の打牌を河末尾から取得                              |
+| `RoundStateKan`            | `KanNotification(view, kanCall, caller, candidates)` | 加槓/暗槓の `Call` を抽出                                   |
+| `RoundStateKanTsumo`       | `KanTsumoNotification(view, rinshanTile, candidates)` | 嶺上から手牌末尾へ追加した牌                                |
+| `RoundStateAfterKanTsumo`  | `KanTsumoNotification(view, rinshanTile, candidates)` | `KanTsumo` と同じ通知型を再利用                             |
+| `RoundStateCall`           | `CallNotification(view, madeCall, caller)`      | `SnapshotRound` から副露直後・嶺上ツモ前の `Round` を参照   |
+| `RoundStateWin`            | `WinNotification(view, adoptedWinAction)`       | `BuildAdoptedActionForTrace(eventArgs)` で構築              |
+| `RoundStateRyuukyoku`      | `RyuukyokuNotification(view, adoptedRyuukyokuAction)` | 同上                                                        |
+
+`PlayerRoundView` は `IRoundViewProjector` が `Round` + 受信者 `PlayerIndex` から生成する。自分の手牌・非公開状態 (フリテン等) と、他家の公開情報 (河/副露/打点/立直棒) のみを含む。山の中身や他家の手牌は射影時に除外される。
+
+##### `DispatchAsync` の分岐
+
+```
+switch (spec.Phase)
+{
+    // 観測フェーズ: 全員 OK 集約 → 単一 ResponseOkAsync
+    case Haipai:
+    case Call:
+    case Win:
+    case Ryuukyoku:
+        await context_.ResponseOkAsync();
+        break;
+
+    // 入力要求フェーズ: 採用応答に応じ振り分け
+    case Tsumo:          await DispatchTsumoAsync(adopted[0]);
+    case Dahai:          await DispatchDahaiAsync(adopted, loserIndex);
+    case Kan:            await DispatchKanAsync(adopted, loserIndex);
+    case KanTsumo:       await DispatchKanTsumoAsync(adopted[0]);
+    case AfterKanTsumo:  await DispatchAfterKanTsumoAsync(adopted[0].Response);
+}
+```
+
+`Dahai` / `Kan` のダブロン判定は `DispatchDahaiAsync` / `DispatchKanAsync` 内で `adopted.Where(x => x.Response is RonResponse or ChankanRonResponse)` を配列のまま `context_.ResponseWinAsync(winners, loserIndex, winType)` に渡す (天鳳準拠でダブロン成立、トリプルロンはルール未確定)。
+
+##### KanTsumo の 2 段階ディスパッチ
+
+`RoundStateKanTsumo` で「嶺上ツモ和了 / 打牌 / 暗槓 / 加槓」を 1 通知・1 応答で受けるが、嶺上ツモ和了 (`RinshanTsumoResponse`) とそれ以外で遷移先が異なる:
+
+- **嶺上ツモ和了**: `ResponseWinAsync([self], self, WinType.Rinshan)` を直接発火 → `RoundStateWin` へ
+- **打牌/暗槓/加槓**: `pendingAfterKanTsumoResponse_` にセット → `ResponseOkAsync()` で `RoundStateAfterKanTsumo` に遷移 → メインループ [2] で state が `RoundStateAfterKanTsumo` に切り替わったタイミングで `pending` を消費して `DispatchAfterKanTsumoAsync` を呼ぶ
+
+この 2 段階化により、`AfterKanTsumo` 状態での候補再計算 (四槓流れ除外後) を挟まずに済む。`pending` のセット漏れ防止のため `try/catch` で例外時は `null` に戻す。
+
+##### 候補検証の規約 (`ResponseValidator`)
+
+検証は `PlayerResponse` の具象型ごとに異なる規約で行う:
+
+| 応答                                                          | 判定                                                                          |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `OkResponse` / `RonResponse` / `TsumoAgariResponse` / `KyuushuKyuuhaiResponse` / `ChankanRonResponse` / `RinshanTsumoResponse` | 対応 `Candidate` 型が候補リストに存在するだけで OK                          |
+| `DahaiResponse` / `KanTsumoDahaiResponse`                     | `DahaiCandidate.DahaiOptionList` に `Tile` 完全一致 (Tile.Id)。立直時は `RiichiAvailable=true` が必要 |
+| `AnkanResponse` / `KanTsumoAnkanResponse`                     | `AnkanCandidate.Tiles[0].Kind` と一致 (Tile.Kind、4 枚全部を使うため赤ドラの選択余地なし)    |
+| `KakanResponse` / `KanTsumoKakanResponse`                     | `KakanCandidate.Tile` と完全一致 (Tile.Id、赤/非赤は別 `KakanCandidate` として列挙済み)       |
+| `ChiResponse` / `PonResponse` / `DaiminkanResponse`           | `HandTiles` が `SequenceEqual` (順序と Id 全一致)                            |
+
+検証漏れは「合法な候補が提示されたのに別 Id の牌で応答された」ケースで顕在化するため、赤ドラの取り扱いは候補列挙側と検証側で一貫させる (`KakanCandidate` は赤/非赤で別候補、`AnkanCandidate` は `Kind` 単位で 1 候補)。
+
+##### 優先順位解決 (`TenhouResponsePriorityPolicy`)
+
+- **Dahai フェーズ**:
+  1. `RonResponse` が 1 件以上あれば、全員採用 (ダブロン)。放銃者基準の巡目順 (下家→対面→上家) でソート
+  2. `PonResponse` / `DaiminkanResponse` があれば、放銃者に最も近い (= 下家) を 1 件採用
+  3. `ChiResponse` があれば、下家から 1 件採用 (通常は下家のみ提示)
+  4. いずれも無ければ全員 OK
+- **Kan フェーズ**:
+  1. `ChankanRonResponse` が 1 件以上あれば、全員採用 (ダブロン対応、巡目順)
+  2. 無ければ全員 OK
+- **他フェーズ**: 単一プレイヤー応答 (`Tsumo` / `KanTsumo` / `AfterKanTsumo`) または全員 OK (`Haipai` / `Call` / `Win` / `Ryuukyoku`) のため、ソート不要で `responses` をそのまま返す
+
+トリプルロンの扱いはルール依存のため `IResponsePriorityPolicy` を差し替えて調整する (本実装は 3 件採用まで許容)。三家和了による途中流局化は採用段階ではなく後段の `RoundState` 側で判定する方針。
+
+##### 既定応答フォールバック (`DefaultResponseFactory`)
+
+`ResponseValidator` 不合格 / タイムアウト (10 秒) / プレイヤー例外時に使用。呼び出しは `RoundManager.CollectSingleAsync` の `catch` ブロックと候補外判定の両方から行われる:
+
+| フェーズ         | 既定応答                                                                    |
+| ---------------- | --------------------------------------------------------------------------- |
+| `Haipai`         | `OkResponse`                                                                |
+| `Dahai`          | `OkResponse` (スルー)                                                       |
+| `Kan`            | `OkResponse` (スルー)                                                       |
+| `Tsumo`          | `DahaiResponse(DahaiCandidate.DahaiOptionList[0].Tile)` (先頭の打牌オプション = 実質ツモ切り) |
+| `KanTsumo`       | `KanTsumoDahaiResponse(先頭 DahaiOption)`                                   |
+| `AfterKanTsumo`  | `KanTsumoDahaiResponse(先頭 DahaiOption)`                                   |
+
+`Tsumo` 系のフォールバックで `DahaiCandidate` が提示されていない状態は起こりえないため、空なら `InvalidOperationException` を投げる設計。接続断時は **進行継続** (天鳳の CPU 代打相当) を優先し、対局中断はしない。
+
+##### `RoundStateCall` の `SnapshotRound` が必要な理由
+
+`RoundStateCall` は「副露直後の通知観測点」として残されている (削除候補だったが、全通知を統一パイプラインに乗せる設計上、副露通知だけ別経路にすると整合性が崩れるため復活)。問題は大明槓のタイミング:
+
+```
+Dahai --(ResponseCall: Daiminkan)--> Call --(ResponseOk)--> KanTsumo
+                                     │
+                                     └── ここで context.Round は副露直後
+                                         (RinshanTsumo 未実行)
+```
+
+`RoundStateCall.ResponseOk` が大明槓判定時に `context.Round = context.Round.RinshanTsumo()` を遷移アクションとして実行するため、`RoundStateCall.Entry` の時点では `Round` は副露直後だが、`RoundStateKanTsumo.Entry` が走った直後には嶺上ツモ後になる。
+
+`stateChannel_` が `RoundStateCall` を流した時点で `context.Round` を読んでも、`RoundManager.ProcessAsync` が非同期ループで読む順序によっては RinshanTsumo 後の `Round` が観測される可能性がある (`RoundStateContext` の `Channel<RoundEvent>` と `stateChannel_` は独立キューのため)。副露通知に嶺上ツモ牌が混入するとクライアント表示がずれる。
+
+解決策として `RoundStateCall.SnapshotRound` を `init` プロパティで持ち、遷移時に `Transit(context, () => new RoundStateCall { SnapshotRound = context.Round }, action)` の**ファクトリ版 `Transit`** で副露実行 (`action`) 後・`Entry` 前の `Round` を封入する。ファクトリ版は `Exit → action → nextStateFactory() → Entry` の順に評価するため、`nextStateFactory` の中で `context.Round` を参照した時点の値は `action` 適用後の副露直後 `Round` になる。
+
+```csharp
+// RoundState.cs
+protected static void Transit(RoundStateContext context, Func<RoundState> nextStateFactory, Action? action = null)
+{
+    context.Transit(nextStateFactory, action);
+}
+
+// RoundStateContext.cs
+internal void Transit(Func<RoundState> nextStateFactory, Action? action = null)
+{
+    State.Exit(this);
+    action?.Invoke();           // 副露実行
+    State = nextStateFactory();  // この時点の context.Round を SnapshotRound に封入
+    State.Entry(this);
+}
+```
+
+ファクトリ版が必要な本質的理由は「State パターンの `Exit → action → Entry` 順序を崩さずに、`action` 適用後の `context.Round` を次状態のコンストラクタ引数に使いたい」ため。`Immutable` 性維持のためではなく、遷移順序の契約を保ちつつ派生情報を伝搬するための追加オーバーロード。
+
+##### 撤去された旧設計
+
+Phase 5 レビュー前の設計で存在していた以下は全て撤去:
+
+- `CallPerformed` イベント (`RoundStateContext` 上で副露時のみ発火されていた個別チャネル)
+- `progressChannel` の union 型 (`OneOf<State, CallEvent>` 風に通知観測と状態遷移を混在させていた)
+- `BroadcastCallNotificationAsync` / `BroadcastDahaiNotificationAsync` / `BroadcastWinNotificationAsync` の 3 メソッド (state なしで引数直接渡しだった観測通知専用の送信経路)
+
+通知観測点と意思決定点は通知プロトコル上で区別せず、応答候補集合 (`OkCandidate` のみ vs それ以外) とフェーズ列挙値 (`RoundInquiryPhase`) だけで表現する。これにより Wire DTO 層も通知種別 9 種に閉じ、リプレイ・牌譜再生が一本化される。
 
 ### 通知・応答モデル
 
@@ -247,33 +447,33 @@ PlayerResponse
 
 `RoundEvent`のコンストラクタでは形状レベルの検証のみ行う。`Round`に依存する合法性検証は`RoundManager`側で`Round`とともに行う。
 
-### 集約済み応答 (ResolvedRoundAction)
+### 採用済み応答 (AdoptedRoundAction)
 
-プレイヤーからの生応答(`PlayerResponse`)と、ルール適用後の採用結果(`ResolvedRoundAction`)は型を分ける。
+プレイヤーからの生応答(`PlayerResponse`)と、ルール適用後の採用結果(`AdoptedRoundAction`)は型を分ける。採用結果型は `Mahjong.Lib.Game.Adoptions` 名前空間に配置する (入力側の `Mahjong.Lib.Game.Inquiries` と対になる出力側)。
 
 ```
-ResolvedRoundAction (abstract)
-  ├ ResolvedOkAction
-  ├ ResolvedDahaiAction(Tile)
-  ├ ResolvedKanAction(CallType, Tile)          // Ankan/Kakan
-  ├ ResolvedCallAction(PlayerIndex, CallType, Tile[]) // Chi/Pon/Daiminkan
-  ├ ResolvedWinAction                           // ダブロン/トリプルロン対応
+AdoptedRoundAction (abstract)
+  ├ AdoptedOkAction
+  ├ AdoptedDahaiAction(Tile)
+  ├ AdoptedAnkanAction(Tile) / AdoptedKakanAction(Tile)   // 槓 (暗槓/加槓)
+  ├ AdoptedCallAction(PlayerIndex, CallType, Tile[])      // Chi/Pon/Daiminkan
+  ├ AdoptedWinAction                                      // ダブロン/トリプルロン対応
   │   {
-  │     Winners             : ResolvedWinner[]  // 和了者(複数可)
+  │     Winners             : AdoptedWinner[]   // 和了者(複数可)
   │     Loser               : PlayerIndex?      // ロン時の放銃者。ツモ時は null
   │     WinType             : Ron | Tsumo | Chankan | Rinshan
   │     KyoutakuDistribution: ...               // 供託棒の配分ルール(上家取り等)
   │     HonbaDistribution   : ...               // 本場の配分
   │     DealerContinues     : bool              // 親続行判定(連荘可否)
   │   }
-  │   ResolvedWinner { PlayerIndex, WinTile, Yaku[], Fu, Han, Score }
-  └ ResolvedRyuukyokuAction(RyuukyokuType)
+  │   AdoptedWinner { PlayerIndex, WinTile, Yaku[], Fu, Han, Score }
+  └ AdoptedRyuukyokuAction(RyuukyokuType)
 ```
 
-- ロンは複数採用され得るため`Winners`は配列。各和了者ごとに`ResolvedWinner`でスコア情報(役/符/翻/点数)を保持
+- ロンは複数採用され得るため`Winners`は配列。各和了者ごとに`AdoptedWinner`でスコア情報(役/符/翻/点数)を保持
 - ダブロン時の供託は**上家取り**、本場は放銃者が全和了者に支払う(天鳳準拠)。これらは`KyoutakuDistribution` / `HonbaDistribution` で表現
 - 流局は種別(`SanchaHou` / `Suukaikan` / `Suufonrenda` / `SuuchaRiichi` / `KouhaiHeikyoku` / `KyuushuKyuuhai` 等)を持つ
-- 三家和了は「採用しない(流局扱い)」ルールを採る場合、`ResolvedWinAction` ではなく `ResolvedRyuukyokuAction(SanchaHou)` に落とす
+- 三家和了は「採用しない(流局扱い)」ルールを採る場合、`AdoptedWinAction` ではなく `AdoptedRyuukyokuAction(SanchaHou)` に落とす
 
 ### 通知と応答
 
@@ -302,7 +502,7 @@ ResolvedRoundAction (abstract)
 
 ### リプレイ/ログ
 
-- 通知(全プレイヤー分) / 全応答 / 採用結果(`ResolvedRoundAction`) を順に保存できる形にしておく。天鳳牌譜検証ツールと同様、後でリプレイ・デバッグ可能に
+- 通知(全プレイヤー分) / 全応答 / 採用結果(`AdoptedRoundAction`) を順に保存できる形にしておく。天鳳牌譜検証ツールと同様、後でリプレイ・デバッグ可能に
 - `RoundRevision`があれば「その時点のRound状態と、そこから採用アクションで遷移した次Round」を再現できる
 
 ### プロジェクト分離の方針
@@ -356,7 +556,7 @@ ResolvedRoundAction (abstract)
 - **槍槓ルール**: 槍槓は**加槓のみ**対象とする。暗槓に対する国士無双ロンの可否はルール未確定(TODO: Phase 5 で詰める)。槍槓成立時はカンドラ表示・嶺上ツモ・加槓確定のいずれも行わず、加槓宣言した手牌から該当牌を除いてロン処理へ
 - **リーチ供託の精算仕様**:
   - リーチは**鳴かれても成立**する(打牌が通れば成立、ロンが成立した場合のみ不成立)
-  - リーチ宣言時点で手牌側から1000点を減算し、打牌応答集約後にロンなしならリーチ棒を供託へ加算する(ロンがあれば供託せず放銃者に流れる 点数計算は`ResolvedWinAction.KyoutakuDistribution`で表現)
+  - リーチ宣言時点で手牌側から1000点を減算し、打牌応答集約後にロンなしならリーチ棒を供託へ加算する(ロンがあれば供託せず放銃者に流れる 点数計算は`AdoptedWinAction.KyoutakuDistribution`で表現)
   - 鳴き(他家の副露成立)で一発は消滅する
   - 複数和了(ダブロン等)の場合、供託棒は**上家取り**(放銃者から見て最初の和了者に全額)
   - 宣言可能点数は1000点以上(1000点未満はリーチ候補に入れない)

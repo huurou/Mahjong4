@@ -1,4 +1,5 @@
-﻿using Mahjong.Lib.Game.Decisions;
+﻿using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Adoptions;
 using System.Collections.Immutable;
 
 namespace Mahjong.Lib.Game.Rounds.Managing;
@@ -12,8 +13,8 @@ public interface IResponsePriorityPolicy
     /// フェーズ別に収集された応答群から優先順位を適用して採用応答を決定する
     /// ダブロン時は複数応答を返す (採用順)
     /// </summary>
-    ImmutableArray<ResolvedPlayerResponse> Resolve(
-        RoundDecisionSpec spec,
-        ImmutableArray<ResolvedPlayerResponse> responses
+    ImmutableArray<AdoptedPlayerResponse> Resolve(
+        RoundInquirySpec spec,
+        ImmutableArray<AdoptedPlayerResponse> responses
     );
 }

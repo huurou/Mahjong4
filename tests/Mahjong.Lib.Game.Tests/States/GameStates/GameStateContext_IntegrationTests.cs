@@ -28,7 +28,7 @@ public class GameStateContext_IntegrationTests : IDisposable
         // Arrange
         var rules = new GameRules { Format = GameFormat.SingleRound };
         var game = GameAggregate.Create(GamesTestHelper.CreatePlayerList(), rules);
-        context_.Init(game);
+        await context_.InitAsync(game, TestContext.Current.CancellationToken);
 
         // Act
         await context_.ResponseOkAsync();
@@ -50,7 +50,7 @@ public class GameStateContext_IntegrationTests : IDisposable
         // Arrange
         var rules = new GameRules { Format = GameFormat.Tonpuu };
         var game = GameAggregate.Create(GamesTestHelper.CreatePlayerList(), rules);
-        context_.Init(game);
+        await context_.InitAsync(game, TestContext.Current.CancellationToken);
 
         // Act
         await context_.ResponseOkAsync();
@@ -87,7 +87,7 @@ public class GameStateContext_IntegrationTests : IDisposable
         using var context = new GameStateContext(GamesTestHelper.CreateWallGenerator(), scoreMock.Object, GamesTestHelper.CreateNoOpTenpaiChecker());
         var rules = new GameRules { Format = GameFormat.Tonpuu };
         var game = GameAggregate.Create(GamesTestHelper.CreatePlayerList(), rules);
-        context.Init(game);
+        await context.InitAsync(game, TestContext.Current.CancellationToken);
         var initialPoints = rules.InitialPoints;
 
         // Act
@@ -122,7 +122,7 @@ public class GameStateContext_IntegrationTests : IDisposable
         // Arrange
         var rules = new GameRules { Format = GameFormat.Tonpuu };
         var game = GameAggregate.Create(GamesTestHelper.CreatePlayerList(), rules);
-        context_.Init(game);
+        await context_.InitAsync(game, TestContext.Current.CancellationToken);
 
         // Act
         await context_.ResponseOkAsync();

@@ -1,5 +1,6 @@
 ﻿using Mahjong.Lib.Game.Calls;
-using Mahjong.Lib.Game.Decisions;
+using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Notifications.Bodies;
 using Mahjong.Lib.Game.Responses;
 
@@ -14,7 +15,7 @@ public static class PlayerResponseEnvelopeExtensions
     /// Wire DTO 応答エンベロープを C# API 応答型に変換する
     /// phase によって応答型階層 (AfterTsumo / AfterDahai / AfterKan / AfterKanTsumo / Ok) が決定される
     /// </summary>
-    public static PlayerResponse FromWire(this PlayerResponseEnvelope envelope, RoundDecisionPhase phase)
+    public static PlayerResponse FromWire(this PlayerResponseEnvelope envelope, RoundInquiryPhase phase)
     {
         ArgumentNullException.ThrowIfNull(envelope);
         ArgumentNullException.ThrowIfNull(envelope.Body);
@@ -22,12 +23,12 @@ public static class PlayerResponseEnvelopeExtensions
         var body = envelope.Body;
         return phase switch
         {
-            RoundDecisionPhase.Haipai => FromWireHaipai(body),
-            RoundDecisionPhase.Tsumo => FromWireTsumo(body),
-            RoundDecisionPhase.Dahai => FromWireDahai(body),
-            RoundDecisionPhase.Kan => FromWireKan(body),
-            RoundDecisionPhase.KanTsumo => FromWireKanTsumo(body),
-            RoundDecisionPhase.AfterKanTsumo => FromWireAfterKanTsumo(body),
+            RoundInquiryPhase.Haipai => FromWireHaipai(body),
+            RoundInquiryPhase.Tsumo => FromWireTsumo(body),
+            RoundInquiryPhase.Dahai => FromWireDahai(body),
+            RoundInquiryPhase.Kan => FromWireKan(body),
+            RoundInquiryPhase.KanTsumo => FromWireKanTsumo(body),
+            RoundInquiryPhase.AfterKanTsumo => FromWireAfterKanTsumo(body),
             _ => throw new ArgumentOutOfRangeException(nameof(phase), phase, "未対応のフェーズです。"),
         };
     }
@@ -37,7 +38,7 @@ public static class PlayerResponseEnvelopeExtensions
         return body switch
         {
             OkResponseBody => new OkResponse(),
-            _ => throw InvalidBody(RoundDecisionPhase.Haipai, body),
+            _ => throw InvalidBody(RoundInquiryPhase.Haipai, body),
         };
     }
 
@@ -50,7 +51,7 @@ public static class PlayerResponseEnvelopeExtensions
             KanResponseBody b when b.CallType == CallType.Kakan => new KakanResponse(b.Tile),
             WinResponseBody => new TsumoAgariResponse(),
             RyuukyokuResponseBody => new KyuushuKyuuhaiResponse(),
-            _ => throw InvalidBody(RoundDecisionPhase.Tsumo, body),
+            _ => throw InvalidBody(RoundInquiryPhase.Tsumo, body),
         };
     }
 
@@ -63,7 +64,7 @@ public static class PlayerResponseEnvelopeExtensions
             CallResponseBody b when b.CallType == CallType.Pon => new PonResponse([.. b.HandTiles]),
             CallResponseBody b when b.CallType == CallType.Daiminkan => new DaiminkanResponse([.. b.HandTiles]),
             WinResponseBody => new RonResponse(),
-            _ => throw InvalidBody(RoundDecisionPhase.Dahai, body),
+            _ => throw InvalidBody(RoundInquiryPhase.Dahai, body),
         };
     }
 
@@ -73,7 +74,7 @@ public static class PlayerResponseEnvelopeExtensions
         {
             OkResponseBody => new OkResponse(),
             WinResponseBody => new ChankanRonResponse(),
-            _ => throw InvalidBody(RoundDecisionPhase.Kan, body),
+            _ => throw InvalidBody(RoundInquiryPhase.Kan, body),
         };
     }
 
@@ -85,7 +86,7 @@ public static class PlayerResponseEnvelopeExtensions
             KanResponseBody b when b.CallType == CallType.Ankan => new KanTsumoAnkanResponse(b.Tile),
             KanResponseBody b when b.CallType == CallType.Kakan => new KanTsumoKakanResponse(b.Tile),
             WinResponseBody => new RinshanTsumoResponse(),
-            _ => throw InvalidBody(RoundDecisionPhase.KanTsumo, body),
+            _ => throw InvalidBody(RoundInquiryPhase.KanTsumo, body),
         };
     }
 
@@ -96,20 +97,20 @@ public static class PlayerResponseEnvelopeExtensions
             DahaiResponseBody b => new KanTsumoDahaiResponse(b.Tile, b.IsRiichi),
             KanResponseBody b when b.CallType == CallType.Ankan => new KanTsumoAnkanResponse(b.Tile),
             KanResponseBody b when b.CallType == CallType.Kakan => new KanTsumoKakanResponse(b.Tile),
-            _ => throw InvalidBody(RoundDecisionPhase.AfterKanTsumo, body),
+            _ => throw InvalidBody(RoundInquiryPhase.AfterKanTsumo, body),
         };
     }
 
-    private static ArgumentException InvalidBody(RoundDecisionPhase phase, ResponseBody body)
+    private static ArgumentException InvalidBody(RoundInquiryPhase phase, ResponseBody body)
     {
         return new ArgumentException($"フェーズ {phase} では envelope.Body ({body.GetType().Name}) は許可されていません。", nameof(body));
     }
 
     /// <summary>
-    /// Game レベル通知および局内 OK 応答通知 (行動選択を伴わない通知) への Wire ACK を
+    /// <see cref="GameNotification"/> および局内 OK 応答通知 (行動選択を伴わない通知) への Wire ACK を
     /// C# API 応答型 (OkResponse) に変換する。
     /// 呼び出し側は対象通知が OK 応答のみ受理する種別であることを保証する責務を持つ
-    /// (Tsumo / Dahai / Kan / KanTsumo などには FromWire(RoundDecisionPhase) を使う)。
+    /// (Tsumo / Dahai / Kan / KanTsumo などには FromWire(RoundInquiryPhase) を使う)。
     /// </summary>
     public static OkResponse FromWireOk(this PlayerResponseEnvelope envelope)
     {

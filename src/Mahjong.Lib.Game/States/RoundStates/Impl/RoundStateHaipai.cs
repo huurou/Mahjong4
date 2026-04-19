@@ -1,5 +1,6 @@
 ﻿using Mahjong.Lib.Game.Candidates;
-using Mahjong.Lib.Game.Decisions;
+using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Rounds.Managing;
@@ -20,13 +21,13 @@ public record RoundStateHaipai : RoundState
         Transit(context, new RoundStateTsumo(), () => context.Round = context.Round.Tsumo());
     }
 
-    public override RoundDecisionSpec CreateDecisionSpec(Round round, IResponseCandidateEnumerator enumerator)
+    public override RoundInquirySpec CreateInquirySpec(Round round, IResponseCandidateEnumerator enumerator)
     {
-        var specs = ImmutableList.CreateBuilder<PlayerDecisionSpec>();
+        var specs = ImmutableList.CreateBuilder<PlayerInquirySpec>();
         for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
         {
-            specs.Add(new PlayerDecisionSpec(new PlayerIndex(i), [new OkCandidate()]));
+            specs.Add(new PlayerInquirySpec(new PlayerIndex(i), [new OkCandidate()]));
         }
-        return new RoundDecisionSpec(RoundDecisionPhase.Haipai, specs.ToImmutable(), null);
+        return new RoundInquirySpec(RoundInquiryPhase.Haipai, specs.ToImmutable(), null);
     }
 }

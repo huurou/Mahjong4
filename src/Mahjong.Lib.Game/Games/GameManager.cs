@@ -1,8 +1,11 @@
 ﻿using Mahjong.Lib.Game.Games.Scoring;
 using Mahjong.Lib.Game.Players;
+using Mahjong.Lib.Game.Rounds.Managing;
 using Mahjong.Lib.Game.States.GameStates;
 using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Walls;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Mahjong.Lib.Game.Games;
 
@@ -15,36 +18,60 @@ namespace Mahjong.Lib.Game.Games;
 /// <param name="wallGenerator">山牌生成機</param>
 /// <param name="scoreCalculator">和了時点数計算機</param>
 /// <param name="tenpaiChecker">テンパイ判定機</param>
+/// <param name="projector">視点射影</param>
+/// <param name="enumerator">合法応答候補列挙</param>
+/// <param name="priorityPolicy">応答優先順位解決</param>
+/// <param name="defaultFactory">タイムアウト時既定応答生成</param>
+/// <param name="tracer">対局トレーサー (no-op が必要な場合は <see cref="NullGameTracer"/> を明示的に渡す)</param>
+/// <param name="loggerFactory">ロガーファクトリ (no-op が必要な場合は <see cref="NullLoggerFactory.Instance"/> を明示的に渡す)</param>
 public class GameManager(
     PlayerList playerList,
     GameRules rules,
     IWallGenerator wallGenerator,
     IScoreCalculator scoreCalculator,
-    ITenpaiChecker tenpaiChecker
+    ITenpaiChecker tenpaiChecker,
+    IRoundViewProjector projector,
+    IResponseCandidateEnumerator enumerator,
+    IResponsePriorityPolicy priorityPolicy,
+    IDefaultResponseFactory defaultFactory,
+    IGameTracer tracer,
+    ILoggerFactory loggerFactory
 ) : IDisposable
 {
     private GameStateContext? context_;
     private bool disposed_;
 
     /// <summary>
-    /// 対局状態遷移コンテキスト Start() 呼び出し後に参照可能
+    /// 対局状態遷移コンテキスト StartAsync() 呼び出し後に参照可能
     /// </summary>
     public GameStateContext Context => context_
-        ?? throw new InvalidOperationException("Start() が呼び出されていません。");
+        ?? throw new InvalidOperationException("StartAsync() が呼び出されていません。");
 
     /// <summary>
     /// 対局を開始します
+    /// <see cref="Notifications.GameNotification"/> 送信経路を含む初期化を await する
     /// </summary>
-    public void Start()
+    public async Task StartAsync(CancellationToken ct = default)
     {
         ObjectDisposedException.ThrowIf(disposed_, this);
         if (context_ is not null)
         {
-            throw new InvalidOperationException("Start() は既に呼び出されています。");
+            throw new InvalidOperationException("StartAsync() は既に呼び出されています。");
         }
 
-        context_ = new GameStateContext(wallGenerator, scoreCalculator, tenpaiChecker);
-        context_.Init(Game.Create(playerList, rules));
+        context_ = new GameStateContext(
+            wallGenerator,
+            scoreCalculator,
+            tenpaiChecker,
+            playerList,
+            projector,
+            enumerator,
+            priorityPolicy,
+            defaultFactory,
+            tracer,
+            loggerFactory
+        );
+        await context_.InitAsync(Game.Create(playerList, rules), ct);
     }
 
     protected virtual void Dispose(bool disposing)

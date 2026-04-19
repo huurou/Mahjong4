@@ -1,4 +1,5 @@
-﻿using Mahjong.Lib.Game.Decisions;
+﻿using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Rounds.Managing;
 
@@ -28,14 +29,14 @@ public record RoundStateKanTsumo : RoundState
 
         // 嶺上開花 (ツモ和了、Loser は和了者自身)
         var loserIndex = context.Round.Turn;
-        var settledRound = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, context.ScoreCalculator);
-        var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType);
+        var settledRound = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, context.ScoreCalculator, out var details);
+        var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType, details.Winners, details.Honba, details.KyoutakuRiichiAward);
         Transit(context, new RoundStateWin(eventArgs), () => context.Round = settledRound);
     }
 
-    public override RoundDecisionSpec CreateDecisionSpec(Round round, IResponseCandidateEnumerator enumerator)
+    public override RoundInquirySpec CreateInquirySpec(Round round, IResponseCandidateEnumerator enumerator)
     {
-        var spec = new PlayerDecisionSpec(round.Turn, enumerator.EnumerateForKanTsumo(round, round.Turn));
-        return new RoundDecisionSpec(RoundDecisionPhase.KanTsumo, [spec], null);
+        var spec = new PlayerInquirySpec(round.Turn, enumerator.EnumerateForKanTsumo(round, round.Turn));
+        return new RoundInquirySpec(RoundInquiryPhase.KanTsumo, [spec], null);
     }
 }

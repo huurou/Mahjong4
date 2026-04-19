@@ -151,6 +151,21 @@ public class RoundStateContext(
         State.Entry(this);
     }
 
+    /// <summary>
+    /// 遷移時アクション実行後に遷移先状態を生成して遷移します。
+    /// アクションで更新した <see cref="Round"/> を遷移先状態のプロパティへ封入したい場合に使用します
+    /// (例: 副露直後の <see cref="Round"/> を <see cref="Impl.RoundStateCall.SnapshotRound"/> に入れる)。
+    /// </summary>
+    /// <param name="nextStateFactory">action 実行後に評価される遷移先状態ファクトリ</param>
+    /// <param name="action">遷移時アクション</param>
+    internal void Transit(Func<RoundState> nextStateFactory, Action? action = null)
+    {
+        State.Exit(this);
+        action?.Invoke();
+        State = nextStateFactory();
+        State.Entry(this);
+    }
+
     internal void OnStateChanged(RoundState state)
     {
         RoundStateChanged?.Invoke(this, new RoundStateChangedEventArgs(state));

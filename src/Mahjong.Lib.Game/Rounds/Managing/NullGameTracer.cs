@@ -1,4 +1,6 @@
-﻿using Mahjong.Lib.Game.Decisions;
+﻿using Mahjong.Lib.Game.Candidates;
+using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Notifications;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Responses;
@@ -17,7 +19,8 @@ public sealed class NullGameTracer : IGameTracer
     public void OnResponseReceived(NotificationId notificationId, PlayerIndex senderIndex, PlayerResponse response) { }
     public void OnResponseTimeout(NotificationId notificationId, PlayerIndex recipientIndex) { }
     public void OnResponseException(NotificationId notificationId, PlayerIndex recipientIndex, Exception ex) { }
-    public void OnResolvedAction(RoundDecisionPhase phase, ResolvedPlayerResponse resolved) { }
+    public void OnInvalidResponse(NotificationId notificationId, PlayerIndex senderIndex, PlayerResponse invalidResponse, CandidateList presentedCandidates) { }
+    public void OnAdoptedAction(RoundInquiryPhase phase, AdoptedPlayerResponse adopted) { }
     public void OnRoundStarted(Round round) { }
-    public void OnRoundEnded(ResolvedRoundAction action) { }
+    public void OnRoundEnded(AdoptedRoundAction action) { }
 }

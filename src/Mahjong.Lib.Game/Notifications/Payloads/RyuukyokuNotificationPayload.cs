@@ -1,4 +1,5 @@
-﻿using Mahjong.Lib.Game.Decisions;
+﻿using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Adoptions;
 
 namespace Mahjong.Lib.Game.Notifications.Payloads;
 
@@ -7,5 +8,5 @@ namespace Mahjong.Lib.Game.Notifications.Payloads;
 /// </summary>
 /// <param name="RyuukyokuResult">流局結果</param>
 public record RyuukyokuNotificationPayload(
-    ResolvedRyuukyokuAction RyuukyokuResult
+    AdoptedRyuukyokuAction RyuukyokuResult
 ) : NotificationPayload;

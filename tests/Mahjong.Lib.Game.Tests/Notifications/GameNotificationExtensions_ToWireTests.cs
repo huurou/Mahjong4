@@ -1,5 +1,6 @@
 ﻿using Mahjong.Lib.Game.Candidates;
-using Mahjong.Lib.Game.Decisions;
+using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Notifications;
 using Mahjong.Lib.Game.Notifications.Payloads;
@@ -61,7 +62,7 @@ public class GameNotificationExtensions_ToWireTests
     public void RoundEndNotification_PayloadがRoundEndNotificationPayload()
     {
         // Arrange
-        var result = CreateResolvedRyuukyokuAction();
+        var result = CreateAdoptedRyuukyokuAction();
         var notification = new RoundEndNotification(result);
 
         // Act
@@ -115,9 +116,9 @@ public class GameNotificationExtensions_ToWireTests
         Assert.IsType<ArgumentException>(ex);
     }
 
-    private static ResolvedRyuukyokuAction CreateResolvedRyuukyokuAction()
+    private static AdoptedRyuukyokuAction CreateAdoptedRyuukyokuAction()
     {
-        return new ResolvedRyuukyokuAction(
+        return new AdoptedRyuukyokuAction(
             RyuukyokuType.KouhaiHeikyoku,
             [],
             [],

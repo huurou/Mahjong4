@@ -15,7 +15,7 @@ public class RoundStateDahai_ResponseCallTests : IDisposable
     }
 
     [Fact]
-    public async Task 副露応答_副露を経由して打牌状態に遷移する()
+    public async Task 副露応答_副露状態を経由してOK応答後に打牌状態へ遷移する()
     {
         // Arrange
         context_.Init(RoundStateContextTestHelper.CreateRound());
@@ -29,7 +29,7 @@ public class RoundStateDahai_ResponseCallTests : IDisposable
         context_.RoundStateChanged += (_, e) =>
         {
             passedTypes.Add(e.State.GetType());
-            if (e.State is RoundStateDahai)
+            if (passedTypes.Contains(typeof(RoundStateCall)) && e.State is RoundStateDahai)
             {
                 tcs.TrySetResult();
             }
@@ -40,6 +40,9 @@ public class RoundStateDahai_ResponseCallTests : IDisposable
         var calledTile = context_.Round.RiverArray[context_.Round.Turn].Last();
         RoundStateContextTestHelper.InjectChiHand(context_, caller);
         await context_.ResponseCallAsync(caller, CallType.Chi, RoundStateContextTestHelper.DummyChiHandTiles(), calledTile);
+        // RoundStateCall 遷移 → OK 応答で RoundStateDahai へ
+        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateCall>(context_);
+        await context_.ResponseOkAsync();
         await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         // Assert

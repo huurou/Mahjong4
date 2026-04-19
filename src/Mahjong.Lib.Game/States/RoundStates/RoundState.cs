@@ -1,4 +1,5 @@
-﻿using Mahjong.Lib.Game.Decisions;
+﻿using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Rounds.Managing;
 using Mahjong.Lib.Game.States.RoundStates.Impl;
@@ -61,13 +62,10 @@ public abstract record RoundState
     }
 
     /// <summary>
-    /// この状態で「誰に何を聞くか」の決定仕様を返す
-    /// 意思決定不要な状態 (自動遷移 Call や終端 Win/Ryuukyoku) は null を返し、RoundManager は通知送信をスキップする
+    /// この状態でプレイヤーへ送る問い合わせ仕様 (誰に・何を聞くか) を返す。
+    /// Call/Win/Ryuukyoku のような通知観測点は全員に OkCandidate のみを提示する。
     /// </summary>
-    public virtual RoundDecisionSpec? CreateDecisionSpec(Round round, IResponseCandidateEnumerator enumerator)
-    {
-        return null;
-    }
+    public abstract RoundInquirySpec CreateInquirySpec(Round round, IResponseCandidateEnumerator enumerator);
 
     /// <summary>
     /// 指定された状態に遷移します
@@ -78,5 +76,16 @@ public abstract record RoundState
     protected static void Transit(RoundStateContext context, RoundState nextState, Action? action = null)
     {
         context.Transit(nextState, action);
+    }
+
+    /// <summary>
+    /// 遷移時アクション実行後に遷移先状態を生成して遷移します
+    /// </summary>
+    /// <param name="context">状態遷移コンテキスト</param>
+    /// <param name="nextStateFactory">action 実行後に評価される遷移先状態ファクトリ</param>
+    /// <param name="action">遷移時アクション</param>
+    protected static void Transit(RoundStateContext context, Func<RoundState> nextStateFactory, Action? action = null)
+    {
+        context.Transit(nextStateFactory, action);
     }
 }

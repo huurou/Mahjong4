@@ -1,5 +1,6 @@
 ﻿using Mahjong.Lib.Game.Candidates;
-using Mahjong.Lib.Game.Decisions;
+using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Responses;
 using Mahjong.Lib.Game.Rounds.Managing;
@@ -18,8 +19,8 @@ public class TenhouResponsePriorityPolicy_ResolveTests
         // Arrange
         var spec = CreateDahaiSpec(loserIndex: 2);
         var responses = ImmutableArray.Create(
-            new ResolvedPlayerResponse(new PlayerIndex(0), new RonResponse()),
-            new ResolvedPlayerResponse(new PlayerIndex(3), new RonResponse())
+            new AdoptedPlayerResponse(new PlayerIndex(0), new RonResponse()),
+            new AdoptedPlayerResponse(new PlayerIndex(3), new RonResponse())
         );
 
         // Act
@@ -37,8 +38,8 @@ public class TenhouResponsePriorityPolicy_ResolveTests
         // Arrange
         var spec = CreateDahaiSpec(loserIndex: 3);
         var responses = ImmutableArray.Create(
-            new ResolvedPlayerResponse(new PlayerIndex(1), new RonResponse()),
-            new ResolvedPlayerResponse(new PlayerIndex(0), new RonResponse())
+            new AdoptedPlayerResponse(new PlayerIndex(1), new RonResponse()),
+            new AdoptedPlayerResponse(new PlayerIndex(0), new RonResponse())
         );
 
         // Act
@@ -56,9 +57,9 @@ public class TenhouResponsePriorityPolicy_ResolveTests
         // Arrange
         var spec = CreateDahaiSpec(loserIndex: 2);
         var responses = ImmutableArray.Create(
-            new ResolvedPlayerResponse(new PlayerIndex(0), new OkResponse()),
-            new ResolvedPlayerResponse(new PlayerIndex(1), new OkResponse()),
-            new ResolvedPlayerResponse(new PlayerIndex(3), new RonResponse())
+            new AdoptedPlayerResponse(new PlayerIndex(0), new OkResponse()),
+            new AdoptedPlayerResponse(new PlayerIndex(1), new OkResponse()),
+            new AdoptedPlayerResponse(new PlayerIndex(3), new RonResponse())
         );
 
         // Act
@@ -76,8 +77,8 @@ public class TenhouResponsePriorityPolicy_ResolveTests
         // 2 (対面=距離2) と 3 (上家=距離3) なので 2 が優先される
         var spec = CreateDahaiSpec(loserIndex: 0);
         var responses = ImmutableArray.Create(
-            new ResolvedPlayerResponse(new PlayerIndex(2), new PonResponse([new Tile(0), new Tile(1)])),
-            new ResolvedPlayerResponse(new PlayerIndex(3), new DaiminkanResponse([new Tile(0), new Tile(1), new Tile(2)]))
+            new AdoptedPlayerResponse(new PlayerIndex(2), new PonResponse([new Tile(0), new Tile(1)])),
+            new AdoptedPlayerResponse(new PlayerIndex(3), new DaiminkanResponse([new Tile(0), new Tile(1), new Tile(2)]))
         );
 
         // Act
@@ -94,7 +95,7 @@ public class TenhouResponsePriorityPolicy_ResolveTests
         // Arrange: 放銃者 2 / 下家 3 がチー
         var spec = CreateDahaiSpec(loserIndex: 2);
         var responses = ImmutableArray.Create(
-            new ResolvedPlayerResponse(new PlayerIndex(3), new ChiResponse([new Tile(0), new Tile(4)]))
+            new AdoptedPlayerResponse(new PlayerIndex(3), new ChiResponse([new Tile(0), new Tile(4)]))
         );
 
         // Act
@@ -111,9 +112,9 @@ public class TenhouResponsePriorityPolicy_ResolveTests
         // Arrange
         var spec = CreateDahaiSpec(loserIndex: 0);
         var responses = ImmutableArray.Create(
-            new ResolvedPlayerResponse(new PlayerIndex(1), new OkResponse()),
-            new ResolvedPlayerResponse(new PlayerIndex(2), new OkResponse()),
-            new ResolvedPlayerResponse(new PlayerIndex(3), new OkResponse())
+            new AdoptedPlayerResponse(new PlayerIndex(1), new OkResponse()),
+            new AdoptedPlayerResponse(new PlayerIndex(2), new OkResponse()),
+            new AdoptedPlayerResponse(new PlayerIndex(3), new OkResponse())
         );
 
         // Act
@@ -129,8 +130,8 @@ public class TenhouResponsePriorityPolicy_ResolveTests
         // Arrange: 加槓者 2 に対し 3 と 0 が槍槓ロン → 下家 3 先頭
         var spec = CreateKanSpec(loserIndex: 2);
         var responses = ImmutableArray.Create(
-            new ResolvedPlayerResponse(new PlayerIndex(0), new ChankanRonResponse()),
-            new ResolvedPlayerResponse(new PlayerIndex(3), new ChankanRonResponse())
+            new AdoptedPlayerResponse(new PlayerIndex(0), new ChankanRonResponse()),
+            new AdoptedPlayerResponse(new PlayerIndex(3), new ChankanRonResponse())
         );
 
         // Act
@@ -148,9 +149,9 @@ public class TenhouResponsePriorityPolicy_ResolveTests
         // Arrange
         var spec = CreateKanSpec(loserIndex: 0);
         var responses = ImmutableArray.Create(
-            new ResolvedPlayerResponse(new PlayerIndex(1), new OkResponse()),
-            new ResolvedPlayerResponse(new PlayerIndex(2), new OkResponse()),
-            new ResolvedPlayerResponse(new PlayerIndex(3), new OkResponse())
+            new AdoptedPlayerResponse(new PlayerIndex(1), new OkResponse()),
+            new AdoptedPlayerResponse(new PlayerIndex(2), new OkResponse()),
+            new AdoptedPlayerResponse(new PlayerIndex(3), new OkResponse())
         );
 
         // Act
@@ -164,13 +165,13 @@ public class TenhouResponsePriorityPolicy_ResolveTests
     public void Haipai_単一応答はそのまま返る()
     {
         // Arrange
-        var spec = new RoundDecisionSpec(
-            RoundDecisionPhase.Haipai,
-            [new PlayerDecisionSpec(new PlayerIndex(0), [new OkCandidate()])],
+        var spec = new RoundInquirySpec(
+            RoundInquiryPhase.Haipai,
+            [new PlayerInquirySpec(new PlayerIndex(0), [new OkCandidate()])],
             null
         );
         var responses = ImmutableArray.Create(
-            new ResolvedPlayerResponse(new PlayerIndex(0), new OkResponse())
+            new AdoptedPlayerResponse(new PlayerIndex(0), new OkResponse())
         );
 
         // Act
@@ -184,12 +185,12 @@ public class TenhouResponsePriorityPolicy_ResolveTests
     public void Dahai_LoserIndexがnull_例外()
     {
         // Arrange
-        var specWithoutLoser = new RoundDecisionSpec(
-            RoundDecisionPhase.Dahai,
-            [new PlayerDecisionSpec(new PlayerIndex(0), [new OkCandidate()])],
+        var specWithoutLoser = new RoundInquirySpec(
+            RoundInquiryPhase.Dahai,
+            [new PlayerInquirySpec(new PlayerIndex(0), [new OkCandidate()])],
             null
         );
-        var responses = ImmutableArray<ResolvedPlayerResponse>.Empty;
+        var responses = ImmutableArray<AdoptedPlayerResponse>.Empty;
 
         // Act
         var ex = Record.Exception(() => policy_.Resolve(specWithoutLoser, responses));
@@ -198,20 +199,20 @@ public class TenhouResponsePriorityPolicy_ResolveTests
         Assert.IsType<ArgumentException>(ex);
     }
 
-    private static RoundDecisionSpec CreateDahaiSpec(int loserIndex)
+    private static RoundInquirySpec CreateDahaiSpec(int loserIndex)
     {
-        return new RoundDecisionSpec(
-            RoundDecisionPhase.Dahai,
-            [new PlayerDecisionSpec(new PlayerIndex(loserIndex), [new OkCandidate()])],
+        return new RoundInquirySpec(
+            RoundInquiryPhase.Dahai,
+            [new PlayerInquirySpec(new PlayerIndex(loserIndex), [new OkCandidate()])],
             new PlayerIndex(loserIndex)
         );
     }
 
-    private static RoundDecisionSpec CreateKanSpec(int loserIndex)
+    private static RoundInquirySpec CreateKanSpec(int loserIndex)
     {
-        return new RoundDecisionSpec(
-            RoundDecisionPhase.Kan,
-            [new PlayerDecisionSpec(new PlayerIndex(loserIndex), [new OkCandidate()])],
+        return new RoundInquirySpec(
+            RoundInquiryPhase.Kan,
+            [new PlayerInquirySpec(new PlayerIndex(loserIndex), [new OkCandidate()])],
             new PlayerIndex(loserIndex)
         );
     }

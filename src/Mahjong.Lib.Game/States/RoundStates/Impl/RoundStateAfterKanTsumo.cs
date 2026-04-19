@@ -1,5 +1,6 @@
 ﻿using Mahjong.Lib.Game.Calls;
-using Mahjong.Lib.Game.Decisions;
+using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Rounds.Managing;
 
@@ -49,9 +50,9 @@ public record RoundStateAfterKanTsumo : RoundState
         );
     }
 
-    public override RoundDecisionSpec CreateDecisionSpec(Round round, IResponseCandidateEnumerator enumerator)
+    public override RoundInquirySpec CreateInquirySpec(Round round, IResponseCandidateEnumerator enumerator)
     {
-        var spec = new PlayerDecisionSpec(round.Turn, enumerator.EnumerateForAfterKanTsumo(round, round.Turn));
-        return new RoundDecisionSpec(RoundDecisionPhase.AfterKanTsumo, [spec], null);
+        var spec = new PlayerInquirySpec(round.Turn, enumerator.EnumerateForAfterKanTsumo(round, round.Turn));
+        return new RoundInquirySpec(RoundInquiryPhase.AfterKanTsumo, [spec], null);
     }
 }

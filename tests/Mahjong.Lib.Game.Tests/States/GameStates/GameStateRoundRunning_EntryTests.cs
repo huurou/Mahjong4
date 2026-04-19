@@ -20,7 +20,7 @@ public class GameStateRoundRunning_EntryTests : IDisposable
     {
         // Arrange
         var game = GameAggregate.Create(GamesTestHelper.CreatePlayerList(), new GameRules());
-        context_.Init(game);
+        await context_.InitAsync(game, TestContext.Current.CancellationToken);
 
         // Act
         await context_.ResponseOkAsync();

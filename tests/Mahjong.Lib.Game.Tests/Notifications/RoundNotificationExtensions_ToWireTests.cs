@@ -1,6 +1,7 @@
 ﻿using Mahjong.Lib.Game.Calls;
 using Mahjong.Lib.Game.Candidates;
-using Mahjong.Lib.Game.Decisions;
+using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Games.Scoring;
 using Mahjong.Lib.Game.Hands;
 using Mahjong.Lib.Game.Notifications;
@@ -173,7 +174,7 @@ public class RoundNotificationExtensions_ToWireTests
     {
         // Arrange
         var view = CreateView();
-        var winResult = CreateResolvedWinAction();
+        var winResult = CreateAdoptedWinAction();
         var notification = new WinNotification(view, winResult);
 
         // Act
@@ -190,7 +191,7 @@ public class RoundNotificationExtensions_ToWireTests
     {
         // Arrange
         var view = CreateView();
-        var ryuukyokuResult = CreateResolvedRyuukyokuAction();
+        var ryuukyokuResult = CreateAdoptedRyuukyokuAction();
         var notification = new RyuukyokuNotification(view, ryuukyokuResult);
 
         // Act
@@ -237,11 +238,11 @@ public class RoundNotificationExtensions_ToWireTests
         );
     }
 
-    private static ResolvedWinAction CreateResolvedWinAction()
+    private static AdoptedWinAction CreateAdoptedWinAction()
     {
         var scoreResult = new ScoreResult(1, 30, new PointArray(new Point(35000)), []);
-        var winner = new ResolvedWinner(new PlayerIndex(0), new Tile(0), scoreResult);
-        return new ResolvedWinAction(
+        var winner = new AdoptedWinner(new PlayerIndex(0), new Tile(0), scoreResult);
+        return new AdoptedWinAction(
             [winner],
             null,
             WinType.Tsumo,
@@ -251,9 +252,9 @@ public class RoundNotificationExtensions_ToWireTests
         );
     }
 
-    private static ResolvedRyuukyokuAction CreateResolvedRyuukyokuAction()
+    private static AdoptedRyuukyokuAction CreateAdoptedRyuukyokuAction()
     {
-        return new ResolvedRyuukyokuAction(
+        return new AdoptedRyuukyokuAction(
             RyuukyokuType.KouhaiHeikyoku,
             [],
             [],

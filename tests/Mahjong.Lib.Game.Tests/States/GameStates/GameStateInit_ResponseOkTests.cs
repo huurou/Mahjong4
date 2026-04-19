@@ -20,7 +20,7 @@ public class GameStateInit_ResponseOkTests : IDisposable
     {
         // Arrange
         var game = GameAggregate.Create(GamesTestHelper.CreatePlayerList(), new GameRules());
-        context_.Init(game);
+        await context_.InitAsync(game, TestContext.Current.CancellationToken);
         Assert.IsType<GameStateInit>(context_.State);
 
         // Act

@@ -14,5 +14,7 @@ namespace Mahjong.Lib.Game.Candidates;
 [JsonDerivedType(typeof(KakanCandidate), nameof(KakanCandidate))]
 [JsonDerivedType(typeof(RonCandidate), nameof(RonCandidate))]
 [JsonDerivedType(typeof(TsumoAgariCandidate), nameof(TsumoAgariCandidate))]
+[JsonDerivedType(typeof(ChankanRonCandidate), nameof(ChankanRonCandidate))]
+[JsonDerivedType(typeof(RinshanTsumoAgariCandidate), nameof(RinshanTsumoAgariCandidate))]
 [JsonDerivedType(typeof(KyuushuKyuuhaiCandidate), nameof(KyuushuKyuuhaiCandidate))]
 public abstract record ResponseCandidate;

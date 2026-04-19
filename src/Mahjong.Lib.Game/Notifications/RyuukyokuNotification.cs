@@ -1,4 +1,5 @@
-﻿using Mahjong.Lib.Game.Decisions;
+﻿using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Views;
 
 namespace Mahjong.Lib.Game.Notifications;
@@ -10,5 +11,5 @@ namespace Mahjong.Lib.Game.Notifications;
 /// <param name="RyuukyokuResult">流局結果</param>
 public record RyuukyokuNotification(
     PlayerRoundView View,
-    ResolvedRyuukyokuAction RyuukyokuResult
+    AdoptedRyuukyokuAction RyuukyokuResult
 ) : RoundNotification(View);

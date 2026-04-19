@@ -15,24 +15,35 @@ public abstract record GameState
     /// <summary>
     /// OK応答
     /// </summary>
-    public virtual void ResponseOk(GameStateContext context, GameEventResponseOk evt) { }
+    public virtual Task ResponseOkAsync(GameStateContext context, GameEventResponseOk evt, CancellationToken ct = default)
+    {
+        return Task.CompletedTask;
+    }
 
     /// <summary>
     /// 和了による局終了通知
     /// </summary>
-    public virtual void RoundEndedByWin(GameStateContext context, GameEventRoundEndedByWin evt) { }
+    public virtual Task RoundEndedByWinAsync(GameStateContext context, GameEventRoundEndedByWin evt, CancellationToken ct = default)
+    {
+        return Task.CompletedTask;
+    }
 
     /// <summary>
     /// 流局による局終了通知
     /// </summary>
-    public virtual void RoundEndedByRyuukyoku(GameStateContext context, GameEventRoundEndedByRyuukyoku evt) { }
+    public virtual Task RoundEndedByRyuukyokuAsync(GameStateContext context, GameEventRoundEndedByRyuukyoku evt, CancellationToken ct = default)
+    {
+        return Task.CompletedTask;
+    }
 
     /// <summary>
     /// 状態入場時の処理
+    /// <see cref="Notifications.GameNotification"/> の送信と ACK 収集など非同期処理を含める場合に使用する
     /// </summary>
-    public virtual void Entry(GameStateContext context)
+    public virtual Task EntryAsync(GameStateContext context, CancellationToken ct = default)
     {
         context.OnStateChanged(this);
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -44,12 +55,15 @@ public abstract record GameState
 
     /// <summary>
     /// 指定された状態に遷移します
+    /// 遷移時アクションで <see cref="Notifications.GameNotification"/> の送信や <see cref="GameStateContext.StartRound"/> を await できる
     /// </summary>
-    /// <param name="context">状態遷移コンテキスト</param>
-    /// <param name="nextState">遷移先状態</param>
-    /// <param name="action">遷移時アクション</param>
-    protected static void Transit(GameStateContext context, GameState nextState, Action? action = null)
+    protected static Task TransitAsync(
+        GameStateContext context,
+        GameState nextState,
+        Func<Task>? action = null,
+        CancellationToken ct = default
+    )
     {
-        context.Transit(nextState, action);
+        return context.TransitAsync(nextState, action, ct);
     }
 }

@@ -92,6 +92,9 @@ public class RoundStateDahai_RiichiTests : IDisposable
             else if (sawCall && e.State is RoundStateDahai) { tcs.TrySetResult(); }
         };
         await context_.ResponseCallAsync(caller, CallType.Chi, RoundStateContextTestHelper.DummyChiHandTiles(), tile);
+        // RoundStateCall は OK 応答を待つ
+        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateCall>(context_);
+        await context_.ResponseOkAsync();
         await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         // Assert: 立直成立
