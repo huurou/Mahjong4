@@ -14,16 +14,14 @@ public class RoundStateTsumo_ResponseDahaiTests : IDisposable
     }
 
     [Fact]
-    public async Task 打牌応答_打牌状態に遷移する()
+    public void 打牌応答_打牌状態に遷移する()
     {
         // Arrange
-        context_.Init(RoundStateContextTestHelper.CreateRound());
-        await context_.ResponseOkAsync();
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
+        RoundStateContextTestHelper.InitDirect(context_, RoundStateContextTestHelper.CreateRound());
+        RoundStateContextTestHelper.DriveResponseOk(context_);
 
         // Act
-        await context_.ResponseDahaiAsync(RoundStateContextTestHelper.PickTileToDahai(context_));
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateDahai>(context_);
+        RoundStateContextTestHelper.DriveResponseDahai(context_, RoundStateContextTestHelper.PickTileToDahai(context_));
 
         // Assert
         Assert.IsType<RoundStateDahai>(context_.State);

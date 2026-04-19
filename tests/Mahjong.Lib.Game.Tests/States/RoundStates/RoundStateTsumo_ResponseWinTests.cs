@@ -14,16 +14,14 @@ public class RoundStateTsumo_ResponseWinTests : IDisposable
     }
 
     [Fact]
-    public async Task 和了応答_和了状態に遷移する()
+    public void 和了応答_和了状態に遷移する()
     {
         // Arrange
-        context_.Init(RoundStateContextTestHelper.CreateRound());
-        await context_.ResponseOkAsync();
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
+        RoundStateContextTestHelper.InitDirect(context_, RoundStateContextTestHelper.CreateRound());
+        RoundStateContextTestHelper.DriveResponseOk(context_);
 
         // Act
-        await RoundStateContextTestHelper.ResponseTsumoWinAsync(context_);
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateWin>(context_);
+        RoundStateContextTestHelper.DriveTsumoWin(context_);
 
         // Assert
         Assert.IsType<RoundStateWin>(context_.State);

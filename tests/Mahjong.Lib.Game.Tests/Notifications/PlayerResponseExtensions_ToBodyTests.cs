@@ -23,20 +23,6 @@ public class PlayerResponseExtensions_ToBodyTests
     }
 
     [Fact]
-    public void PassResponse_OkResponseBodyに変換される()
-    {
-        var body = new PassResponse().ToBody();
-        Assert.IsType<OkResponseBody>(body);
-    }
-
-    [Fact]
-    public void KanPassResponse_OkResponseBodyに変換される()
-    {
-        var body = new KanPassResponse().ToBody();
-        Assert.IsType<OkResponseBody>(body);
-    }
-
-    [Fact]
     public void ChiResponse_CallResponseBodyChiに変換される()
     {
         // Arrange
@@ -168,14 +154,4 @@ public class PlayerResponseExtensions_ToBodyTests
         Assert.Equal(tile, actual.Tile);
     }
 
-    [Fact]
-    public void Responseがnull_ArgumentNullExceptionが発生する()
-    {
-        // Act
-        PlayerResponse response = null!;
-        var ex = Record.Exception(response.ToBody);
-
-        // Assert
-        Assert.IsType<ArgumentNullException>(ex);
-    }
 }

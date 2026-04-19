@@ -15,32 +15,23 @@ public class RoundStateDahai_ResponseCallTests : IDisposable
     }
 
     [Fact]
-    public async Task 副露応答_副露を経由して打牌状態に遷移する()
+    public void 副露応答_副露状態を経由してOK応答後に打牌状態へ遷移する()
     {
         // Arrange
-        context_.Init(RoundStateContextTestHelper.CreateRound());
-        await context_.ResponseOkAsync();
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
-        await context_.ResponseDahaiAsync(RoundStateContextTestHelper.PickTileToDahai(context_));
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateDahai>(context_);
+        RoundStateContextTestHelper.InitDirect(context_, RoundStateContextTestHelper.CreateRound());
+        RoundStateContextTestHelper.DriveResponseOk(context_);
+        RoundStateContextTestHelper.DriveResponseDahai(context_, RoundStateContextTestHelper.PickTileToDahai(context_));
 
         var passedTypes = new List<Type>();
-        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        context_.RoundStateChanged += (_, e) =>
-        {
-            passedTypes.Add(e.State.GetType());
-            if (e.State is RoundStateDahai)
-            {
-                tcs.TrySetResult();
-            }
-        };
+        context_.RoundStateChanged += (_, e) => passedTypes.Add(e.State.GetType());
 
         // Act
         var caller = context_.Round.Turn.Next();
         var calledTile = context_.Round.RiverArray[context_.Round.Turn].Last();
         RoundStateContextTestHelper.InjectChiHand(context_, caller);
-        await context_.ResponseCallAsync(caller, CallType.Chi, RoundStateContextTestHelper.DummyChiHandTiles(), calledTile);
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        RoundStateContextTestHelper.DriveResponseCall(context_, caller, CallType.Chi, RoundStateContextTestHelper.DummyChiHandTiles(), calledTile);
+        // RoundStateCall 遷移 → OK 応答で RoundStateDahai へ
+        RoundStateContextTestHelper.DriveResponseOk(context_);
 
         // Assert
         Assert.Contains(typeof(RoundStateCall), passedTypes);

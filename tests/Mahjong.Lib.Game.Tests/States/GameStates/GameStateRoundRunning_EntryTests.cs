@@ -7,7 +7,7 @@ namespace Mahjong.Lib.Game.Tests.States.GameStates;
 
 public class GameStateRoundRunning_EntryTests : IDisposable
 {
-    private readonly GameStateContext context_ = new(GamesTestHelper.CreateWallGenerator(), GamesTestHelper.CreateNoOpScoreCalculator(), GamesTestHelper.CreateNoOpTenpaiChecker());
+    private readonly GameStateContext context_ = GamesTestHelper.CreateContext();
 
     public void Dispose()
     {
@@ -20,7 +20,7 @@ public class GameStateRoundRunning_EntryTests : IDisposable
     {
         // Arrange
         var game = GameAggregate.Create(GamesTestHelper.CreatePlayerList(), new GameRules());
-        context_.Init(game);
+        await context_.InitAsync(game, TestContext.Current.CancellationToken);
 
         // Act
         await context_.ResponseOkAsync();

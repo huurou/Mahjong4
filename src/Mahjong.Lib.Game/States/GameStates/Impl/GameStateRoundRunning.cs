@@ -1,24 +1,26 @@
-﻿using Mahjong.Lib.Game.Games;
+﻿using Mahjong.Lib.Game.Adoptions;
+using Mahjong.Lib.Game.Games;
+using Mahjong.Lib.Game.Notifications;
 using Mahjong.Lib.Game.Rounds;
 
 namespace Mahjong.Lib.Game.States.GameStates.Impl;
 
 /// <summary>
-/// 局進行中 遷移時アクションで RoundStateContext を起動する
+/// 局進行中
+/// 遷移時アクションで <see cref="GameStateContext.StartRound"/> が実行される。
+/// 局終了時は <see cref="RoundEndNotification"/> 送信と次局 <see cref="RoundStartNotification"/> 送信 (続行時) または
+/// <see cref="GameEndNotification"/> 送信 (終了時) を遷移時アクションに集約する
 /// </summary>
 public record GameStateRoundRunning : GameState
 {
     public override string Name => "局進行中";
 
-    public override void RoundEndedByWin(GameStateContext context, GameEventRoundEndedByWin evt)
+    public override Task RoundEndedByWinAsync(GameStateContext context, GameEventRoundEndedByWin evt, CancellationToken ct = default)
     {
-        var endedRound = context.RoundStateContext?.Round
-            ?? throw new InvalidOperationException("RoundStateContext がありません。");
-        var dealerIndex = endedRound.RoundNumber.ToDealer();
+        var dealerIndex = context.Game.RoundNumber.ToDealer();
         var dealerContinues = context.Game.Rules.RenchanCondition switch
         {
             RenchanCondition.None => false,
-            // 親和了で連荘 (AgariOrTenpai も和了時の挙動は AgariOnly と同等)
             RenchanCondition.AgariOnly => evt.WinnerIndices.Contains(dealerIndex),
             RenchanCondition.AgariOrTenpai => evt.WinnerIndices.Contains(dealerIndex),
             _ => throw new InvalidOperationException($"未対応の連荘条件: {context.Game.Rules.RenchanCondition}"),
@@ -26,7 +28,7 @@ public record GameStateRoundRunning : GameState
         var mode = dealerContinues
             ? RoundAdvanceMode.Renchan
             : RoundAdvanceMode.DealerChangeResetHonba;
-        HandleRoundEnd(context, evt, dealerContinues, mode);
+        return RoundEndInnerAsync(context, evt, dealerContinues, mode, ct);
     }
 
     /// <summary>
@@ -38,18 +40,25 @@ public record GameStateRoundRunning : GameState
     ///   - 連荘条件 AgariOnly: 親流れ (流局時は親テンパイでも親流れ)
     ///   - 連荘条件 AgariOrTenpai (天鳳デフォルト): 親テンパイで連荘
     /// </summary>
-    public override void RoundEndedByRyuukyoku(GameStateContext context, GameEventRoundEndedByRyuukyoku evt)
+    public override Task RoundEndedByRyuukyokuAsync(GameStateContext context, GameEventRoundEndedByRyuukyoku evt, CancellationToken ct = default)
+    {
+        var dealerContinues = ComputeDealerContinuesForRyuukyoku(context, evt);
+        var mode = dealerContinues
+            ? RoundAdvanceMode.Renchan
+            : RoundAdvanceMode.DealerChangeWithHonba;
+        return RoundEndInnerAsync(context, evt, dealerContinues, mode, ct);
+    }
+
+    private static bool ComputeDealerContinuesForRyuukyoku(GameStateContext context, GameEventRoundEndedByRyuukyoku evt)
     {
         var dealerIndex = context.Game.RoundNumber.ToDealer();
-        var dealerContinues = evt.Type switch
+        return evt.Type switch
         {
-            // 途中流局
             RyuukyokuType.KyuushuKyuuhai or
             RyuukyokuType.Suufonrenda or
             RyuukyokuType.Suukaikan or
             RyuukyokuType.SuuchaRiichi or
             RyuukyokuType.SanchaHou => true,
-            // 荒牌平局
             RyuukyokuType.KouhaiHeikyoku => evt.NagashiManganPlayers.Contains(dealerIndex) || context.Game.Rules.RenchanCondition switch
             {
                 RenchanCondition.None => false,
@@ -59,35 +68,81 @@ public record GameStateRoundRunning : GameState
             },
             _ => throw new InvalidOperationException($"未対応の流局種別: {evt.Type}"),
         };
-        var mode = dealerContinues
-            ? RoundAdvanceMode.Renchan
-            : RoundAdvanceMode.DealerChangeWithHonba;
-        HandleRoundEnd(context, evt, dealerContinues, mode);
     }
 
-    private static void HandleRoundEnd(
+    private static async Task RoundEndInnerAsync(
         GameStateContext context,
         GameEvent roundEndEvent,
         bool dealerContinues,
-        RoundAdvanceMode advanceMode
+        RoundAdvanceMode advanceMode,
+        CancellationToken ct
     )
     {
         var endedRound = context.RoundStateContext?.Round
             ?? throw new InvalidOperationException("RoundStateContext がありません。");
 
         context.Game = context.Game.ApplyRoundResult(endedRound);
+        var resolvedAction = BuildAdoptedRoundAction(roundEndEvent, dealerContinues);
+
         if (GameEndPolicy.ShouldEndAfterRound(context.Game, roundEndEvent, dealerContinues))
         {
-            Transit(context, new GameStateEnd(), () => context.DisposeRoundContext());
+            await TransitAsync(
+                context,
+                new GameStateEnd(),
+                action: async () =>
+                {
+                    await context.BroadcastGameNotificationAsync(_ => new RoundEndNotification(resolvedAction), ct);
+                    context.DisposeRoundContext();
+                    await context.BroadcastGameNotificationAsync(_ => new GameEndNotification(context.Game.PointArray), ct);
+                },
+                ct
+            );
         }
         else
         {
             context.Game = context.Game.AdvanceToNextRound(advanceMode);
-            Transit(context, new GameStateRoundRunning(), () =>
-            {
-                context.DisposeRoundContext();
-                context.StartRound(context.Game.CreateRound(context.WallGenerator));
-            });
+            await TransitAsync(
+                context,
+                new GameStateRoundRunning(),
+                action: async () =>
+                {
+                    await context.BroadcastGameNotificationAsync(_ => new RoundEndNotification(resolvedAction), ct);
+                    context.DisposeRoundContext();
+                    await context.BroadcastGameNotificationAsync(_ => 
+                        new RoundStartNotification(
+                            context.Game.RoundWind,
+                            context.Game.RoundNumber,
+                            context.Game.Honba,
+                            context.Game.RoundNumber.ToDealer()
+                        ),
+                        ct
+                    );
+                    context.StartRound(context.Game.CreateRound(context.WallGenerator));
+                },
+                ct
+            );
         }
+    }
+
+    private static AdoptedRoundAction BuildAdoptedRoundAction(GameEvent evt, bool dealerContinues)
+    {
+        return evt switch
+        {
+            GameEventRoundEndedByWin win => new AdoptedWinAction(
+                winnerIndices: [.. win.Winners],
+                loserIndex: win.LoserIndex,
+                winType: win.WinType,
+                kyoutakuRiichiAward: win.KyoutakuRiichiAward,
+                honba: win.Honba,
+                dealerContinues: dealerContinues
+            ),
+            GameEventRoundEndedByRyuukyoku ryu => new AdoptedRyuukyokuAction(
+                Type: ryu.Type,
+                TenpaiPlayerIndices: [.. ryu.TenpaiPlayers],
+                NagashiManganPlayerIndices: [.. ryu.NagashiManganPlayers],
+                DealerContinues: dealerContinues
+            ),
+            _ => throw new NotSupportedException($"未対応のイベント: {evt?.GetType().Name}"),
+        };
     }
 }

@@ -31,10 +31,16 @@ public class PlayerList_ConstructorTests
     }
 
     [Fact]
-    public void プレイヤー5人_ArgumentExceptionが発生する()
+    public void 位置とPlayerIndexが不一致_ArgumentExceptionが発生する()
     {
-        // Arrange
-        var players = PlayersTestHelper.CreateTestPlayers(5);
+        // Arrange: 4人揃うが PlayerIndex が位置と不一致 (index 0 に PlayerIndex(1) を持つプレイヤー)
+        var players = new Player[]
+        {
+            new PlayersTestHelper.TestPlayer(PlayerId.NewId(), "P0", new PlayerIndex(1)),
+            new PlayersTestHelper.TestPlayer(PlayerId.NewId(), "P1", new PlayerIndex(1)),
+            new PlayersTestHelper.TestPlayer(PlayerId.NewId(), "P2", new PlayerIndex(2)),
+            new PlayersTestHelper.TestPlayer(PlayerId.NewId(), "P3", new PlayerIndex(3)),
+        };
 
         // Act
         var exception = Record.Exception(() => new PlayerList(players));

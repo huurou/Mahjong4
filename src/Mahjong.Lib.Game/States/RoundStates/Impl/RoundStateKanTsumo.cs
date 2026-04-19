@@ -1,4 +1,9 @@
-﻿using Mahjong.Lib.Game.Rounds;
+﻿using Mahjong.Lib.Game.Candidates;
+using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Players;
+using Mahjong.Lib.Game.Rounds;
+using Mahjong.Lib.Game.Rounds.Managing;
+using System.Collections.Immutable;
 
 namespace Mahjong.Lib.Game.States.RoundStates.Impl;
 
@@ -13,7 +18,7 @@ public record RoundStateKanTsumo : RoundState
     {
         base.ResponseOk(context, evt);
         // TODO: 四槓流れ判定 (4人目の槓で流局)
-        Transit(context, new RoundStateAfterKanTsumo());
+        Transit(context, () => new RoundStateAfterKanTsumo());
     }
 
     public override void ResponseWin(RoundStateContext context, RoundEventResponseWin evt)
@@ -26,8 +31,24 @@ public record RoundStateKanTsumo : RoundState
 
         // 嶺上開花 (ツモ和了、Loser は和了者自身)
         var loserIndex = context.Round.Turn;
-        var settledRound = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, context.ScoreCalculator);
-        var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType);
-        Transit(context, new RoundStateWin(eventArgs), () => context.Round = settledRound);
+        // Rinshan の和了牌 = 和了者の手牌末尾 (直前に嶺上からツモった牌)
+        var winTile = context.Round.HandArray[context.Round.Turn].Last();
+        var (settledRound, details) = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, winTile, context.ScoreCalculator);
+        var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType, details.Winners, details.Honba, details.KyoutakuRiichiAward);
+        Transit(context, () => new RoundStateWin(eventArgs), _ => settledRound);
+    }
+
+    public override RoundInquirySpec CreateInquirySpec(Round round, IResponseCandidateEnumerator enumerator)
+    {
+        var specs = ImmutableList.CreateBuilder<PlayerInquirySpec>();
+        for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
+        {
+            var playerIndex = new PlayerIndex(i);
+            var candidates = playerIndex == round.Turn
+                ? enumerator.EnumerateForKanTsumo(round, playerIndex)
+                : new CandidateList([new OkCandidate()]);
+            specs.Add(new PlayerInquirySpec(playerIndex, candidates));
+        }
+        return new RoundInquirySpec(RoundInquiryPhase.KanTsumo, specs.ToImmutable(), [round.Turn], round.Turn);
     }
 }

@@ -64,35 +64,35 @@ public class TileKind_ComparisonOperatorTests
     public void 小なり_nullを含む比較_nullは最小として扱われる()
     {
         // Arrange & Act & Assert
-        Assert.True((TileKind?)null < TileKind.Man1);
-        Assert.False(TileKind.Man1 < (TileKind?)null);
-        Assert.False((TileKind?)null < (TileKind?)null);
+        Assert.True(null < TileKind.Man1);
+        Assert.False(TileKind.Man1 < null);
+        Assert.False(null < (TileKind?)null);
     }
 
     [Fact]
     public void 小なりイコール_nullを含む比較_nullは最小として扱われる()
     {
         // Arrange & Act & Assert
-        Assert.True((TileKind?)null <= TileKind.Man1);
-        Assert.False(TileKind.Man1 <= (TileKind?)null);
-        Assert.True((TileKind?)null <= (TileKind?)null);
+        Assert.True(null <= TileKind.Man1);
+        Assert.False(TileKind.Man1 <= null);
+        Assert.True(null <= (TileKind?)null);
     }
 
     [Fact]
     public void 大なり_nullを含む比較_nullは最小として扱われる()
     {
         // Arrange & Act & Assert
-        Assert.False((TileKind?)null > TileKind.Man1);
-        Assert.True(TileKind.Man1 > (TileKind?)null);
-        Assert.False((TileKind?)null > (TileKind?)null);
+        Assert.False(null > TileKind.Man1);
+        Assert.True(TileKind.Man1 > null);
+        Assert.False(null > (TileKind?)null);
     }
 
     [Fact]
     public void 大なりイコール_nullを含む比較_nullは最小として扱われる()
     {
         // Arrange & Act & Assert
-        Assert.False((TileKind?)null >= TileKind.Man1);
-        Assert.True(TileKind.Man1 >= (TileKind?)null);
-        Assert.True((TileKind?)null >= (TileKind?)null);
+        Assert.False(null >= TileKind.Man1);
+        Assert.True(TileKind.Man1 >= null);
+        Assert.True(null >= (TileKind?)null);
     }
 }

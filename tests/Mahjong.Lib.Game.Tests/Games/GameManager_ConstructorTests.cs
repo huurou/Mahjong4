@@ -1,6 +1,4 @@
-﻿using Mahjong.Lib.Game.Games;
-
-namespace Mahjong.Lib.Game.Tests.Games;
+﻿namespace Mahjong.Lib.Game.Tests.Games;
 
 public class GameManager_ConstructorTests
 {
@@ -8,13 +6,7 @@ public class GameManager_ConstructorTests
     public void 正常な引数_インスタンスが生成される()
     {
         // Arrange & Act
-        using var manager = new GameManager(
-            GamesTestHelper.CreatePlayerList(),
-            new GameRules(),
-            GamesTestHelper.CreateWallGenerator(),
-            GamesTestHelper.CreateNoOpScoreCalculator(),
-            GamesTestHelper.CreateNoOpTenpaiChecker()
-        );
+        using var manager = GamesTestHelper.CreateManager();
 
         // Assert
         Assert.NotNull(manager);

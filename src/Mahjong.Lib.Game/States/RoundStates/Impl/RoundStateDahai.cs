@@ -1,6 +1,10 @@
 ﻿using Mahjong.Lib.Game.Calls;
+using Mahjong.Lib.Game.Candidates;
+using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
+using Mahjong.Lib.Game.Rounds.Managing;
 using Mahjong.Lib.Game.Tenpai;
 using System.Collections.Immutable;
 
@@ -17,6 +21,7 @@ public record RoundStateDahai : RoundState
     {
         base.ResponseOk(context, evt);
         // ロン応答なし 保留中の立直宣言があれば確定 (持ち点-1000・供託+1)
+        // 同巡フリテン適用は本イベント到達前に RoundStateContext が ApplyTemporaryFuriten で反映済
         var confirmedRound = context.Round.ConfirmRiichi();
         if (IsRyuukyoku(confirmedRound))
         {
@@ -25,29 +30,34 @@ public record RoundStateDahai : RoundState
             var nagashiManganPlayers = EnumerateNagashiManganPlayers(confirmedRound);
             var eventArgs = new RoundEndedByRyuukyokuEventArgs(RyuukyokuType.KouhaiHeikyoku, tenpaiPlayers, nagashiManganPlayers);
             var settledRound = confirmedRound.SettleRyuukyoku(RyuukyokuType.KouhaiHeikyoku, tenpaiPlayers, nagashiManganPlayers);
-            Transit(context, new RoundStateRyuukyoku(eventArgs), () => context.Round = settledRound);
+            Transit(context, () => new RoundStateRyuukyoku(eventArgs), _ => settledRound);
         }
         else
         {
-            Transit(context, new RoundStateTsumo(), () => context.Round = confirmedRound.NextTurn().Tsumo());
+            Transit(context, () => new RoundStateTsumo(), _ => confirmedRound.NextTurn().Tsumo());
         }
     }
 
     public override void ResponseCall(RoundStateContext context, RoundEventResponseCall evt)
     {
         base.ResponseCall(context, evt);
+
+        // 副露処理は遷移時 updateRound 内で行い、他の Response* との一貫性を保つ。
+        // SnapshotRound には副露直後の Round (= updateRound 後の Round) を封入したいため、nextStateFactory 版 Transit を使用する。
+        // 大明槓時の後続 RinshanTsumo は RoundStateCall の ResponseOk 受信後に行う
         Transit(
             context,
-            new RoundStateCall(),
-            () =>
+            () => new RoundStateCall { SnapshotRound = context.Round },
+            round =>
             {
                 // 鳴かれても立直は成立する (リーチ棒は供託される)
-                var round = context.Round.ConfirmRiichi();
-                context.Round = evt.CallType switch
+                // 同巡フリテン適用は本イベント到達前に RoundStateContext が ApplyTemporaryFuriten で反映済
+                var preparedRound = round.ConfirmRiichi();
+                return evt.CallType switch
                 {
-                    CallType.Chi => round.Chi(evt.Caller, evt.HandTiles),
-                    CallType.Pon => round.Pon(evt.Caller, evt.HandTiles),
-                    CallType.Daiminkan => round.Daiminkan(evt.Caller, evt.HandTiles),
+                    CallType.Chi => preparedRound.Chi(evt.Caller, evt.HandTiles),
+                    CallType.Pon => preparedRound.Pon(evt.Caller, evt.HandTiles),
+                    CallType.Daiminkan => preparedRound.Daiminkan(evt.Caller, evt.HandTiles),
                     _ => throw new InvalidOperationException($"副露応答の副露種別は Chi / Pon / Daiminkan のいずれかである必要があります。実際:{evt.CallType}")
                 };
             }
@@ -66,9 +76,32 @@ public record RoundStateDahai : RoundState
         var round = context.Round.CancelRiichi();
         // 放銃者は現手番 (= 直前の打牌者)
         var loserIndex = round.Turn;
-        var settledRound = round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, context.ScoreCalculator);
-        var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType);
-        Transit(context, new RoundStateWin(eventArgs), () => context.Round = settledRound);
+        // Ron の和了牌 = 放銃者の河末尾 (= 直前に打たれた牌)
+        var winTile = round.RiverArray[loserIndex].Last();
+        var (settledRound, details) = round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, winTile, context.ScoreCalculator);
+        var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType, details.Winners, details.Honba, details.KyoutakuRiichiAward);
+        Transit(context, () => new RoundStateWin(eventArgs), _ => settledRound);
+    }
+
+    public override RoundInquirySpec CreateInquirySpec(Round round, IResponseCandidateEnumerator enumerator)
+    {
+        var discardedTile = round.RiverArray[round.Turn].Last();
+        var specs = ImmutableList.CreateBuilder<PlayerInquirySpec>();
+        var inquiredBuilder = ImmutableArray.CreateBuilder<PlayerIndex>();
+        for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
+        {
+            var playerIndex = new PlayerIndex(i);
+            if (playerIndex == round.Turn)
+            {
+                specs.Add(new PlayerInquirySpec(playerIndex, new CandidateList([new OkCandidate()])));
+            }
+            else
+            {
+                specs.Add(new PlayerInquirySpec(playerIndex, enumerator.EnumerateForDahai(round, playerIndex, discardedTile)));
+                inquiredBuilder.Add(playerIndex);
+            }
+        }
+        return new RoundInquirySpec(RoundInquiryPhase.Dahai, specs.ToImmutable(), inquiredBuilder.ToImmutable(), round.Turn);
     }
 
     private static ImmutableArray<PlayerIndex> EnumerateTenpaiPlayers(Round round, ITenpaiChecker tenpaiChecker)

@@ -11,7 +11,7 @@ namespace Mahjong.Lib.Game.Notifications;
 /// <param name="PlayerIndex">応答者 (なりすまし防止のため必須)</param>
 /// <param name="Body">応答内容</param>
 public record PlayerResponseEnvelope(
-    Guid NotificationId,
+    NotificationId NotificationId,
     int RoundRevision,
     PlayerIndex PlayerIndex,
     ResponseBody Body

@@ -14,16 +14,14 @@ public class RoundStateTsumo_ResponseRyuukyokuTests : IDisposable
     }
 
     [Fact]
-    public async Task 流局応答_流局状態に遷移する()
+    public void 流局応答_流局状態に遷移する()
     {
         // Arrange
-        context_.Init(RoundStateContextTestHelper.CreateRound());
-        await context_.ResponseOkAsync();
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateTsumo>(context_);
+        RoundStateContextTestHelper.InitDirect(context_, RoundStateContextTestHelper.CreateRound());
+        RoundStateContextTestHelper.DriveResponseOk(context_);
 
         // Act
-        await RoundStateContextTestHelper.ResponseKouhaiHeikyokuAsync(context_);
-        await RoundStateContextTestHelper.WaitForStateAsync<RoundStateRyuukyoku>(context_);
+        RoundStateContextTestHelper.DriveKouhaiHeikyoku(context_);
 
         // Assert
         Assert.IsType<RoundStateRyuukyoku>(context_.State);

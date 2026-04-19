@@ -311,7 +311,6 @@ public sealed record TileKind : IComparable<TileKind>
     /// <returns>実際のドラ</returns>
     public static TileKind GetActualDora(TileKind doraIndicator)
     {
-        ArgumentNullException.ThrowIfNull(doraIndicator);
         var value = doraIndicator.Value;
         var newValue = value switch
         {

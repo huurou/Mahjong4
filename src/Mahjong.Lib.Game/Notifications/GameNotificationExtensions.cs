@@ -1,4 +1,6 @@
-﻿using Mahjong.Lib.Game.Players;
+﻿using Mahjong.Lib.Game.Candidates;
+using Mahjong.Lib.Game.Notifications.Payloads;
+using Mahjong.Lib.Game.Players;
 
 namespace Mahjong.Lib.Game.Notifications;
 
@@ -10,23 +12,22 @@ public static class GameNotificationExtensions
     /// <summary>
     /// 対局レベル通知を Wire DTO に変換する
     /// GameNotification は視点卓情報 (View) を持たないため Wire DTO 側では null となる
+    /// 通知種別固有ペイロードは NotificationPayload 派生型として Payload に格納される
     /// </summary>
     public static PlayerNotification ToWire(
         this GameNotification notification,
-        Guid notificationId,
+        NotificationId notificationId,
         int roundRevision,
         PlayerIndex recipientIndex,
         TimeSpan timeout
     )
     {
-        ArgumentNullException.ThrowIfNull(notification);
-
-        var type = notification switch
+        NotificationPayload payload = notification switch
         {
-            GameStartNotification => NotificationType.GameStart,
-            RoundStartNotification => NotificationType.RoundStart,
-            RoundEndNotification => NotificationType.RoundEnd,
-            GameEndNotification => NotificationType.GameEnd,
+            GameStartNotification n => new GameStartNotificationPayload(n.PlayerList, n.Rules),
+            RoundStartNotification n => new RoundStartNotificationPayload(n.RoundWind, n.RoundNumber, n.Honba, n.DealerIndex),
+            RoundEndNotification n => new RoundEndNotificationPayload(n.Result),
+            GameEndNotification n => new GameEndNotificationPayload(n.FinalPointArray),
             _ => throw new ArgumentException($"未対応の GameNotification です。実際:{notification.GetType().Name}", nameof(notification)),
         };
 
@@ -39,12 +40,13 @@ public static class GameNotificationExtensions
         }
         return new PlayerNotification(
             notificationId,
-            type,
             roundRevision,
             recipientIndex,
-            View: null,
-            CandidateList: [],
-            timeout
+            null,
+            [new OkCandidate()],
+            timeout,
+            [],
+            payload
         );
     }
 }

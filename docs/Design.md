@@ -69,10 +69,10 @@ stateDiagram-v2
     Tsumo: ツモ<br>ツモ番のプレイヤーにはツモ牌を それ以外のプレイヤーにはツモしたことを通知
     Dahai: 打牌<br>手牌orツモ牌から河に牌を移し、全プレイヤーに打牌されたことを通知<br>和了>ポン/大明槓>チー>OK
     state ChoiceDahai <<choice>>
-    Call: 副露<br>河から打牌を除去し副露したプレイヤーに副露を生成
+    Call: 副露<br>河から打牌を除去し副露したプレイヤーに副露を生成<br>全プレイヤーに副露したことを通知
     state ChoiceCall <<choice>>
     Kan: 槓(暗槓・加槓)<br>暗槓-手牌から牌を除去し副露を生成 加槓-ツモ牌を追加してポン副露を更新<br>全プレイヤーに槓されたことを通知<br>和了>OK
-    KanTsumo: 槓ツモ<br>嶺上牌を引いて手牌に加える 全プレイヤーに槓ツモしたことを通知<br>嶺上ツモ和了判定あり
+    KanTsumo: 槓ツモ<br>嶺上牌を引いて手牌に加える<br>全プレイヤーに槓ツモしたことを通知<br>嶺上ツモ和了判定あり
     AfterKanTsumo: 槓ツモ後<br>嶺上ツモ和了なし
     state ChoiceKanTsumo <<choice>>
     Win: 和了<br>全プレイヤーに和了による局終了を通知
@@ -89,12 +89,12 @@ stateDiagram-v2
     Dahai --> ChoiceDahai: OK応答
     ChoiceDahai --> Tsumo: 流局でない
     ChoiceDahai --> Ryuukyoku: 流局(荒牌平局、四家立直、三家和了、四風連打など)
-    Call --> ChoiceCall: 無条件遷移
+    Call --> ChoiceCall: OK応答
     ChoiceCall --> Dahai: 槓でない
     ChoiceCall --> KanTsumo: 槓(大明槓)
     Kan --> KanTsumo: OK応答
     Kan --> Win: 和了応答(槍槓・加槓のみ)
-    KanTsumo --> ChoiceKanTsumo: OK応答(和了しない)
+    KanTsumo --> ChoiceKanTsumo: OK応答
     KanTsumo --> Win: 和了応答(嶺上ツモ)
     ChoiceKanTsumo --> Ryuukyoku: 四槓流れ
     ChoiceKanTsumo --> AfterKanTsumo: 四槓流れでない
@@ -171,7 +171,7 @@ stateDiagram-v2
   - プレイヤー側に持たせるとルール判定ロジックがサーバー/クライアント二重実装になり、判定ズレのリスクがある
   - 不正クライアント対策として、どのみちサーバー側で応答の合法性を再検証する必要がある
   - AI の思考ルーチンは「候補から選ぶ」ことに集中でき、実装がシンプルになる
-- **実装位置**: `RoundManager` が `RoundDecisionSpec` と現在の `Round` から、`IResponseCandidateEnumerator`(仮) に候補生成を委譲する。`Mahjong.Lib.Scoring` のシャンテン判定や役判定を流用できる場面もあるが、Lib.Game 側で独自にラップする(ライブラリ間の直接依存は避ける)
+- **実装位置**: `RoundStateContext` が `RoundInquirySpec` と現在の `Round` から、`IResponseCandidateEnumerator` に候補生成を委譲する。`Mahjong.Lib.Scoring` のシャンテン判定や役判定を流用できる場面もあるが、Lib.Game 側で独自にラップする(ライブラリ間の直接依存は避ける)
 - **プレイヤー側の責務**: 候補の中から1つを選んで応答するだけ。候補を自前で再計算しない
 
 ### 対局(Game)レベル
@@ -182,11 +182,12 @@ stateDiagram-v2
 - `Player` (abstract record) — プレイヤーの共通基底。`PlayerId` / `DisplayName` を持つ。Phase 4 で通知・応答メソッドを追加し、AI / 人間の実装が継承する
 - `PlayerList` (record) — 4人分の `Player` を `ImmutableArray<Player>` で保持するラッパーで `IEnumerable<Player>` を実装。`PlayerIndex`でアクセス。**index 0 が起家**という仕様。起家決定・並び替えは呼び出し側の責務(既存 `RoundNumber.ToDealer()` が `PlayerIndex(Value)` を返す前提と整合)。`Player` 実体そのものが `PlayerList` の要素であり、識別情報と実体を二重管理しない
 - `GameState` / `GameStateContext` — `Round*`と同じ非同期イベント駆動ステートマシン。状態は`GameStateInit` / `GameStateRoundRunning` / `GameStateEnd` (既存 `RoundStateXxx` の命名規約に揃える)。局終了後の Game 更新・終了判定・次局決定は `GameStateRoundRunning.RoundEndedBy*` ハンドラ内で行い 直接 `GameStateRoundRunning`(次局)または `GameStateEnd` へ Transit する。プレイヤー向けの局終了通知(Phase 5)の実装時に必要なら `GameStateRoundEnd` 状態を再導入する
-- `GameManager` — `RoundManager`と同様の役割を`Game`レベルで担う。対局開始処理、局間の引き継ぎ、対局終了判定を統括し、各局の`RoundStateContext` / `RoundManager` を内部で生成・破棄する(親子関係)。コンストラクタで `PlayerList`(index 0 が起家になるよう並び替え済み)+ `GameRules` + `IWallGenerator` を受け取る
+- `GameManager` — 対局レベルの統括役。対局開始処理、局間の引き継ぎ、対局終了判定を統括し、各局の `RoundStateContext` を内部で生成・破棄する(親子関係)。コンストラクタで `PlayerList`(index 0 が起家になるよう並び替え済み)+ `GameRules` + `IWallGenerator` を受け取る
 - **局終了時の引き継ぎ**: `GameStateContext`は`RoundStateContext`を内部保持し、`GameStateRoundRunning.RoundEndedBy*` ハンドラ内で `RoundStateContext.Round` から持ち点・本場・供託等を読み取って`Game`に反映した上で破棄、続行なら次局用に新しい`RoundStateContext`を生成する
 - **局終了結果の保持場所**: 独立した `RoundResult` record は作らず、局終了イベント (`GameEventRoundEndedByWin` / `GameEventRoundEndedByRyuukyoku`) のフィールドとして結果情報を保持する(和了者 / 放銃者 / 和了種別 / 流局種別 / 連荘判定フラグ / 本場加算フラグ)。**`Round` record は変更しない**。Phase 2-3 でフィールドを拡張して役/符/翻/点数などを追加
 - **Gameレベルのプレイヤー通知**: 対局開始(`PlayerList`/持ち点/ルール)、局開始、局終了(結果)、対局終了を各プレイヤーへ通知する。`Player`メソッド名は`OnGameStartAsync` / `OnRoundStartAsync` / `OnRoundEndAsync` / `OnGameEndAsync`。局内の通知は`OnHaipaiAsync` / `OnTsumoAsync` / `OnDahaiAsync` / `OnCallAsync` / `OnKanAsync` / `OnKanTsumoAsync` / `OnWinAsync` / `OnRyuukyokuAsync` / `OnDoraRevealAsync`(カンドラ表示)
-- **応答型の設計**: 各`On***Async`の戻り値は通知ごとに異なる型(`Task<OkResponse>` / `Task<AfterTsumoResponse>` / `Task<AfterDahaiResponse>` 等)にする。通知時に取りうる応答が型で制約され、不正応答の多くをコンパイル時に弾ける
+- **応答型の設計**: 各`On***Async`の戻り値は通知ごとに異なる型(`Task<OkResponse>` / `Task<AfterTsumoResponse>` / `Task<PlayerResponse>` 等)にする。通知時に取りうる応答が型で制約され、不正応答の多くをコンパイル時に弾ける
+- **スルー (パス) 応答の統一**: 打牌/加槓通知に対するスルーは `OkResponse` を返す。これにより全通知でスルー応答の型が一貫し、Player 実装・Wire 変換 (`OkResponseBody`)・既定応答生成 (`DefaultResponseFactory`) が簡潔になる。`AfterDahaiResponse` / `AfterKanResponse` は**アクション応答のみ**の階層 (チー/ポン/大明槓/ロン / 槍槓ロン) とし、`Player.OnDahaiAsync` / `OnKanAsync` の戻り値型は `Task<PlayerResponse>` とする (スルー時は `OkResponse`、アクション時は `AfterDahaiResponse` / `AfterKanResponse` 派生を返す)
 - **`GameRules`の責務**: 対局前に決まっている**ルール**(対局形式 東風戦/東南戦(デフォルト東南)/ 赤ドラ枚数 / 初期持ち点(当面35000) / オーラス親あがり止め / トビ終了点 / 食いタン / 後付け / 連荘条件 等)。起家 / タイムアウト等の対局固有パラメータは `GameManager` コンストラクタ引数または `GameRules` 内で管理する
 - **ルール設定**: `Mahjong.Lib.Game` 独自に仮の`GameRules`(仮称、名前要検討)を定義。当面は`Mahjong.Lib.Scoring.GameRules`を模した最小構成で良い。将来的に両者の変換/共通化を検討
 - **対局終了条件**: オーラス親あがり止め / トビ終了 / 西入 等は`GameRules`に持たせ、`GameEndPolicy.ShouldEndAfterRound`が`GameStateRoundRunning.RoundEndedBy*`から判定される(`AdvanceToNextRound` の**前**に評価することで、終了時の `Game` が「次局予定状態」ではなく「終了した局を保持した状態」となる)
@@ -197,17 +198,23 @@ stateDiagram-v2
 
 | コンポーネント             | 責務                                                                 |
 | -------------------------- | -------------------------------------------------------------------- |
-| `RoundState`               | 局面の意思決定仕様(`RoundDecisionSpec`)を返し、採用結果を受けて次状態・次`Round`を決める。プレイヤー・通信・タイムアウトは知らない |
-| `RoundStateContext`        | `RoundEvent`を直列処理する既存ステートマシン。採用済み応答を`RoundEvent`として受け取る               |
-| `RoundManager` (新設)       | 通知Id発行、プレイヤー視点への射影、通知送信、応答収集、検証、タイムアウトフォールバック、優先順位適用。`ImmutableArray<Player>`(`GameManager`から渡される)を保持 |
+| `RoundState`               | 局面の問い合わせ仕様(`RoundInquirySpec`)を返し、採用結果を受けて次状態・次`Round`を決める。プレイヤー・通信・タイムアウトは知らない |
+| `RoundStateContext`        | 局進行コンテキスト (partial 3 分割: 本体 / `Runtime` / `PlayerIo`)。状態機械 (`eventChannel_` + `Transit`) と通知・応答集約ループ (`StartAsync` / `stateChannel_` / `ProcessRuntimeAsync`) を 1 クラスに統合。通知Id発行、プレイヤー視点への射影、通知送信、応答収集、検証、タイムアウトフォールバック、優先順位適用、フリテン検出、採用応答ディスパッチをすべて内部で完結させる |
 | `IResponsePriorityPolicy`  | 同時応答の優先順位決定(ロン > ポン/大明槓 > チー > OK、ダブロン/トリプルロン、席順優先 等)            |
 | `IRoundViewProjector`      | `Round`からプレイヤー別の公開情報ビュー(`PlayerRoundView`)を生成。情報非対称性をここに閉じ込める     |
 | `IDefaultResponseFactory`  | 通知種別ごとのタイムアウト既定応答(打牌タイムアウト→ツモ切り、副露可否タイムアウト→OK 等)。プレイヤー例外時のフォールバックにも使用 |
 | `Player` / `Player`   | プレイヤー抽象(interface) + 共通実装を持つ抽象基底クラス。通知メソッドは**種別ごと**(`OnHaipaiAsync`/`OnTsumoAsync`/`OnDahaiAsync`/`OnCallAsync`/`OnKanAsync`/...)に分割。`Player`は視点卓情報の更新など共通処理を持つ。`Player`自身は`PlayerIndex`を保持せず、`GameManager`が`ImmutableArray<Player>`として`PlayerIndex`→`Player`実体の対応表を保持する |
 | `IGameTracer`              | 構造化イベント記録。**全イベント**(対局/局/配牌/ツモ/打牌/副露/槓/カンドラ/和了/流局/通知送信/応答受信/採用結果等)をトレース可能にし、牌譜・リプレイが再生成できるレベルを目指す。スコープは複数対局を跨ぐグローバル。統計集計は実装側で必要イベントを抽出。差し替え可能(no-op/メモリ/ファイル/DB 等) |
 
-- State は「この局面で何を聞くか」の仕様(`RoundDecisionSpec`)だけ返し、通信待ちは持たない。`Entry`/`Exit`は同期のまま保つ
-- `RoundManager` が仕様を受け取り、`IRoundViewProjector` で視点フィルタ、各プレイヤーへ送信、集約、検証、優先順位適用を行い、採用済み結果(`ResolvedRoundAction`)を `RoundStateContext` にイベントとして渡す
+- State は「この局面で何を聞くか」の仕様(`RoundInquirySpec`)だけ返し、通信待ちは持たない。`Entry`/`Exit`は同期のまま保つ
+- `RoundStateContext` が仕様を受け取り、`IRoundViewProjector` で視点フィルタ、各プレイヤーへ送信、集約、検証、優先順位適用を行い、採用済み結果(`AdoptedRoundAction`)を内部の `eventChannel_` 経由で次状態へ渡す
+- 公開 API は **`ctor` (full-deps 9 引数) と `StartAsync(round, ct)` の 2 つのみ**。`State` / `Round` は `internal set` で同 assembly (RoundState 実装と tests assembly) からのみ書換可。`Response*Async` 6 個はすべて `private` で外部からの状態駆動経路は物理的に封鎖されている (race の構造的除去)
+
+#### 統一通知フロー
+
+全通知 (配牌/ツモ/打牌/副露/槓/嶺上ツモ/嶺上ツモ後/和了/流局) は `RoundState.CreateInquirySpec` 起点の**単一パイプライン**に乗せる。通知自体は常に全プレイヤーへ届き、問い合わせ対象は `RoundInquirySpec.InquiredPlayerIndices` で明示する。手番プレイヤー固有の私的情報 (ツモ牌 / 嶺上ツモ牌) は `OtherPlayerTsumoNotification` / `OtherPlayerKanTsumoNotification` で他家と遮断する。
+
+詳細 (パイプライン全体像 / フェーズ別 `RoundInquirySpec` / 通知マッピング / `DispatchAsync` 分岐 / 候補検証規約 / 優先順位解決 / 既定応答 / `SnapshotRound` の必要性 / 撤去された旧設計) は [RoundNotificationPipeline.md](RoundNotificationPipeline.md) を参照。
 
 ### 通知・応答モデル
 
@@ -244,35 +251,35 @@ PlayerResponse
 2. **応答種別検証**: その通知で許可された種別か、OK以外を返してよいプレイヤーか(例: 打牌応答は手番プレイヤーのみ)
 3. **ドメイン検証**: 手牌に指定牌があるか、チーは上家打牌に対してか、槓できる山残数があるか、和了条件を満たすか
 
-`RoundEvent`のコンストラクタでは形状レベルの検証のみ行う。`Round`に依存する合法性検証は`RoundManager`側で`Round`とともに行う。
+`RoundEvent`のコンストラクタでは形状レベルの検証のみ行う。`Round`に依存する合法性検証は`RoundStateContext`の通知・応答集約ループ側で`Round`とともに行う。
 
-### 集約済み応答 (ResolvedRoundAction)
+### 採用済み応答 (AdoptedRoundAction)
 
-プレイヤーからの生応答(`PlayerResponse`)と、ルール適用後の採用結果(`ResolvedRoundAction`)は型を分ける。
+プレイヤーからの生応答(`PlayerResponse`)と、ルール適用後の採用結果(`AdoptedRoundAction`)は型を分ける。採用結果型は `Mahjong.Lib.Game.Adoptions` 名前空間に配置する (入力側の `Mahjong.Lib.Game.Inquiries` と対になる出力側)。
 
 ```
-ResolvedRoundAction (abstract)
-  ├ ResolvedOkAction
-  ├ ResolvedDahaiAction(Tile)
-  ├ ResolvedKanAction(CallType, Tile)          // Ankan/Kakan
-  ├ ResolvedCallAction(PlayerIndex, CallType, Tile[]) // Chi/Pon/Daiminkan
-  ├ ResolvedWinAction                           // ダブロン/トリプルロン対応
+AdoptedRoundAction (abstract)
+  ├ AdoptedOkAction
+  ├ AdoptedDahaiAction(Tile)
+  ├ AdoptedAnkanAction(Tile) / AdoptedKakanAction(Tile)   // 槓 (暗槓/加槓)
+  ├ AdoptedCallAction(PlayerIndex, CallType, Tile[])      // Chi/Pon/Daiminkan
+  ├ AdoptedWinAction                                      // ダブロン/トリプルロン対応
   │   {
-  │     Winners             : ResolvedWinner[]  // 和了者(複数可)
+  │     Winners             : AdoptedWinner[]   // 和了者(複数可)
   │     Loser               : PlayerIndex?      // ロン時の放銃者。ツモ時は null
   │     WinType             : Ron | Tsumo | Chankan | Rinshan
   │     KyoutakuDistribution: ...               // 供託棒の配分ルール(上家取り等)
   │     HonbaDistribution   : ...               // 本場の配分
   │     DealerContinues     : bool              // 親続行判定(連荘可否)
   │   }
-  │   ResolvedWinner { PlayerIndex, WinTile, Yaku[], Fu, Han, Score }
-  └ ResolvedRyuukyokuAction(RyuukyokuType)
+  │   AdoptedWinner { PlayerIndex, WinTile, Yaku[], Fu, Han, Score }
+  └ AdoptedRyuukyokuAction(RyuukyokuType)
 ```
 
-- ロンは複数採用され得るため`Winners`は配列。各和了者ごとに`ResolvedWinner`でスコア情報(役/符/翻/点数)を保持
+- ロンは複数採用され得るため`Winners`は配列。各和了者ごとに`AdoptedWinner`でスコア情報(役/符/翻/点数)を保持
 - ダブロン時の供託は**上家取り**、本場は放銃者が全和了者に支払う(天鳳準拠)。これらは`KyoutakuDistribution` / `HonbaDistribution` で表現
 - 流局は種別(`SanchaHou` / `Suukaikan` / `Suufonrenda` / `SuuchaRiichi` / `KouhaiHeikyoku` / `KyuushuKyuuhai` 等)を持つ
-- 三家和了は「採用しない(流局扱い)」ルールを採る場合、`ResolvedWinAction` ではなく `ResolvedRyuukyokuAction(SanchaHou)` に落とす
+- 三家和了は「採用しない(流局扱い)」ルールを採る場合、`AdoptedWinAction` ではなく `AdoptedRyuukyokuAction(SanchaHou)` に落とす
 
 ### 通知と応答
 
@@ -301,20 +308,20 @@ ResolvedRoundAction (abstract)
 
 ### リプレイ/ログ
 
-- 通知(全プレイヤー分) / 全応答 / 採用結果(`ResolvedRoundAction`) を順に保存できる形にしておく。天鳳牌譜検証ツールと同様、後でリプレイ・デバッグ可能に
+- 通知(全プレイヤー分) / 全応答 / 採用結果(`AdoptedRoundAction`) を順に保存できる形にしておく。天鳳牌譜検証ツールと同様、後でリプレイ・デバッグ可能に
 - `RoundRevision`があれば「その時点のRound状態と、そこから採用アクションで遷移した次Round」を再現できる
 
 ### プロジェクト分離の方針
 
-- `Mahjong.Lib.Game` — ルール、状態遷移、通知/応答/プレイヤー抽象、`RoundManager` / `GameManager`、各種Policy既定実装
+- `Mahjong.Lib.Game` — ルール、状態遷移、通知/応答/プレイヤー抽象、`RoundStateContext` (局進行) / `GameManager` (対局統括)、各種Policy既定実装
 - `Mahjong.Lib.Ai` (新設予定) — AI思考ルーチン、`Player` AI実装
 - `Mahjong.ApiService` / `Mahjong.Web` — 人間プレイヤー用transport adapter(WebSocket/SignalR等)
 - 最初期は tests や sample 側にランダム AI stub を置く程度で十分。本格 AI は別プロジェクトに切り出す
 
 ### 決定事項
 
-- **通信・集約レイヤー名**: `RoundManager`
-- **`RoundManager`のライフサイクル**: 1局ごとに新規作成して破棄(`IDisposable`)。持ち点・本場・供託等の引き継ぎは`Game`集約側が担当
+- **通信・集約レイヤー名**: `RoundStateContext` (Phase 5 完了時点で `RoundManager` を統合し 2 層化済み: `GameStateContext → RoundStateContext`)
+- **`RoundStateContext`のライフサイクル**: 1局ごとに新規作成して破棄(`IDisposable`)。持ち点・本場・供託等の引き継ぎは`Game`集約側が担当
 - **応答収集**: 早期終了はなし。全プレイヤー(`OK`しか返せない者も含む)の応答が揃うかタイムアウトするまで待つ
 - **通知方式**: 1通知に全合法候補を載せる(段階的通知は行わない)
 - **リーチ宣言と打牌**: 1応答で表現する(例: `DahaiResponse(tile, isRiichi: true)`)
@@ -346,16 +353,16 @@ ResolvedRoundAction (abstract)
 - **同一プレイヤーからの複数応答**: 最後の応答を採用する。古い応答を上書きする際に警告ログを残す
 - **リーチ打牌供託のタイミング**: 打牌応答集約後にロン応答がなければリーチ棒を供託、あれば供託しない
 - **通知Idの形式**: UUIDv7(`Guid.CreateVersion7()`)。外部通信でのシリアライズ互換性と時系列ソート性を両立
-- **既存の`RoundStateContext.ResponseXxxAsync`**: 最終的に`internal`化し、外部公開APIは`RoundManager`経由のみにする。`Mahjong.Lib.Game.Tests`へは既存の`InternalsVisibleTo`で公開
+- **`RoundStateContext.Response*Async`**: `private` 化済み。外部公開 API は `ctor` と `StartAsync` の 2 つのみ。state 単体テストは `InternalsVisibleTo` 経由で `State` / `Round` を直接代入し `State.Response*` を直接呼び出す同期駆動 (`Drive*` ヘルパ) を使用
 - **3人麻雀対応**: 当面考慮しない。4人麻雀前提で実装する
-- **テスト方針**: 単体テストは`InternalsVisibleTo`経由で`RoundStateContext`を直接駆動する既存方式を維持。`RoundManager`経由の応答シナリオテスト(疑似endpointで挙動記述)は別レイヤーとして追加する
+- **テスト方針**: state 単体テストは `Drive*` 同期駆動 (`Mahjong.Lib.Game.Tests` の `RoundStateContextTestHelper`)、通知・応答集約ループの統合テストは `StartAsync` 経路 (`RoundStateContextRuntimeTestHelper`) を使う。前者は event queue を介さない同期駆動なので race フリー
 - **ルール準拠の線引き**: 点数計算 / 流局処理 / 連荘 / 本場 / トビ / オーラス親あがり止め / 赤ドラ規約等は**天鳳ルール準拠**とする。ただし**初期持ち点は独自に全員35000点**(天鳳の25000点とは異なる意図的ローカル仕様)
 - **起家決定**: `PlayerList` の index 0 を起家とする仕様。並び替え(乱数による起家決定を含む)は`Mahjong.Lib.Game`の責務外とし、上位層(ApiService / テストハーネス等)で決定してから渡す
 - **嶺上ツモ後の応答単位**: 1通知に「ツモ和了 / 暗槓 / 加槓 / 打牌(リーチ付加可)」をまとめて提示し、1応答で遷移する(状態二段階に分けない)。四槓流れ判定は嶺上ツモの**直前**で行う
 - **槍槓ルール**: 槍槓は**加槓のみ**対象とする。暗槓に対する国士無双ロンの可否はルール未確定(TODO: Phase 5 で詰める)。槍槓成立時はカンドラ表示・嶺上ツモ・加槓確定のいずれも行わず、加槓宣言した手牌から該当牌を除いてロン処理へ
 - **リーチ供託の精算仕様**:
   - リーチは**鳴かれても成立**する(打牌が通れば成立、ロンが成立した場合のみ不成立)
-  - リーチ宣言時点で手牌側から1000点を減算し、打牌応答集約後にロンなしならリーチ棒を供託へ加算する(ロンがあれば供託せず放銃者に流れる 点数計算は`ResolvedWinAction.KyoutakuDistribution`で表現)
+  - リーチ宣言時点で手牌側から1000点を減算し、打牌応答集約後にロンなしならリーチ棒を供託へ加算する(ロンがあれば供託せず放銃者に流れる 点数計算は`AdoptedWinAction.KyoutakuDistribution`で表現)
   - 鳴き(他家の副露成立)で一発は消滅する
   - 複数和了(ダブロン等)の場合、供託棒は**上家取り**(放銃者から見て最初の和了者に全額)
   - 宣言可能点数は1000点以上(1000点未満はリーチ候補に入れない)
@@ -367,4 +374,4 @@ ResolvedRoundAction (abstract)
 
 ### 実装段階
 
-実装のフェーズ分割・各段階の完了定義は [Roadmap.md](Roadmap.md) を参照(Phase 0: 既存実装 / Phase 1: 対局集約の器 / Phase 2: 点数精算・局内プレイヤー状態 / Phase 3: 通知・応答型 / Phase 4: Player 拡張 / Phase 5: RoundManager / Phase 6: AI / Phase 7: 人間プレイヤー)。
+実装のフェーズ分割・各段階の完了定義は [Roadmap.md](Roadmap.md) を参照(Phase 0: 既存実装 / Phase 1: 対局集約の器 / Phase 2: 点数精算・局内プレイヤー状態 / Phase 3: 通知・応答型 / Phase 4: Player 拡張 / Phase 5: 通知・応答パイプライン (`RoundStateContext` への統合まで完了) / Phase 6: AI / Phase 7: 人間プレイヤー)。

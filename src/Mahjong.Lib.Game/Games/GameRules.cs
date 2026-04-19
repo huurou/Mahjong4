@@ -49,6 +49,11 @@ public record GameRules
     public RenchanCondition RenchanCondition { get; init; } = RenchanCondition.AgariOrTenpai;
 
     /// <summary>
+    /// 暗槓に対する国士無双の槍槓 (暗槓チャンカン) を許可するかどうか (既定: true)
+    /// </summary>
+    public bool AllowAnkanChankanForKokushi { get; init; } = true;
+
+    /// <summary>
     /// 指定された牌が赤ドラであるかを判定します
     /// </summary>
     public bool IsRedDora(Tile tile)

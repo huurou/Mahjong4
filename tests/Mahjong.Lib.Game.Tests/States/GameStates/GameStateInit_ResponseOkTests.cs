@@ -7,7 +7,7 @@ namespace Mahjong.Lib.Game.Tests.States.GameStates;
 
 public class GameStateInit_ResponseOkTests : IDisposable
 {
-    private readonly GameStateContext context_ = new(GamesTestHelper.CreateWallGenerator(), GamesTestHelper.CreateNoOpScoreCalculator(), GamesTestHelper.CreateNoOpTenpaiChecker());
+    private readonly GameStateContext context_ = GamesTestHelper.CreateContext();
 
     public void Dispose()
     {
@@ -16,15 +16,13 @@ public class GameStateInit_ResponseOkTests : IDisposable
     }
 
     [Fact]
-    public async Task ResponseOk_GameStateRoundRunningに遷移する()
+    public async Task InitAsync後_GameStartNotification送信を経てGameStateRoundRunningに到達する()
     {
         // Arrange
         var game = GameAggregate.Create(GamesTestHelper.CreatePlayerList(), new GameRules());
-        context_.Init(game);
-        Assert.IsType<GameStateInit>(context_.State);
 
-        // Act
-        await context_.ResponseOkAsync();
+        // Act: RoundManager 経路では InitAsync が GameStart 通知送信 → GameStateRoundRunning 遷移まで進める
+        await context_.InitAsync(game, TestContext.Current.CancellationToken);
         await GameStateContextTestHelper.WaitForStateAsync<GameStateRoundRunning>(context_);
 
         // Assert

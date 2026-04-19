@@ -1,21 +1,14 @@
-﻿using Mahjong.Lib.Game.Games;
-using Mahjong.Lib.Game.States.GameStates.Impl;
+﻿using Mahjong.Lib.Game.States.GameStates.Impl;
 
 namespace Mahjong.Lib.Game.Tests.Games;
 
 public class GameManager_StartTests
 {
     [Fact]
-    public void Start前_ContextアクセスでInvalidOperationException()
+    public void StartAsync前_ContextアクセスでInvalidOperationException()
     {
         // Arrange
-        using var manager = new GameManager(
-            GamesTestHelper.CreatePlayerList(),
-            new GameRules(),
-            GamesTestHelper.CreateWallGenerator(),
-            GamesTestHelper.CreateNoOpScoreCalculator(),
-            GamesTestHelper.CreateNoOpTenpaiChecker()
-        );
+        using var manager = GamesTestHelper.CreateManager();
 
         // Act
         var exception = Record.Exception(() => manager.Context);
@@ -25,40 +18,29 @@ public class GameManager_StartTests
     }
 
     [Fact]
-    public void Start後_GameStateContextが取得できる()
+    public async Task StartAsync後_GameStateContextが取得できる()
     {
         // Arrange
-        using var manager = new GameManager(
-            GamesTestHelper.CreatePlayerList(),
-            new GameRules(),
-            GamesTestHelper.CreateWallGenerator(),
-            GamesTestHelper.CreateNoOpScoreCalculator(),
-            GamesTestHelper.CreateNoOpTenpaiChecker()
-        );
+        using var manager = GamesTestHelper.CreateManager();
 
         // Act
-        manager.Start();
+        await manager.StartAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(manager.Context);
-        Assert.IsType<GameStateInit>(manager.Context.State);
+        // 通知経路が揃っているため、StartAsync 完了時点で GameStateRoundRunning へ遷移済み
+        Assert.IsType<GameStateRoundRunning>(manager.Context.State);
     }
 
     [Fact]
-    public void Start2回目_InvalidOperationExceptionが発生する()
+    public async Task StartAsync2回目_InvalidOperationExceptionが発生する()
     {
         // Arrange
-        using var manager = new GameManager(
-            GamesTestHelper.CreatePlayerList(),
-            new GameRules(),
-            GamesTestHelper.CreateWallGenerator(),
-            GamesTestHelper.CreateNoOpScoreCalculator(),
-            GamesTestHelper.CreateNoOpTenpaiChecker()
-        );
-        manager.Start();
+        using var manager = GamesTestHelper.CreateManager();
+        await manager.StartAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var exception = Record.Exception(manager.Start);
+        var exception = await Record.ExceptionAsync(() => manager.StartAsync(TestContext.Current.CancellationToken));
 
         // Assert
         Assert.IsType<InvalidOperationException>(exception);

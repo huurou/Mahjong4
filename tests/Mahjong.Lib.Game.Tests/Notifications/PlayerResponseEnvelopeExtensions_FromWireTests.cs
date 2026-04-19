@@ -1,5 +1,6 @@
 ﻿using Mahjong.Lib.Game.Calls;
-using Mahjong.Lib.Game.Decisions;
+using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Notifications;
 using Mahjong.Lib.Game.Notifications.Bodies;
 using Mahjong.Lib.Game.Players;
@@ -13,13 +14,13 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
 {
     private const int ROUND_REVISION = 0;
 
-    private static Guid NotificationId { get; } = Guid.NewGuid();
+    private static NotificationId NotificationId { get; } = NotificationId.NewId();
     private static PlayerIndex PlayerIndex { get; } = new(0);
 
     [Fact]
     public void Haipai_OkResponseBody_OkResponseに変換される()
     {
-        var response = FromWire(new OkResponseBody(), RoundDecisionPhase.Haipai);
+        var response = FromWire(new OkResponseBody(), RoundInquiryPhase.Haipai);
         Assert.IsType<OkResponse>(response);
     }
 
@@ -27,7 +28,7 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
     public void Tsumo_DahaiResponseBody_DahaiResponseに変換される()
     {
         var tile = new Tile(5);
-        var response = FromWire(new DahaiResponseBody(tile, IsRiichi: true), RoundDecisionPhase.Tsumo);
+        var response = FromWire(new DahaiResponseBody(tile, IsRiichi: true), RoundInquiryPhase.Tsumo);
         var actual = Assert.IsType<DahaiResponse>(response);
         Assert.Equal(tile, actual.Tile);
         Assert.True(actual.IsRiichi);
@@ -37,7 +38,7 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
     public void Tsumo_KanResponseBodyAnkan_AnkanResponseに変換される()
     {
         var tile = new Tile(0);
-        var response = FromWire(new KanResponseBody(CallType.Ankan, tile), RoundDecisionPhase.Tsumo);
+        var response = FromWire(new KanResponseBody(CallType.Ankan, tile), RoundInquiryPhase.Tsumo);
         var actual = Assert.IsType<AnkanResponse>(response);
         Assert.Equal(tile, actual.Tile);
     }
@@ -46,7 +47,7 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
     public void Tsumo_KanResponseBodyKakan_KakanResponseに変換される()
     {
         var tile = new Tile(0);
-        var response = FromWire(new KanResponseBody(CallType.Kakan, tile), RoundDecisionPhase.Tsumo);
+        var response = FromWire(new KanResponseBody(CallType.Kakan, tile), RoundInquiryPhase.Tsumo);
         var actual = Assert.IsType<KakanResponse>(response);
         Assert.Equal(tile, actual.Tile);
     }
@@ -54,29 +55,29 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
     [Fact]
     public void Tsumo_WinResponseBody_TsumoAgariResponseに変換される()
     {
-        var response = FromWire(new WinResponseBody(), RoundDecisionPhase.Tsumo);
+        var response = FromWire(new WinResponseBody(), RoundInquiryPhase.Tsumo);
         Assert.IsType<TsumoAgariResponse>(response);
     }
 
     [Fact]
     public void Tsumo_RyuukyokuResponseBody_KyuushuKyuuhaiResponseに変換される()
     {
-        var response = FromWire(new RyuukyokuResponseBody(), RoundDecisionPhase.Tsumo);
+        var response = FromWire(new RyuukyokuResponseBody(), RoundInquiryPhase.Tsumo);
         Assert.IsType<KyuushuKyuuhaiResponse>(response);
     }
 
     [Fact]
-    public void Dahai_OkResponseBody_PassResponseに変換される()
+    public void Dahai_OkResponseBody_OkResponseに変換される()
     {
-        var response = FromWire(new OkResponseBody(), RoundDecisionPhase.Dahai);
-        Assert.IsType<PassResponse>(response);
+        var response = FromWire(new OkResponseBody(), RoundInquiryPhase.Dahai);
+        Assert.IsType<OkResponse>(response);
     }
 
     [Fact]
     public void Dahai_CallResponseBodyChi_ChiResponseに変換される()
     {
         var tiles = ImmutableList.Create(new Tile(0), new Tile(4));
-        var response = FromWire(new CallResponseBody(CallType.Chi, tiles), RoundDecisionPhase.Dahai);
+        var response = FromWire(new CallResponseBody(CallType.Chi, tiles), RoundInquiryPhase.Dahai);
         var actual = Assert.IsType<ChiResponse>(response);
         Assert.Equal(tiles, actual.HandTiles);
     }
@@ -85,7 +86,7 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
     public void Dahai_CallResponseBodyPon_PonResponseに変換される()
     {
         var tiles = ImmutableList.Create(new Tile(0), new Tile(1));
-        var response = FromWire(new CallResponseBody(CallType.Pon, tiles), RoundDecisionPhase.Dahai);
+        var response = FromWire(new CallResponseBody(CallType.Pon, tiles), RoundInquiryPhase.Dahai);
         var actual = Assert.IsType<PonResponse>(response);
         Assert.Equal(tiles, actual.HandTiles);
     }
@@ -94,7 +95,7 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
     public void Dahai_CallResponseBodyDaiminkan_DaiminkanResponseに変換される()
     {
         var tiles = ImmutableList.Create(new Tile(0), new Tile(1), new Tile(2));
-        var response = FromWire(new CallResponseBody(CallType.Daiminkan, tiles), RoundDecisionPhase.Dahai);
+        var response = FromWire(new CallResponseBody(CallType.Daiminkan, tiles), RoundInquiryPhase.Dahai);
         var actual = Assert.IsType<DaiminkanResponse>(response);
         Assert.Equal(tiles, actual.HandTiles);
     }
@@ -102,21 +103,21 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
     [Fact]
     public void Dahai_WinResponseBody_RonResponseに変換される()
     {
-        var response = FromWire(new WinResponseBody(), RoundDecisionPhase.Dahai);
+        var response = FromWire(new WinResponseBody(), RoundInquiryPhase.Dahai);
         Assert.IsType<RonResponse>(response);
     }
 
     [Fact]
-    public void Kan_OkResponseBody_KanPassResponseに変換される()
+    public void Kan_OkResponseBody_OkResponseに変換される()
     {
-        var response = FromWire(new OkResponseBody(), RoundDecisionPhase.Kan);
-        Assert.IsType<KanPassResponse>(response);
+        var response = FromWire(new OkResponseBody(), RoundInquiryPhase.Kan);
+        Assert.IsType<OkResponse>(response);
     }
 
     [Fact]
     public void Kan_WinResponseBody_ChankanRonResponseに変換される()
     {
-        var response = FromWire(new WinResponseBody(), RoundDecisionPhase.Kan);
+        var response = FromWire(new WinResponseBody(), RoundInquiryPhase.Kan);
         Assert.IsType<ChankanRonResponse>(response);
     }
 
@@ -124,7 +125,7 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
     public void KanTsumo_DahaiResponseBody_KanTsumoDahaiResponseに変換される()
     {
         var tile = new Tile(0);
-        var response = FromWire(new DahaiResponseBody(tile), RoundDecisionPhase.KanTsumo);
+        var response = FromWire(new DahaiResponseBody(tile), RoundInquiryPhase.KanTsumo);
         var actual = Assert.IsType<KanTsumoDahaiResponse>(response);
         Assert.Equal(tile, actual.Tile);
     }
@@ -133,7 +134,7 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
     public void KanTsumo_KanResponseBodyAnkan_KanTsumoAnkanResponseに変換される()
     {
         var tile = new Tile(0);
-        var response = FromWire(new KanResponseBody(CallType.Ankan, tile), RoundDecisionPhase.KanTsumo);
+        var response = FromWire(new KanResponseBody(CallType.Ankan, tile), RoundInquiryPhase.KanTsumo);
         var actual = Assert.IsType<KanTsumoAnkanResponse>(response);
         Assert.Equal(tile, actual.Tile);
     }
@@ -142,7 +143,7 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
     public void KanTsumo_KanResponseBodyKakan_KanTsumoKakanResponseに変換される()
     {
         var tile = new Tile(0);
-        var response = FromWire(new KanResponseBody(CallType.Kakan, tile), RoundDecisionPhase.KanTsumo);
+        var response = FromWire(new KanResponseBody(CallType.Kakan, tile), RoundInquiryPhase.KanTsumo);
         var actual = Assert.IsType<KanTsumoKakanResponse>(response);
         Assert.Equal(tile, actual.Tile);
     }
@@ -150,7 +151,7 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
     [Fact]
     public void KanTsumo_WinResponseBody_RinshanTsumoResponseに変換される()
     {
-        var response = FromWire(new WinResponseBody(), RoundDecisionPhase.KanTsumo);
+        var response = FromWire(new WinResponseBody(), RoundInquiryPhase.KanTsumo);
         Assert.IsType<RinshanTsumoResponse>(response);
     }
 
@@ -158,7 +159,7 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
     public void AfterKanTsumo_DahaiResponseBody_KanTsumoDahaiResponseに変換される()
     {
         var tile = new Tile(0);
-        var response = FromWire(new DahaiResponseBody(tile), RoundDecisionPhase.AfterKanTsumo);
+        var response = FromWire(new DahaiResponseBody(tile), RoundInquiryPhase.AfterKanTsumo);
         Assert.IsType<KanTsumoDahaiResponse>(response);
     }
 
@@ -166,7 +167,7 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
     public void AfterKanTsumo_KanResponseBodyAnkan_KanTsumoAnkanResponseに変換される()
     {
         var tile = new Tile(0);
-        var response = FromWire(new KanResponseBody(CallType.Ankan, tile), RoundDecisionPhase.AfterKanTsumo);
+        var response = FromWire(new KanResponseBody(CallType.Ankan, tile), RoundInquiryPhase.AfterKanTsumo);
         var actual = Assert.IsType<KanTsumoAnkanResponse>(response);
         Assert.Equal(tile, actual.Tile);
     }
@@ -175,7 +176,7 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
     public void AfterKanTsumo_KanResponseBodyKakan_KanTsumoKakanResponseに変換される()
     {
         var tile = new Tile(0);
-        var response = FromWire(new KanResponseBody(CallType.Kakan, tile), RoundDecisionPhase.AfterKanTsumo);
+        var response = FromWire(new KanResponseBody(CallType.Kakan, tile), RoundInquiryPhase.AfterKanTsumo);
         var actual = Assert.IsType<KanTsumoKakanResponse>(response);
         Assert.Equal(tile, actual.Tile);
     }
@@ -184,47 +185,36 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
     public void AfterKanTsumo_WinResponseBody_ArgumentExceptionが発生する()
     {
         // AfterKanTsumo では和了不可 (Design.md 準拠 KanTsumo で和了済み扱い)
-        var ex = Record.Exception(() => FromWire(new WinResponseBody(), RoundDecisionPhase.AfterKanTsumo));
+        var ex = Record.Exception(() => FromWire(new WinResponseBody(), RoundInquiryPhase.AfterKanTsumo));
         Assert.IsType<ArgumentException>(ex);
     }
 
     [Fact]
     public void Haipai_不正Body_ArgumentExceptionが発生する()
     {
-        var ex = Record.Exception(() => FromWire(new WinResponseBody(), RoundDecisionPhase.Haipai));
+        var ex = Record.Exception(() => FromWire(new WinResponseBody(), RoundInquiryPhase.Haipai));
         Assert.IsType<ArgumentException>(ex);
     }
 
     [Fact]
     public void Tsumo_不正Body_ArgumentExceptionが発生する()
     {
-        var ex = Record.Exception(() => FromWire(new OkResponseBody(), RoundDecisionPhase.Tsumo));
+        var ex = Record.Exception(() => FromWire(new OkResponseBody(), RoundInquiryPhase.Tsumo));
         Assert.IsType<ArgumentException>(ex);
     }
 
     [Fact]
     public void Dahai_不正Body_ArgumentExceptionが発生する()
     {
-        var ex = Record.Exception(() => FromWire(new DahaiResponseBody(new Tile(0)), RoundDecisionPhase.Dahai));
+        var ex = Record.Exception(() => FromWire(new DahaiResponseBody(new Tile(0)), RoundInquiryPhase.Dahai));
         Assert.IsType<ArgumentException>(ex);
     }
 
     [Fact]
     public void Kan_不正Body_ArgumentExceptionが発生する()
     {
-        var ex = Record.Exception(() => FromWire(new DahaiResponseBody(new Tile(0)), RoundDecisionPhase.Kan));
+        var ex = Record.Exception(() => FromWire(new DahaiResponseBody(new Tile(0)), RoundInquiryPhase.Kan));
         Assert.IsType<ArgumentException>(ex);
-    }
-
-    [Fact]
-    public void Envelopeがnull_ArgumentNullExceptionが発生する()
-    {
-        // Act
-        PlayerResponseEnvelope envelope = null!;
-        var ex = Record.Exception(() => envelope.FromWire(RoundDecisionPhase.Haipai));
-
-        // Assert
-        Assert.IsType<ArgumentNullException>(ex);
     }
 
     [Fact]
@@ -235,7 +225,7 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
 
         // Act
         var body = original.ToBody();
-        var roundtrip = FromWire(body, RoundDecisionPhase.Tsumo);
+        var roundtrip = FromWire(body, RoundInquiryPhase.Tsumo);
 
         // Assert
         Assert.Equal(original, roundtrip);
@@ -250,7 +240,7 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
 
         // Act
         var body = original.ToBody();
-        var roundtrip = FromWire(body, RoundDecisionPhase.Dahai);
+        var roundtrip = FromWire(body, RoundInquiryPhase.Dahai);
 
         // Assert
         Assert.Equal(original, roundtrip);
@@ -264,7 +254,7 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
 
         // Act
         var body = original.ToBody();
-        var roundtrip = FromWire(body, RoundDecisionPhase.Tsumo);
+        var roundtrip = FromWire(body, RoundInquiryPhase.Tsumo);
 
         // Assert
         Assert.Equal(original, roundtrip);
@@ -278,13 +268,13 @@ public class PlayerResponseEnvelopeExtensions_FromWireTests
 
         // Act
         var body = original.ToBody();
-        var roundtrip = FromWire(body, RoundDecisionPhase.KanTsumo);
+        var roundtrip = FromWire(body, RoundInquiryPhase.KanTsumo);
 
         // Assert
         Assert.Equal(original, roundtrip);
     }
 
-    private static PlayerResponse FromWire(ResponseBody body, RoundDecisionPhase phase)
+    private static PlayerResponse FromWire(ResponseBody body, RoundInquiryPhase phase)
     {
         var envelope = new PlayerResponseEnvelope(NotificationId, ROUND_REVISION, PlayerIndex, body);
         return envelope.FromWire(phase);
