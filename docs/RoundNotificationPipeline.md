@@ -21,10 +21,12 @@ Phase 5 以前は「意思決定通知」と「観測通知」で別経路 (`pro
 `RoundStateContext.CollectSingleAsync` (内部 private) は各応答に対して以下の順で処理する:
 
 1. `InvokePlayerAsync` (`OperationCanceledException` → timeout fallback / その他 `Exception` → exception fallback)
-2. `ResponseValidator.IsResponseInCandidates` 候補集合照合
+2. `ResponseValidator.IsResponseInCandidates` — 1 段目 候補集合照合
 3. 候補外の場合:
    - **問い合わせ外** (`!spec.IsInquired(index)`): **`InvalidOperationException` を throw** (クライアント契約違反として進行を停止)
    - **問い合わせ対象** (`spec.IsInquired(index)`): `tracer.OnInvalidResponse` → `defaultFactory.CreateDefault` にフォールバック
+4. 1 段目通過後、問い合わせ対象のみ `ResponseValidator.ValidateSemantic(response, round, playerIndex, phase, tenpaiChecker)` — 2 段目 意味的検証
+5. 意味的検証失敗時: `tracer.OnInvalidResponse` → **`InvalidOperationException` を throw** (クライアント契約違反として進行を停止、3 段目 副作用防止は throw により Round 更新前に停止することで達成)
 
 問い合わせ外プレイヤーは「OK 応答のみ許可」という契約を持つため、非 OK 応答を silent fallback で隠蔽せず即例外化してバグ可視化する方針。タイムアウトや Player 例外は通信層の問題として従来通り fallback する。
 
@@ -67,10 +69,14 @@ Phase 5 以前は「意思決定通知」と「観測通知」で別経路 (`pro
              OperationCanceledException → tracer_.OnResponseTimeout → defaultFactory_
              その他 Exception → tracer_.OnResponseException → defaultFactory_
         f. tracer_.OnResponseReceived
-        g. ResponseValidator.IsResponseInCandidates で候補集合と照合
+        g. ResponseValidator.IsResponseInCandidates で候補集合と照合 (1 段目)
         h. 候補外:
              問い合わせ外 → InvalidOperationException を throw
              問い合わせ対象 → tracer_.OnInvalidResponse → defaultFactory_ にフォールバック
+        i. 1 段目通過後、問い合わせ対象のみ ResponseValidator.ValidateSemantic で意味的検証 (2 段目)
+             手牌整合 / 立直条件 / フリテン違反 / 幺九 9 種等を Round / Status と照合
+             失敗時: tracer_.OnInvalidResponse → InvalidOperationException を throw (クライアント契約違反)
+             (3 段目 副作用防止は throw により Round 更新前に停止することで達成)
 [7] priorityPolicy_.Resolve(spec, responses)
       → ImmutableArray<AdoptedPlayerResponse>
 [8] DetectRonMissedFuritenPlayers (Dahai フェーズのみ)
@@ -88,6 +94,15 @@ Phase 5 以前は「意思決定通知」と「観測通知」で別経路 (`pro
 ```
 
 終了条件は `RoundEnded` イベント (終端状態 `RoundStateWin` / `RoundStateRyuukyoku` の OK 応答で発火) で `stateChannel_.Writer.TryComplete()` を呼び、`ProcessRuntimeAsync` の `await foreach` が自然終了する。
+
+### 補助通知: DoraRevealNotification (差分監視方式)
+
+槓由来の新ドラ公開は観測通知 (全員 OK 応答のみ) として、意思決定フェーズとは別経路で送信する。`RoundStateContext.Runtime` の `ProcessRuntimeAsync` ループで各 state 処理の冒頭に `Round.Wall.DoraRevealedCount` を監視し、前回値 (`lastDoraRevealedCount_`) より増えていたら差分枚数分だけ `BroadcastDoraRevealAsync(from, to, ct)` を呼ぶ。
+
+- 初期値: `StartAsync` 内で `Round = initial.Haipai()` 直後にスナップショット (配牌ドラは `HaipaiNotification` に含まれるため再送しない規約)
+- 発火タイミング: 暗槓直後 (即時 `Wall.RevealDora`)、加槓・大明槓後の嶺上ツモ直前 (`Round.RinshanTsumo` で `PendingDoraReveal` を消費)
+- 送信: 全プレイヤー並列 `Task.WhenAll` で `DoraRevealNotification(view, newIndicator, InquiredPlayerIndices=[])` を送出、プレイヤー応答 (OK) は破棄
+- タイムアウト / 例外: `DefaultTimeout` (10 秒) で linked CTS、失敗時は `logger.LogWarning` で記録して握り潰す (観測通知は対局進行を止めない)
 
 同巡フリテンは優先順位解決後・ディスパッチ前に `ApplyTemporaryFuriten` (private) を**同期呼び出し**して `Round` を局所更新する。状態遷移を伴わない更新のためイベントキュー (`eventChannel_`) は介さず、`internal setter` 経由で `Round` を直接書き換える例外経路として設計されている。
 
@@ -164,7 +179,11 @@ switch (spec.Phase)
 
 ## 候補検証の規約 (`ResponseValidator`)
 
-検証は `PlayerResponse` の具象型ごとに異なる規約で行う:
+`ResponseValidator` は 2 段構えで応答を検証する。
+
+### 1 段目: `IsResponseInCandidates` (候補リスト membership)
+
+`PlayerResponse` の具象型ごとに異なる規約で、提示済み候補に該当要素があるかを照合する:
 
 | 応答                                                          | 判定                                                                          |
 | ------------------------------------------------------------- | ----------------------------------------------------------------------------- |
@@ -175,6 +194,23 @@ switch (spec.Phase)
 | `ChiResponse` / `PonResponse` / `DaiminkanResponse`           | `HandTiles` が `SequenceEqual` (順序と Id 全一致)                            |
 
 検証漏れは「合法な候補が提示されたのに別 Id の牌で応答された」ケースで顕在化するため、赤ドラの取り扱いは候補列挙側と検証側で一貫させる (`KakanCandidate` は赤/非赤で別候補、`AnkanCandidate` は `Kind` 単位で 1 候補)。
+
+### 2 段目: `ValidateSemantic` (意味的整合)
+
+1 段目通過後、問い合わせ対象プレイヤーに対してのみ Round / Hand / Status との意味的整合を再検証する。クライアントが候補外牌で偽造した場合の保護層。失敗時はクライアント契約違反として `InvalidOperationException` を throw し進行を停止 (3 段目 副作用防止を兼ねる)。
+
+| 応答 | 検証内容 |
+| --- | --- |
+| `OkResponse` | 常に有効 |
+| `DahaiResponse` / `KanTsumoDahaiResponse` | `hand.Contains(tile)`。`IsRiichi=true` の場合: 門前 / 既存立直でない / `points >= 1000` / `LiveRemaining >= 4` / 打牌後テンパイ |
+| `AnkanResponse` / `KanTsumoAnkanResponse` | 手牌に対象牌種が 4 枚以上 |
+| `KakanResponse` / `KanTsumoKakanResponse` | 対象牌が手牌にあり、対象牌種のポン副露が存在 |
+| `ChiResponse` | 2 枚が手牌に存在 + 直前打牌と合わせて同一 suit 連続 3 牌 |
+| `PonResponse` | 2 枚が手牌に存在 + 全牌が直前打牌と同種 |
+| `DaiminkanResponse` | 3 枚が手牌に存在 + 全牌が直前打牌と同種 |
+| `RonResponse` / `ChankanRonResponse` | `IsFuriten=false && IsTemporaryFuriten=false` |
+| `TsumoAgariResponse` / `RinshanTsumoResponse` | 手牌 + 副露合計で 14 枚相当 (暗槓で手牌が減少するため副露込みで判定) |
+| `KyuushuKyuuhaiResponse` | `IsFirstTurnBeforeDiscard=true` && 幺九牌 9 種以上 |
 
 ## 優先順位解決 (`TenhouResponsePriorityPolicy`)
 

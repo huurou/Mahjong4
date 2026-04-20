@@ -55,7 +55,7 @@ pwsh scripts/TestCoverage.ps1
 ### ドメイン分割の要点
 
 - **Mahjong.Lib.Scoring** は点数計算専用で、牌種別(`TileKind`、34種)のみを扱う。**Mahjong.Lib.Game** は対局進行専用で、牌1枚を個別識別する`Tile`(0-135)を扱う。両者は相互参照しない。必要なら`Tile.Kind`(= `Id/4`) 経由でLib.Scoring側の牌種インデックスへ変換する
-- **Lib.Game → Lib.Scoring の依存境界**: Lib.Game は Lib.Scoring に直接依存しない。和了点計算は `IScoreCalculator`、テンパイ/待ち判定は `ITenpaiChecker` を Lib.Game 側の抽象として定義し、Lib.Scoring をラップする実装は上位層（ApiService等）から注入する
+- **Lib.Game → Lib.Scoring の依存境界**: Lib.Game は Lib.Scoring に直接依存しない。和了点計算は `IScoreCalculator`、テンパイ判定・待ち牌種列挙・立直中暗槓送り槓判定 (`IsKoutsuOnlyInAllInterpretations`) は `ITenpaiChecker` を Lib.Game 側の抽象として定義し、Lib.Scoring をラップする実装は上位層（ApiService等）から注入する
 - 牌種別(TileKind)と牌(Tile)の設計意図、副露種類、対局/局の状態遷移図は [docs/Design.md](docs/Design.md) が一次情報
 - 両ライブラリとも record + `ImmutableList`/`ImmutableArray` のイミュータブル設計を採用
 
@@ -111,7 +111,7 @@ pwsh scripts/TestCoverage.ps1
 - **採用結果** ([Mahjong.Lib.Game/Adoptions/](src/Mahjong.Lib.Game/Adoptions/)) — `AdoptedRoundAction` は応答集約・優先順位適用後の採用結果 (和了/流局/打牌/副露/槓 等)。和了者 (`AdoptedWinner`) と供託リーチの扱い (`KyoutakuRiichiAward`) もここに属する
 - **対局進行の抽象層** ([Mahjong.Lib.Game/Rounds/Managing/](src/Mahjong.Lib.Game/Rounds/Managing/)) — `IRoundViewProjector` (視点射影) / `IResponseCandidateEnumerator` (合法応答候補列挙) / `IResponsePriorityPolicy` (応答優先順位) / `IDefaultResponseFactory` (タイムアウト時既定応答) / `IGameTracer` (対局トレーサー) の 5 抽象と Tenhou/Default/Null 実装。`AdoptedRoundActionBuilder` / `ResolvedPlayerResponse` / `ResponseValidator` も通知・応答集約ループの補助型としてここにある
 - **点数結果型** ([Mahjong.Lib.Game/Games/Scoring/](src/Mahjong.Lib.Game/Games/Scoring/)) — `ScoreResult` / `YakuInfo` は Lib.Game が Lib.Scoring に依存しないための境界型。成立役は `Yaku` ではなく番号・名称・翻数・役満倍数の明細として保持する
-- **プレイヤー抽象** ([Mahjong.Lib.Game/Players/Player.cs](src/Mahjong.Lib.Game/Players/Player.cs)) — `Player` は abstract **class**（record ではない: 可変状態を持つ AI/人間実装での record + mutable property の相互作用リスク回避）。`PlayerId` + `DisplayName` ベースのカスタム `Equals` / `GetHashCode` / `==` / `!=` を実装し `PlayerList` / `Game` の value equality を維持。通知メソッド 14 種 (`OnGameStartAsync` / `OnRoundStartAsync` / `OnHaipaiAsync` / `OnTsumoAsync` / `OnOtherPlayerTsumoAsync` / `OnDahaiAsync` / `OnCallAsync` / `OnKanAsync` / `OnKanTsumoAsync` / `OnDoraRevealAsync` / `OnWinAsync` / `OnRyuukyokuAsync` / `OnRoundEndAsync` / `OnGameEndAsync`) を `public abstract` で定義し、戻り値は通知ごとに異なる応答型。全メソッドに `CancellationToken ct = default` を付与 (`RoundStateContext` の通知・応答集約ループのタイムアウト制御用)
+- **プレイヤー抽象** ([Mahjong.Lib.Game/Players/Player.cs](src/Mahjong.Lib.Game/Players/Player.cs)) — `Player` は abstract **class**（record ではない: 可変状態を持つ AI/人間実装での record + mutable property の相互作用リスク回避）。`PlayerId` + `DisplayName` ベースのカスタム `Equals` / `GetHashCode` / `==` / `!=` を実装し `PlayerList` / `Game` の value equality を維持。通知メソッド 15 種 (`OnGameStartAsync` / `OnRoundStartAsync` / `OnHaipaiAsync` / `OnTsumoAsync` / `OnOtherPlayerTsumoAsync` / `OnDahaiAsync` / `OnCallAsync` / `OnKanAsync` / `OnKanTsumoAsync` / `OnOtherPlayerKanTsumoAsync` / `OnDoraRevealAsync` / `OnWinAsync` / `OnRyuukyokuAsync` / `OnRoundEndAsync` / `OnGameEndAsync`) を `public abstract` で定義し、戻り値は通知ごとに異なる応答型。全メソッドに `CancellationToken ct = default` を付与 (`RoundStateContext` の通知・応答集約ループのタイムアウト制御用)
 - **テスト用疑似プレイヤー** ([tests/Mahjong.Lib.Game.Tests/Players/FakePlayer.cs](tests/Mahjong.Lib.Game.Tests/Players/FakePlayer.cs)) — `Func<TNotification, CancellationToken, TResponse>` デリゲート群を init プロパティで受け取る `Player` 実装。未設定時は安全な既定応答（OK / 先頭 `DahaiCandidate` を打牌 / `PassResponse` / `KanPassResponse` 等）を返し、受信通知を `ReceivedNotifications` に記録する
 
 #### 対局(Game)レベル

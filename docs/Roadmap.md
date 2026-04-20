@@ -93,63 +93,20 @@
 
 ## Phase 5: 通知・応答パイプライン (完了)
 
-**目的**: プレイヤーとの通知・応答集約を `RoundStateContext` に統合する (Phase 5 完了時点で `GameStateContext → RoundStateContext` の 2 層構造、API は `ctor` + `StartAsync` のみ)。`Response*Async` は `private` 化、`State` / `Round` は `internal set` で同 assembly のみ書換可。
+**目的**: プレイヤーとの通知・応答集約を `RoundStateContext` に統合。`GameStateContext → RoundStateContext` の 2 層構造、公開 API は `ctor` + `StartAsync` のみ。状態・Round は同 assembly 内のみ書換可。
 
-### 実装済み
+### 主要成果
 
-**通知・応答集約レイヤー** (`src/Mahjong.Lib.Game/States/RoundStates/` + `src/Mahjong.Lib.Game/Rounds/Managing/`)
-- `RoundStateContext` (partial 3 分割: 本体 / `Runtime` / `PlayerIo`) — 1 局分の通知・応答集約、`Channel<RoundState>` リレー、`Task.WhenAll` 並列通知 + プレイヤー単位 10 秒タイムアウト、KanTsumo 2 段階ディスパッチ (`pendingAfterKanTsumoResponse_`)、合法応答検証 (`ResponseValidator`)。state 機械と通知・応答集約ループを 1 クラスに統合 (旧 `RoundManager` を吸収、3 層 → 2 層化)
-- `IRoundViewProjector` + `RoundViewProjector`
-- `IResponseCandidateEnumerator` + `ResponseCandidateEnumerator` (`ITenpaiChecker` / `GameRules` 注入、赤ドラ区別鳴き候補を `EnumerateRedCountVariants(pickCount)` で枚数組合せ列挙、立直中は槓候補抑制)
-- `IResponsePriorityPolicy` + `TenhouResponsePriorityPolicy` (ロン > ポン/大明槓 > チー > OK、ダブロン対応、同順位は放銃者起点巡目順)
-- `IDefaultResponseFactory` + `DefaultResponseFactory` (タイムアウト/例外時の既定応答)
-- `IGameTracer` + `NullGameTracer` (`OnInvalidResponse` 含む全イベントトレース)
-- `ResponseValidator` — 応答が候補リストに含まれるか検証、候補外は `DefaultResponseFactory` へフォールバック
+- **通知・応答集約レイヤー統合**: `RoundStateContext` (partial 3 分割) に state 機械と通知・応答ループを 1 クラスに統合 (旧 `RoundManager` 吸収で 3 層 → 2 層化)。`Channel<RoundState>` リレー / `Task.WhenAll` 並列通知 / プレイヤー単位 10 秒タイムアウト / KanTsumo 2 段階ディスパッチを実装。race の構造的除去を達成
+- **抽象 5 種 + 既定実装**: `IRoundViewProjector` / `IResponseCandidateEnumerator` / `IResponsePriorityPolicy` / `IDefaultResponseFactory` / `IGameTracer` を DI 境界として定義。`TenhouResponsePriorityPolicy` はロン > ポン/大明槓 > チー > OK の天鳳準拠 (ダブロンは巡目順)
+- **Game レベル通知**: `GameStart` / `RoundStart` / `RoundEnd` / `GameEnd` を `GameStateContext` で配信。終端状態 (`RoundStateWin` / `RoundStateRyuukyoku`) 突入時は `OkCandidate` のみの InquirySpec を返し既存ルートで全員送信・OK 集約
+- **通知ペイロード分離**: `NotificationPayload` 抽象 + 13 派生で Wire 復元可能化。多態シリアライズは `[JsonDerivedType]` でディスクリミネータを `nameof(具象型)` に統一
+- **和了明細の伝搬**: `Round.SettleWin` が `WinSettlementDetails` (和了者毎の `ResolvedWinner` / 精算前本場 / 供託受取) を返却。`GameEventRoundEndedByWin` まで伝搬
+- **包 (責任払い)**: `PaoDetector` / `PlayerResponsibilityArray` 新規。大三元・大四喜は新規牌種を増やす `Pon` / `Daiminkan` のみトリガ、四槓子は `Daiminkan` / `Kakan` トリガ。役満素点のみ責任者負担 (天鳳準拠)
+- **同巡フリテン**: `RoundStateContext` の打牌フェーズでロン見逃しを検出し `Round.ApplyTemporaryFuriten` で反映。次ツモ時 `Round.Tsumo` で自動解除
+- **テスト**: `RoundStateContext_Runtime*Tests` / `ResponseCandidateEnumerator_*Tests` / `TenhouResponsePriorityPolicy_ResolveTests` / `ResponseValidator_*Tests` / `PaoDetector_*Tests` / `GameManager_GameLevelNotificationTests` を追加。state 単体テストは `Drive*` 同期駆動に移行
 
-**状態機械との連携**
-- `RoundState.CreateInquirySpec(round, enumerator)` を基底に追加。6 具象状態 (`Haipai` / `Tsumo` / `Dahai` / `Kan` / `KanTsumo` / `AfterKanTsumo`) に実装
-- `RoundStateContext.Response*Async` 6 個を `private` 化 (外部からの状態駆動経路は物理的に封鎖、race の構造的除去)
-- `GameStateContext.StartRound` が `RoundStateContext` を直接生成・駆動 (旧 `RoundManager` 経由は撤廃、`RoundManager` プロパティも削除)
-- `GameManager` の依存は `IRoundViewProjector` / `IResponseCandidateEnumerator` / `IResponsePriorityPolicy` / `IDefaultResponseFactory` / `IGameTracer` / `ILoggerFactory` (`IRoundNotificationBuilder` / `IResponseDispatcher` は廃止し `RoundStateContext.PlayerIo.cs` に inline 化済み)
-
-**通知・応答の型基盤**
-- 多態シリアライズ: `ResponseCandidate` / `ResponseBody` / `PlayerResponse` / `AfterXxxResponse` / `RoundNotification` / `GameNotification` / `ResolvedRoundAction` / `ResolvedKanAction` に `[JsonDerivedType]` 付与 (ディスクリミネータは `nameof(具象型)`)
-- 通知ペイロード分離: `NotificationPayload` 抽象 + 13 派生を追加し Wire 経由で通知内容を復元可能に
-- `ChankanRonCandidate` / `RinshanTsumoAgariCandidate` 新規追加
-- `FromWireOk(envelope)` 追加 — OK 応答のみ受理する通知用
-- `FakePlayer` に async responder (`OnXxxHandler`) 14 種を追加 (同期版と並存、優先順位: Async > Sync > 既定)
-- 打牌/加槓フェーズのスルーは `OkResponse` に統一。`AfterDahaiResponse` / `AfterKanResponse` はアクション応答のみの階層
-
-**Game レベル通知経路**
-- `GameState.EntryAsync` / `ResponseOkAsync` / `RoundEndedBy*Async` 非同期版を追加
-- `GameStateInit.EntryAsync` → `GameStartNotification` 送信、`GameStateRoundRunning.EntryAsync` → `RoundStartNotification` 送信 → `StartRound`、`RoundEndedBy*Async` → `RoundEndNotification` 送信 → 次局/終了、`GameStateEnd.EntryAsync` → `GameEndNotification` 送信
-- `RoundStateContext.ProcessRuntimeAsync` 内で `RoundStateCall` / `RoundStateWin` / `RoundStateRyuukyoku` 突入時に `CreateInquirySpec` が OkCandidate のみを返し、既存の CollectResponsesAsync ルート経由で `CallNotification` / `WinNotification` / `RyuukyokuNotification` を全員送信・OK 応答を集約する
-
-**和了明細の伝搬 (通知層の役/点欠落対策)**
-- `Round.SettleWin` に `out WinSettlementDetails` 版オーバーロード追加。和了者毎の `ResolvedWinner` (PlayerIndex / 和了牌 / `ScoreResult`) / 精算前本場 / `KyoutakuRiichiAward` を出力
-- `RoundEndedByWinEventArgs` / `GameEventRoundEndedByWin` に `Winners` / `Honba` / `KyoutakuRiichiAward` フィールドを追加し通知層に伝搬
-
-**包 (責任払い)**
-- `PlayerResponsibilityArray` / `PaoDetector` 新規追加。`Round.PaoResponsibleArray` に記録
-- 大三元・大四喜は新規牌種を増やす `Pon` / `Daiminkan` のみトリガ (`Kakan` 除外)、四槓子は `Daiminkan` / `Kakan` でトリガ
-- `Round.SettleWin` で `YakuInfo.IsPaoEligible` を参照して役満素点のみ責任者負担 (本場・供託は通常精算、天鳳準拠)
-- `GameRules.AllowAnkanChankanForKokushi` (既定 `true`) 追加。暗槓チャンカンは国士無双のみ成立 (役制限は `IScoreCalculator` に委譲)
-
-**同巡フリテン**
-- `RoundStateContext.DetectRonMissedFuritenPlayers` (private) が打牌フェーズでロン見逃しを検出し `Round.ApplyTemporaryFuriten` で対象プレイヤーに `IsTemporaryFuriten=true` を設定
-- `Round.Tsumo` で自分の次ツモ時に自動解除
-
-**その他**
-- `Mahjong.Lib.Game.csproj` に `Microsoft.Extensions.Logging.Abstractions` 追加、`ILogger<T>` で警告/エラー記録
-- `RoundStateContext.StartAsync` キャンセル時は `TrySetCanceled(ct)` で Task を確実に完了
-- `GameStateContext.InvokeGameNotificationAsync` はプレイヤーメソッドの同期例外も try 内で受ける
-
-**テスト追加** (`tests/Mahjong.Lib.Game.Tests/`)
-- `States/RoundStates/`: `RoundStateContextRuntimeTestHelper` / `RoundStateContext_RuntimeStartAsyncTests` / `RoundStateContext_RuntimeDahaiFlowTests` / `RoundStateContext_RuntimeTimeoutTests` / `RoundStateContext_RuntimeCandidateValidationTests` / `RoundStateContext_RuntimeKanTsumoFlowTests`
-- `Rounds/Managing/`: `ResponseCandidateEnumerator_EnumerateFor*Tests` / `TenhouResponsePriorityPolicy_ResolveTests` / `ResponseValidator_IsResponseInCandidatesTests`
-- `Rounds/`: `PaoDetector_DetectTests` / `Round_PaoRecordTests` / `Round_SettleWinPaoTests` / `Round_TemporaryFuritenTests`
-- `Games/`: `GameManager_GameLevelNotificationTests`
-- state 単体テストは `Drive*` 同期駆動 (event queue 不経由) に書き換え済み (`RoundStateContextTestHelper`)
+詳細は [CLAUDE.md](../CLAUDE.md) の対局ドメインセクション / [docs/RoundNotificationPipeline.md](RoundNotificationPipeline.md) を参照。
 
 ### タイムアウト既定値
 
@@ -160,38 +117,69 @@
 | `GameStateContext.DisposeTimeout` | 5 秒 |
 | `GameStateContext.NotificationTimeout` | 10 秒 |
 
-### Phase 5 レビューで持ち越した構造懸念 (解消済)
+### Phase 5 冒頭で解消した構造懸念
 
-Phase 5 の実装レビュー (Claude + Codex gpt-5.4) で挙がった設計課題を Phase 6 冒頭で解消した。実装内容の要点:
+Phase 5 冒頭レビュー (Claude + Codex) で挙がった設計課題を同フェーズ内で解消:
 
-- **`IGameTracer` の default interface method 化**: 全 9 メソッドに既定 no-op を付与。`NullGameTracer` はメソッド定義を削除し `Instance` の公開型を `IGameTracer` に変更
-- **`Round.SettleWin` のタプル戻り値化 + `winTile` 明示**: `out WinSettlementDetails` を廃止し `(Round Settled, WinSettlementDetails Details)` タプル戻り値へ統一。和了牌は呼び出し側 (RoundState) が決定して渡す引数に変更し、`Round.ResolveWinTile` の best-guess フォールバックを削除
-- **同巡フリテンの RoundState 移動 + `Round` 外部 setter 封鎖**: ロン見逃し検出は `RoundStateContext.DetectRonMissedFuritenPlayers` (private) が担当し、`ApplyTemporaryFuriten` (private) で `Round` を局所更新。`RoundStateContext.Round` は `internal set` (同 assembly のみ書換可)、状態遷移時の Round 更新は `Transit(Func<RoundState> createNextState, Func<Round, Round>? updateRound = null)` 経由 (Exit → updateRound 適用 → createNextState 評価 → State 差替 → Entry の意味論。updateRound が例外を投げた場合は Round が部分更新されないことを保証)
-- **`PaoDetector.Detect` の戻り値整理**: `PaoDetectionResult` record へ変更 (`IsPao` プロパティで判定)。副作用位置は Round 内 (副露履歴と責任者更新の atomicity 優先) を維持
-- **`RoundManager` を `RoundStateContext` に統合 (3 層 → 2 層化)**: 旧 `RoundManager` クラス (320 行) と `IRoundNotificationBuilder` + `RoundNotificationBuilder` (通知生成) / `IResponseDispatcher` + `ResponseDispatcher` (応答→イベント変換) はすべて `RoundStateContext` (partial 3 分割: 本体 / `Runtime` / `PlayerIo`) に inline 化。所有構造を `GameStateContext → RoundManager → RoundStateContext` から `GameStateContext → RoundStateContext` に縮小し、`InternalContext` 経由の二重参照と「同 ctx を 2 つの async ループ (`stateChannel_` in Manager / `eventChannel_` in Context) が奪い合う race」を構造的に除去。共有ヘルパ `AdoptedRoundActionBuilder` (internal static) は通知層とトレース層で再利用
+- `IGameTracer` の default interface method 化 (`NullGameTracer` は `Instance` のみに縮約)
+- `Round.SettleWin` のタプル戻り値化と `winTile` 明示 (呼び出し側決定・`ResolveWinTile` フォールバック撤廃)
+- 同巡フリテン処理の `RoundStateContext` 移動と `Round` 外部 setter 封鎖 (`Transit(createNextState, updateRound?)` 経由に統一)
+- `PaoDetector.Detect` を `PaoDetectionResult` record に整理
+- `RoundManager` を `RoundStateContext` に統合して 2 層化 (共有ヘルパ `AdoptedRoundActionBuilder` を通知/トレース層で再利用)
 
-## Phase 5 からの繰越 (Phase 6 冒頭で対応)
+## Phase 5 からの繰越 (Phase 6 冒頭で対応 — 完了)
 
-- **補助通知の未対応分**: `OtherPlayerTsumoNotification` / `DoraRevealNotification` の送信経路
-- **`ResponseCandidateEnumerator` の立直中暗槓精緻化**: 待ち不変条件 (暗槓対象=ツモ牌 / 待ち牌種集合不変 / 順子解釈なし刻子) を満たす場合のみ候補提示
-- **合法応答検証の 2 / 3 段目**: 現状は候補リスト membership のみ。意味的検証 (手牌との整合等) と副作用防止を追加
-- **対局統合テストの再構築**: 旧 `GameStateContext_IntegrationTests` (流局/子ロン/親ツモ連荘/4 局消化) および `GameStateRoundRunning_RenchanTests` (連荘条件) は削除済 (旧 race の flaky 原因)。`RoundManager` を `RoundStateContext` に統合した本フェーズで「同 ctx を 2 つの async ループが奪い合う race」は構造的に消滅したが、対局レベル統合テストは `GameManager` + `FakePlayer` 経由で「ロン成立」「ツモ連荘で Honba+1」「4 局流局で対局終了」「1 位単独オーラス親あがり止め」「連荘条件別の親継続/親流れ判定」「途中流局 (九種九牌) での同一親本場加算」などのシナリオを Phase 6 の AI 実装と合わせて再構築する
+Phase 5 で持ち越された下記項目を本フェーズ冒頭で解消した。
 
-## Phase 6: AI実装と自動対局
+- **補助通知の配線**: `DoraRevealNotification` を `RoundStateContext.Runtime` の差分監視 (`Wall.DoraRevealedCount` の増分) + `BroadcastDoraRevealAsync` で全員に配信。`OtherPlayerTsumoNotification` / `OtherPlayerKanTsumoNotification` は Phase 5 時点で既に配線済
+- **立直中暗槓精緻化**: `BuildAnkanCandidates` で送り槓禁止の 3 条件 ((1) 暗槓牌種 = 直前ツモ牌種 / (2) 4 枚除去後の待ち牌種集合不変 / (3) ツモ前手牌の全分解解釈で該当牌種が刻子) を満たす場合のみ候補提示。`ITenpaiChecker.IsKoutsuOnlyInAllInterpretations(Hand, CallList, int)` を追加 (Lib.Game 側は抽象のみ、実装は上位層)
+- **応答検証 2 段目**: `ResponseValidator.ValidateSemantic(response, round, playerIndex, phase, tenpaiChecker)` を追加し、`SemanticValidationResult` で手牌整合・立直条件・フリテン違反・幺九枚数等を再検証。問い合わせ対象プレイヤーのみ適用。失敗時はクライアント契約違反として `InvalidOperationException` を throw (3 段目 副作用防止は throw で Round 更新前に停止することで達成)
+- **対局統合テスト**: `GameManager_IntegrationTests.cs` に 5 シナリオ (ロン成立 / ツモ連荘 / RenchanNone 親流れ / 4 局連続流局 / 九種九牌本場加算) 追加。加えて `ResponseValidator_ValidateSemanticTests` を追加。オーラス親上がり止めは `NoOpScoreCalculator` で点数変動なしのため deterministic 化できず、`IScoreCalculator` 本実装 (Phase 6 後半) と合わせて再構築予定
+
+## Phase 6: AI実装と自動対局 (完了)
 
 **目的**: 4人AI自動対局で対局ループが回ることを確認し、統計取得基盤を作る。
 
-- 簡易AI(ランダム打牌・副露しないなど最小実装)
-- AI 4人で所定回数の自動対局をこなすコンソールアプリ (`tools/` 配下)
-- `IGameTracer` 実装での統計集計(順位率 / 和了率 / 放銃率 / 立直率 / 副露率 / 平均順位 / 平均打点 / 役出現率 / 流局理由別出現率)
-- 牌譜出力実装(天鳳牌譜 or 独自フォーマット)
-- AI差し替え可能な構成 (DI / factory)
+### 実装済み
 
-## Phase 7: 人間プレイヤー対応
+**6B. Lib.Scoring ラッパー** (`src/Mahjong.Lib.Game.Scoring/`)
 
-**目的**: 人間プレイヤーが対局に参加できるようにする。
+- `ScoreCalculatorImpl(GameRules rules) : IScoreCalculator` — `HandCalculator.Calc` に委譲
+- `TenpaiCheckerImpl : ITenpaiChecker` — `ShantenCalculator.Calc` / `HandDivider.Divide` に委譲。`IsKoutsuOnlyInAllInterpretations` は待ち牌を加えた完成形で刻子専用判定
+- `Conversions/` 配下に変換ヘルパ: `TileKindConverter` / `CallConverter` / `GameRulesConverter` / `WinSituationConverter` / `HandResultConverter`
+- CLAUDE.md 制約「Lib.Game は Lib.Scoring に直接依存しない」を維持、上位層 (AutoPlay / ApiService 等) が注入
+- CallType マッピング: Lib.Game `Daiminkan/Kakan` → Lib.Scoring `Minkan` (点数計算上は同等)
+- 包判定: Lib.Scoring.Yaku.Impl の `Daisangen / Daisuushii / DaisuushiiDouble / Suukantsu` に対応する `YakuInfo.IsPaoEligible=true`
+- `ScoreRequest` に `WinTile` フィールドを追加 (点数計算に和了牌が必須のため)
 
-- `Player`継承の人間プレイヤー実装 (UI入力を待つ形)
-- transport adapter (WebSocket / SignalR 等)
-- `Mahjong.ApiService` / `Mahjong.Web` との統合
-- 接続断/再接続処理
+**6C. RandomPlayer + IPlayerFactory** (`src/Mahjong.Lib.Game/Players/`)
+
+- `IPlayerFactory` 抽象 — `Create(PlayerIndex, PlayerId, string)` で Player を生成
+- `RandomPlayer : Player` — 15 通知メソッドをすべて override
+  - 通知系 11 種: 常に `OkResponse`
+  - `OnTsumoAsync`: `TsumoAgariCandidate` あれば和了、なければ `DahaiCandidate.DahaiOptionList` からランダム選択で打牌 (立直・暗槓・加槓・九種九牌は選ばない)
+  - `OnDahaiAsync`: `RonCandidate` あればロン、なければスルー (副露しない)
+  - `OnKanAsync`: 常にスルー (槍槓しない)
+  - `OnKanTsumoAsync`: `RinshanTsumoAgariCandidate` あれば和了、なければ先頭 `DahaiOption` で打牌
+- `RandomPlayerFactory(int seed)` — `new Random(seed + index.Value)` で各プレイヤーに独立 Random を注入、シードベース再現性を保証
+
+**6D. AutoPlay コンソールアプリ** (`tools/Mahjong.Lib.Game.AutoPlay/`)
+
+- `CompositeGameTracer` (Lib.Game 本体) — 複数 tracer の fan-out、個別 tracer の例外は warn ログで隔離
+- `ShuffledWallGenerator(int seed)` — Fisher-Yates で決定的に山をシャッフル
+- `StatsTracer` (IGameTracer 実装) — 順位率 / 和了率 / 放銃率 / 立直率 / 副露率 / 平均順位 / 平均打点 / 役出現率 / 流局理由別出現率を集計
+- `PaifuRecorder + JsonlPaifuWriter` — 独自 JSON Lines フォーマットで牌譜出力 (1 イベント 1 行、`PaifuEntry` 専用 DTO 経由)
+- `AutoPlayRunner` — 所定回数の対局を逐次実行、`GameManager` + `PlayerList` を毎局生成
+- `Program.cs` — `ServiceCollection` で DI 組み立て、CLI オプション `--games N --seed S --output DIR [--no-paifu]` をサポート
+- `GameStateContext.InvokeGameNotificationAsync` に `tracer.OnGameNotificationSent` 呼び出しを追加 (`GameEndNotification` の受信検知で統計集計を締める)
+
+### Phase 6 完了の定義
+
+- `dotnet run --project tools/Mahjong.Lib.Game.AutoPlay -- --games 100 --seed 42` が例外なく完走
+- 統計レポートと JSONL 牌譜が出力される
+- 同一シードで再実行すると統計が完全一致
+- 全テスト 2186 件合格 (Lib.Game / Lib.Game.Scoring / Lib.Game.AutoPlay / Lib.Scoring 等)
+
+## Phase 7 AIアルゴリズム強化
+
+- 書籍を参考にAIアルゴリズムを強化し、統計を取って確認しながら進める

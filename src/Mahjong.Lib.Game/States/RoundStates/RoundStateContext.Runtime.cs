@@ -53,6 +53,9 @@ public partial class RoundStateContext
         tracer.OnRoundStarted(initial);
         State = new RoundStateHaipai();
         Round = initial.Haipai();
+        // 配牌ドラは HaipaiNotification に含まれるため DoraRevealNotification は送らない規約。
+        // Haipai 直後の DoraRevealedCount を初期値として保持し、槓由来の新ドラ増加のみ通知する
+        lastDoraRevealedCount_ = Round.Wall.DoraRevealedCount;
         State.Entry(this);
         // Dispose 時に内部 cts のキャンセルで CollectResponsesAsync まで含めて ProcessRuntimeAsync を停止させるため、
         // 外部 ct と内部 cts をリンクしたトークンを mainLoopTask_ に渡す。
@@ -95,6 +98,14 @@ public partial class RoundStateContext
                 var round = state is RoundStateCall call && call.SnapshotRound is not null
                     ? call.SnapshotRound
                     : Round;
+                // 槓由来の新ドラ表示を検知した場合、意思決定通知の前に DoraRevealNotification を全員にブロードキャストする。
+                // Wall.DoraRevealedCount は単調増加のため差分分だけ順次通知できる
+                var currentDoraCount = Round.Wall.DoraRevealedCount;
+                if (currentDoraCount > lastDoraRevealedCount_)
+                {
+                    await BroadcastDoraRevealAsync(lastDoraRevealedCount_, currentDoraCount, ct);
+                    lastDoraRevealedCount_ = currentDoraCount;
+                }
                 var spec = state.CreateInquirySpec(round, enumerator);
                 var responses = await CollectResponsesAsync(state, round, spec, ct);
                 var adopted = priorityPolicy.Resolve(spec, responses);

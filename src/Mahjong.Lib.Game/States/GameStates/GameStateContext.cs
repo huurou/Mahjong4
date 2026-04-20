@@ -228,6 +228,8 @@ public class GameStateContext(
     private async Task InvokeGameNotificationAsync(GameNotification notification, PlayerIndex recipientIndex, CancellationToken ct)
     {
         var player = players[recipientIndex];
+        var notificationId = NotificationId.NewId();
+        tracer.OnGameNotificationSent(notificationId, recipientIndex, notification);
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         linkedCts.CancelAfter(NotificationTimeout);
         // L1: プレイヤーメソッド呼び出しで発生しうる同期例外も try 内で受け止める
@@ -317,10 +319,20 @@ public class GameStateContext(
             DisposeRoundContext();
 
             eventChannel_.Writer.Complete();
-            if (eventProcessingTask_ is not null && !eventProcessingTask_.Wait(DisposeTimeout))
+            // Dispose 時は eventProcessingTask_ が裏で StartRound / BroadcastGameNotificationAsync を実行中の場合があり、
+            // cancellation 経由の AggregateException/TaskCanceledException/ObjectDisposedException が発生し得る。
+            // 破棄時の握り潰しで Dispose を確実に完了させる
+            try
             {
-                cancellationTokenSource_.Cancel();
-                eventProcessingTask_.Wait(DisposeTimeout);
+                if (eventProcessingTask_ is not null && !eventProcessingTask_.Wait(DisposeTimeout))
+                {
+                    cancellationTokenSource_.Cancel();
+                    eventProcessingTask_.Wait(DisposeTimeout);
+                }
+            }
+            catch
+            {
+                // 破棄時は握り潰す
             }
             cancellationTokenSource_.Dispose();
         }

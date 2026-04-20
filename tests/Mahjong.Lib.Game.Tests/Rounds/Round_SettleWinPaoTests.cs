@@ -10,7 +10,7 @@ namespace Mahjong.Lib.Game.Tests.Rounds;
 public class Round_SettleWinPaoTests
 {
     // 点数移動のみを検証するテストで winTile の値にはこだわらないためのダミー牌
-    private static readonly Tile DUMMY_WIN_TILE = new(0);
+    private static Tile DummyWinTile { get; } = new(0);
 
     private static ScoreResult YakumanResult(PlayerIndex winnerIndex, int gain, PlayerIndex? loserIndex = null)
     {
@@ -61,7 +61,7 @@ public class Round_SettleWinPaoTests
         };
 
         // Act
-        var (result, _) = round.SettleWin([winner], winner, WinType.Tsumo, DUMMY_WIN_TILE, mock.Object);
+        var (result, _) = round.SettleWin([winner], winner, WinType.Tsumo, DummyWinTile, mock.Object);
 
         // Assert
         Assert.Equal(25000 + 48000, result.PointArray[winner].Value);
@@ -86,7 +86,7 @@ public class Round_SettleWinPaoTests
         };
 
         // Act
-        var (result, _) = round.SettleWin([winner], loser, WinType.Ron, DUMMY_WIN_TILE, mock.Object);
+        var (result, _) = round.SettleWin([winner], loser, WinType.Ron, DummyWinTile, mock.Object);
 
         // Assert
         Assert.Equal(25000 + 32000, result.PointArray[winner].Value);
@@ -110,7 +110,7 @@ public class Round_SettleWinPaoTests
         };
 
         // Act
-        var (result, _) = round.SettleWin([winner], loserAndResponsible, WinType.Ron, DUMMY_WIN_TILE, mock.Object);
+        var (result, _) = round.SettleWin([winner], loserAndResponsible, WinType.Ron, DummyWinTile, mock.Object);
 
         // Assert
         Assert.Equal(25000 + 32000, result.PointArray[winner].Value);
@@ -140,7 +140,7 @@ public class Round_SettleWinPaoTests
         };
 
         // Act
-        var (result, _) = round.SettleWin([winner], winner, WinType.Tsumo, DUMMY_WIN_TILE, mock.Object);
+        var (result, _) = round.SettleWin([winner], winner, WinType.Tsumo, DummyWinTile, mock.Object);
 
         // Assert: 包適用されず均等
         Assert.Equal(25000 + 12000, result.PointArray[winner].Value);
@@ -160,7 +160,7 @@ public class Round_SettleWinPaoTests
         var round = CreateBaseRound();
 
         // Act
-        var (result, _) = round.SettleWin([winner], winner, WinType.Tsumo, DUMMY_WIN_TILE, mock.Object);
+        var (result, _) = round.SettleWin([winner], winner, WinType.Tsumo, DummyWinTile, mock.Object);
 
         // Assert: 包適用されず通常均等分配
         Assert.Equal(25000 + 48000, result.PointArray[winner].Value);
@@ -184,7 +184,7 @@ public class Round_SettleWinPaoTests
         };
 
         // Act
-        var (_, details) = round.SettleWin([winner], winner, WinType.Tsumo, DUMMY_WIN_TILE, mock.Object);
+        var (_, details) = round.SettleWin([winner], winner, WinType.Tsumo, DummyWinTile, mock.Object);
 
         // Assert
         var adjusted = details.Winners[0].ScoreResult.PointDeltas;
@@ -210,7 +210,7 @@ public class Round_SettleWinPaoTests
         };
 
         // Act
-        var (_, details) = round.SettleWin([winner], loser, WinType.Ron, DUMMY_WIN_TILE, mock.Object);
+        var (_, details) = round.SettleWin([winner], loser, WinType.Ron, DummyWinTile, mock.Object);
 
         // Assert
         var adjusted = details.Winners[0].ScoreResult.PointDeltas;

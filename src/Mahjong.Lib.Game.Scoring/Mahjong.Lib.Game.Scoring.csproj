@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mahjong.Lib.Game\Mahjong.Lib.Game.csproj" />
+    <ProjectReference Include="..\Mahjong.Lib.Scoring\Mahjong.Lib.Scoring.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Mahjong.Lib.Game.Scoring.Tests" />
+  </ItemGroup>
+
+</Project>

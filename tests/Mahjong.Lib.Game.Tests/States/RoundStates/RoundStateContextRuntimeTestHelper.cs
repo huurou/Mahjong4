@@ -41,6 +41,8 @@ internal static class RoundStateContextRuntimeTestHelper
         mock.Setup(x => x.IsTenpai(It.IsAny<Hand>(), It.IsAny<CallList>())).Returns(false);
         mock.Setup(x => x.EnumerateWaitTileKinds(It.IsAny<Hand>(), It.IsAny<CallList>()))
             .Returns([13, 14]);
+        mock.Setup(x => x.IsKoutsuOnlyInAllInterpretations(It.IsAny<Hand>(), It.IsAny<CallList>(), It.IsAny<int>()))
+            .Returns(true);
         return mock.Object;
     }
 
