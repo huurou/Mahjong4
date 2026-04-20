@@ -22,11 +22,26 @@ services.AddSingleton(rules);
 services.AddSingleton<IWallGenerator>(_ => new ShuffledWallGenerator(options.Seed));
 services.AddSingleton<IScoreCalculator>(_ => new ScoreCalculatorImpl(rules));
 services.AddSingleton<ITenpaiChecker, TenpaiCheckerImpl>();
+services.AddSingleton<IShantenEvaluator, ShantenEvaluatorImpl>();
 services.AddSingleton<IRoundViewProjector, RoundViewProjector>();
 services.AddSingleton<IResponseCandidateEnumerator>(sp => new ResponseCandidateEnumerator(sp.GetRequiredService<ITenpaiChecker>(), rules));
 services.AddSingleton<IResponsePriorityPolicy, TenhouResponsePriorityPolicy>();
 services.AddSingleton<IDefaultResponseFactory, DefaultResponseFactory>();
-services.AddSingleton<IPlayerFactory>(_ => new AI_v0_1_0_ランダムFactory(options.Seed));
+
+// AI の組み合わせはこの配列で指定する (同一 AI を 4 席並べれば単独対局)。
+// MixedPlayerFactory が対局ごとに席配置をランダムシャッフルする
+services.AddSingleton<IPlayerFactory>(sp =>
+{
+    var evaluator = sp.GetRequiredService<IShantenEvaluator>();
+    var aiFactories = new IPlayerFactory[]
+    {
+        new AI_v0_1_0_ランダムFactory(options.Seed),
+        new AI_v0_1_0_ランダムFactory(options.Seed),
+        new AI_v0_2_0_有効牌Factory(options.Seed, evaluator),
+        new AI_v0_2_0_有効牌Factory(options.Seed, evaluator),
+    };
+    return new MixedPlayerFactory(aiFactories, new Random(options.Seed));
+});
 
 services.AddSingleton<StatsTracer>();
 

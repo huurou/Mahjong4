@@ -7,14 +7,27 @@ using Mahjong.Lib.Game.Responses;
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Rounds.Managing;
 using System.Collections.Immutable;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Mahjong.Lib.Game.AutoPlay.Paifu;
 
 /// <summary>
-/// IGameTracer として対局イベントを JSONL 牌譜として出力する
+/// IGameTracer として対局イベントを JSONL 牌譜として出力する。
+/// 通知・応答・採用アクションは具象型のまま JSON シリアライズして保存するので、
+/// 同じシード・同じプレイヤー実装なら牌譜からリプレイ可能な情報量を持つ
 /// </summary>
 public sealed class PaifuRecorder(JsonlPaifuWriter writer) : IGameTracer, IDisposable
 {
+    private static JsonSerializerOptions JsonOptions { get; } = new()
+    {
+        WriteIndented = false,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = { new JsonStringEnumConverter() },
+    };
+
     private readonly JsonlPaifuWriter writer_ = writer;
 
     /// <summary>
@@ -27,7 +40,8 @@ public sealed class PaifuRecorder(JsonlPaifuWriter writer) : IGameTracer, IDispo
         writer_.Write(new PaifuEntry("notify", ImmutableDictionary<string, object?>.Empty
             .Add("id", notificationId.Value)
             .Add("to", recipientIndex.Value)
-            .Add("notification", notification.GetType().Name)));
+            .Add("type", notification.GetType().Name)
+            .Add("payload", Serialize(notification))));
     }
 
     public void OnGameNotificationSent(NotificationId notificationId, PlayerIndex recipientIndex, GameNotification notification)
@@ -35,7 +49,8 @@ public sealed class PaifuRecorder(JsonlPaifuWriter writer) : IGameTracer, IDispo
         writer_.Write(new PaifuEntry("game-notify", ImmutableDictionary<string, object?>.Empty
             .Add("id", notificationId.Value)
             .Add("to", recipientIndex.Value)
-            .Add("notification", notification.GetType().Name)));
+            .Add("type", notification.GetType().Name)
+            .Add("payload", Serialize(notification))));
     }
 
     public void OnResponseReceived(NotificationId notificationId, PlayerIndex senderIndex, PlayerResponse response)
@@ -43,7 +58,8 @@ public sealed class PaifuRecorder(JsonlPaifuWriter writer) : IGameTracer, IDispo
         writer_.Write(new PaifuEntry("response", ImmutableDictionary<string, object?>.Empty
             .Add("id", notificationId.Value)
             .Add("from", senderIndex.Value)
-            .Add("response", response.GetType().Name)));
+            .Add("type", response.GetType().Name)
+            .Add("payload", Serialize(response))));
     }
 
     public void OnResponseTimeout(NotificationId notificationId, PlayerIndex recipientIndex)
@@ -66,7 +82,8 @@ public sealed class PaifuRecorder(JsonlPaifuWriter writer) : IGameTracer, IDispo
         writer_.Write(new PaifuEntry("invalid-response", ImmutableDictionary<string, object?>.Empty
             .Add("id", notificationId.Value)
             .Add("from", senderIndex.Value)
-            .Add("response", invalidResponse.GetType().Name)));
+            .Add("type", invalidResponse.GetType().Name)
+            .Add("payload", Serialize(invalidResponse))));
     }
 
     public void OnAdoptedAction(RoundInquiryPhase phase, AdoptedPlayerResponse adopted)
@@ -74,22 +91,26 @@ public sealed class PaifuRecorder(JsonlPaifuWriter writer) : IGameTracer, IDispo
         writer_.Write(new PaifuEntry("adopted", ImmutableDictionary<string, object?>.Empty
             .Add("phase", phase.ToString())
             .Add("from", adopted.PlayerIndex.Value)
-            .Add("response", adopted.Response.GetType().Name)));
+            .Add("type", adopted.Response.GetType().Name)
+            .Add("payload", Serialize(adopted.Response))));
     }
 
     public void OnRoundStarted(Round round)
     {
         writer_.Write(new PaifuEntry("round-start", ImmutableDictionary<string, object?>.Empty
-            .Add("roundWind", round.RoundWind.Value)
-            .Add("roundNumber", round.RoundNumber.Value)
-            .Add("honba", round.Honba.Value)
-            .Add("kyoutakuRiichiCount", round.KyoutakuRiichiCount.Value)));
+            .Add("payload", Serialize(round))));
     }
 
     public void OnRoundEnded(AdoptedRoundAction action)
     {
         writer_.Write(new PaifuEntry("round-end", ImmutableDictionary<string, object?>.Empty
-            .Add("action", action.GetType().Name)));
+            .Add("type", action.GetType().Name)
+            .Add("payload", Serialize(action))));
+    }
+
+    private static JsonElement Serialize(object value)
+    {
+        return JsonSerializer.SerializeToElement(value, value.GetType(), JsonOptions);
     }
 
     public void Dispose()

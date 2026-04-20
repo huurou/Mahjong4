@@ -14,13 +14,18 @@ namespace Mahjong.Lib.Game.AutoPlay.Tracing;
 /// <summary>
 /// 1局終了ごとに結果と持ち点状況をログ出力する <see cref="IGameTracer"/>
 /// </summary>
-public sealed class ProgressTracer(int gameNumber, int gameCount, ILogger logger) : IGameTracer
+public sealed class ProgressTracer(int gameNumber, int gameCount, PlayerList playerList, ILogger logger) : IGameTracer
 {
     private GameStateContext? context_;
 
     public void SetContext(GameStateContext context)
     {
         context_ = context;
+    }
+
+    private string NameOf(PlayerIndex index)
+    {
+        return $"P{index.Value}({playerList[index].DisplayName})";
     }
 
     public void OnNotificationSent(NotificationId notificationId, PlayerIndex recipientIndex, RoundNotification notification) { }
@@ -60,7 +65,7 @@ public sealed class ProgressTracer(int gameNumber, int gameCount, ILogger logger
         return $"{wind}{round.RoundNumber.Value + 1}局 {round.Honba.Value}本場";
     }
 
-    private static string FormatResult(AdoptedRoundAction action)
+    private string FormatResult(AdoptedRoundAction action)
     {
         return action switch
         {
@@ -70,7 +75,7 @@ public sealed class ProgressTracer(int gameNumber, int gameCount, ILogger logger
         };
     }
 
-    private static string FormatWin(AdoptedWinAction win)
+    private string FormatWin(AdoptedWinAction win)
     {
         var winners = win.WinnerIndices.Select(x =>
         {
@@ -78,22 +83,22 @@ public sealed class ProgressTracer(int gameNumber, int gameCount, ILogger logger
             var typeLabel = win.WinType switch
             {
                 WinType.Tsumo => "ツモ",
-                WinType.Ron => $"ロン(P{win.LoserIndex.Value})",
-                WinType.Chankan => $"槍槓(P{win.LoserIndex.Value})",
+                WinType.Ron => $"ロン({NameOf(win.LoserIndex)})",
+                WinType.Chankan => $"槍槓({NameOf(win.LoserIndex)})",
                 WinType.Rinshan => "嶺上",
                 _ => "和了",
             };
-            return $"P{x.PlayerIndex.Value} {typeLabel} +{gain}({x.ScoreResult.Han}翻{x.ScoreResult.Fu}符)";
+            return $"{NameOf(x.PlayerIndex)} {typeLabel} +{gain}({x.ScoreResult.Han}翻{x.ScoreResult.Fu}符)";
         });
         return string.Join(", ", winners);
     }
 
-    private static string FormatRanking(PointArray points)
+    private string FormatRanking(PointArray points)
     {
         var ranked = Enumerable.Range(0, PlayerIndex.PLAYER_COUNT)
-            .Select(x => (PlayerIndex: x, Point: points[new PlayerIndex(x)].Value))
+            .Select(x => (PlayerIndex: new PlayerIndex(x), Point: points[new PlayerIndex(x)].Value))
             .OrderByDescending(x => x.Point)
-            .Select((x, rank) => $"{rank + 1}位 P{x.PlayerIndex}={x.Point}");
+            .Select((x, rank) => $"{rank + 1}位 {NameOf(x.PlayerIndex)}={x.Point}");
         return $"[{string.Join(", ", ranked)}]";
     }
 }

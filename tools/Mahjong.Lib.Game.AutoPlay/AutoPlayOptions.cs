@@ -11,11 +11,11 @@ public record AutoPlayOptions(int GameCount, int Seed, string OutputDirectory, b
 {
     public static AutoPlayOptions Parse(string[] args)
     {
-        var gameCount = 100;
+        var gameCount = 20;
         var seed = Environment.TickCount;
         // デフォルト出力先は .gitignore で除外されている tmp-paifu/ 配下にする
         var outputDirectory = "./tmp-paifu";
-        var writePaifu = true;
+        var writePaifu = false;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -33,8 +33,8 @@ public record AutoPlayOptions(int GameCount, int Seed, string OutputDirectory, b
                     outputDirectory = args[++i];
                     break;
 
-                case "--no-paifu":
-                    writePaifu = false;
+                case "--paifu":
+                    writePaifu = true;
                     break;
             }
         }

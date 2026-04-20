@@ -41,11 +41,11 @@ public sealed class AutoPlayRunner(
             var sw = Stopwatch.StartNew();
             try
             {
-                var finalPoints = await RunSingleGameAsync(i, gameCount, ct);
+                var result = await RunSingleGameAsync(i, gameCount, ct);
                 sw.Stop();
                 var percent = (i + 1) * 100.0 / gameCount;
                 logger.LogInformation("対局 {GameNumber}/{GameCount} ({Percent:00.00}%) 完了 ({ElapsedSeconds:F1}s) {Ranking}",
-                    i + 1, gameCount, percent, sw.Elapsed.TotalSeconds, FormatRanking(finalPoints));
+                    i + 1, gameCount, percent, sw.Elapsed.TotalSeconds, FormatRanking(result.Points, result.PlayerList));
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -64,12 +64,13 @@ public sealed class AutoPlayRunner(
         return statsTracer.Build();
     }
 
-    private async Task<PointArray> RunSingleGameAsync(int gameNumber, int gameCount, CancellationToken ct)
+    private async Task<(PointArray Points, PlayerList PlayerList)> RunSingleGameAsync(int gameNumber, int gameCount, CancellationToken ct)
     {
         var playerList = CreatePlayers();
         var progressTracer = new ProgressTracer(
             gameNumber,
             gameCount,
+            playerList,
             loggerFactory.CreateLogger<ProgressTracer>()
         );
         var composite = new CompositeGameTracer(
@@ -94,15 +95,15 @@ public sealed class AutoPlayRunner(
         await manager.StartAsync(ct);
         progressTracer.SetContext(manager.Context);
         await WaitForGameEndAsync(manager, GameTimeout, ct);
-        return manager.Context.Game.PointArray;
+        return (manager.Context.Game.PointArray, playerList);
     }
 
-    private static string FormatRanking(PointArray points)
+    private static string FormatRanking(PointArray points, PlayerList playerList)
     {
         var ranked = Enumerable.Range(0, PlayerIndex.PLAYER_COUNT)
-            .Select(x => (PlayerIndex: x, Point: points[new PlayerIndex(x)].Value))
+            .Select(x => (PlayerIndex: x, Point: points[new PlayerIndex(x)].Value, Name: playerList[new PlayerIndex(x)].DisplayName))
             .OrderByDescending(x => x.Point)
-            .Select((x, rank) => $"{rank + 1}位 P{x.PlayerIndex}={x.Point}");
+            .Select((x, rank) => $"{rank + 1}位 P{x.PlayerIndex}({x.Name})={x.Point}");
         return $"[{string.Join(", ", ranked)}]";
     }
 
