@@ -61,6 +61,8 @@ public partial class RoundStateContext(
     private Task? eventProcessingTask_;
     private bool roundEndNotified_;
     private bool disposed_;
+    // DoraReveal 通知の差分検出用。Haipai 直後に初期化し、Wall.DoraRevealedCount が増えた際の差分のみ通知する
+    private int lastDoraRevealedCount_;
 
     public RoundState State
     {
@@ -238,12 +240,13 @@ public partial class RoundStateContext(
                             break;
 
                         default:
-                            throw new NotSupportedException($"未対応のイベント種別:{evt?.GetType().Name}");
+                            throw new NotSupportedException($"未対応のイベント種別:{evt.GetType().Name}");
                     }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    logger.LogError(ex, "State.Response{Event} 処理で例外が発生しました。", evt?.GetType().Name);
+                    // Channel<RoundEvent> からは non-null の evt のみ得られるため、exception 通知時も非 null で扱う
+                    logger.LogError(ex, "State.Response{Event} 処理で例外が発生しました。", evt.GetType().Name);
                     InvalidEventReceived?.Invoke(this, new InvalidRoundEventEventArgs(evt, ex));
                 }
             }

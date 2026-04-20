@@ -90,6 +90,21 @@ public partial class RoundStateContext
             return new AdoptedPlayerResponse(playerSpec.PlayerIndex, fallback);
         }
 
+        // 2 段目: 意味的検証 (問い合わせ対象のみ)。1 段目通過後に手牌整合・フリテン・立直条件等を再確認する。
+        // 失敗時はクライアント契約違反として InvalidOperationException を throw し進行を停止する
+        // (3 段目 副作用防止は throw により Round 更新前に停止することで達成)
+        if (isInquired)
+        {
+            var semantic = ResponseValidator.ValidateSemantic(response, round, playerSpec.PlayerIndex, spec.Phase, TenpaiChecker);
+            if (!semantic.IsValid)
+            {
+                tracer.OnInvalidResponse(notificationId, playerSpec.PlayerIndex, response, playerSpec.CandidateList);
+                throw new InvalidOperationException(
+                    $"意味的検証失敗 player:{playerSpec.PlayerIndex.Value} phase:{spec.Phase} response:{response.GetType().Name} reason:{semantic.Reason}"
+                );
+            }
+        }
+
         return new AdoptedPlayerResponse(playerSpec.PlayerIndex, response);
     }
 
@@ -108,8 +123,49 @@ public partial class RoundStateContext
             CallNotification n => await player.OnCallAsync(n, ct),
             WinNotification n => await player.OnWinAsync(n, ct),
             RyuukyokuNotification n => await player.OnRyuukyokuAsync(n, ct),
+            DoraRevealNotification n => await player.OnDoraRevealAsync(n, ct),
             _ => throw new NotSupportedException($"意思決定通知として未対応の通知種別です。実際:{notification.GetType().Name}"),
         };
+    }
+
+    /// <summary>
+    /// 新しく表示されたドラ表示牌を全プレイヤーに観測通知する。
+    /// 観測通知 (OK 応答のみ) のため候補検証・優先順位解決・Round 更新は行わない軽量パス。
+    /// 応答は破棄し、個別プレイヤーの例外・タイムアウトはログ出力して握り潰す
+    /// </summary>
+    private async Task BroadcastDoraRevealAsync(int fromExclusive, int toInclusive, CancellationToken ct)
+    {
+        for (var n = fromExclusive; n < toInclusive; n++)
+        {
+            var newIndicator = Round.Wall.GetDoraIndicator(n);
+            var tasks = new Task[PlayerIndex.PLAYER_COUNT];
+            for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
+            {
+                var recipientIndex = new PlayerIndex(i);
+                var view = projector.Project(Round, recipientIndex);
+                var notification = new DoraRevealNotification(view, newIndicator, []);
+                tasks[i] = InvokeDoraRevealAsync(notification, recipientIndex, ct);
+            }
+            await Task.WhenAll(tasks);
+        }
+    }
+
+    private async Task InvokeDoraRevealAsync(DoraRevealNotification notification, PlayerIndex recipientIndex, CancellationToken ct)
+    {
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        linkedCts.CancelAfter(DefaultTimeout);
+        try
+        {
+            await players[recipientIndex].OnDoraRevealAsync(notification, linkedCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogWarning("DoraReveal 通知タイムアウト player:{Index}", recipientIndex.Value);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "DoraReveal 通知で例外 player:{Index}", recipientIndex.Value);
+        }
     }
 
     /// <summary>

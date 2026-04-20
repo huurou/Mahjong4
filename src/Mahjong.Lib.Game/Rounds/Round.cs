@@ -625,7 +625,7 @@ public record Round(
 
         foreach (var winner in winners)
         {
-            var request = new ScoreRequest(this, winner, loserIndex, winType);
+            var request = new ScoreRequest(this, winner, loserIndex, winType, winTile);
             var rawResult = scoreCalculator.Calculate(request);
             var responsibleIndex = PaoResponsibleArray[winner];
             var isPaoApplicable = responsibleIndex is not null &&

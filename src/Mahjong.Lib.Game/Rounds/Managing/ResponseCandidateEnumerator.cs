@@ -10,8 +10,10 @@ using System.Collections.Immutable;
 namespace Mahjong.Lib.Game.Rounds.Managing;
 
 /// <summary>
-/// Round と意思決定フェーズから合法応答候補を列挙する既定実装
-/// 本実装では簡略化として立直中は槓候補を一切提示しない (待ち不変の暗槓のみ許可する精緻化は別タスク)
+/// Round と意思決定フェーズから合法応答候補を列挙する既定実装。
+/// 立直中の暗槓は送り槓禁止ルール (暗槓する牌種 = 直前のツモ牌の牌種 / 4 枚除去後の待ち牌種集合が不変 /
+/// ツモ前の手牌のすべての分解解釈で該当牌種が刻子として使われる) の 3 条件を満たす場合のみ提示する。
+/// 立直中の加槓は常に不可
 /// </summary>
 public sealed class ResponseCandidateEnumerator(
     ITenpaiChecker tenpaiChecker,
@@ -37,9 +39,9 @@ public sealed class ResponseCandidateEnumerator(
             builder.Add(tsumoAgari);
         }
 
+        builder.AddRange(BuildAnkanCandidates(round, turnPlayerIndex, hand, callList, status));
         if (!status.IsRiichi)
         {
-            builder.AddRange(BuildAnkanCandidates(round, hand));
             builder.AddRange(BuildKakanCandidates(round, hand, callList));
         }
 
@@ -129,9 +131,9 @@ public sealed class ResponseCandidateEnumerator(
         {
             builder.Add(new RinshanTsumoAgariCandidate());
         }
+        builder.AddRange(BuildAnkanCandidates(round, turnPlayerIndex, hand, callList, status));
         if (!status.IsRiichi)
         {
-            builder.AddRange(BuildAnkanCandidates(round, hand));
             builder.AddRange(BuildKakanCandidates(round, hand, callList));
         }
 
@@ -146,9 +148,9 @@ public sealed class ResponseCandidateEnumerator(
         var status = round.PlayerRoundStatusArray[turnPlayerIndex];
 
         builder.Add(BuildDahaiCandidate(round, turnPlayerIndex, hand, callList, status));
+        builder.AddRange(BuildAnkanCandidates(round, turnPlayerIndex, hand, callList, status));
         if (!status.IsRiichi)
         {
-            builder.AddRange(BuildAnkanCandidates(round, hand));
             builder.AddRange(BuildKakanCandidates(round, hand, callList));
         }
 
@@ -291,14 +293,64 @@ public sealed class ResponseCandidateEnumerator(
         }
     }
 
-    private static IEnumerable<AnkanCandidate> BuildAnkanCandidates(Round round, Hand hand)
+    private IEnumerable<AnkanCandidate> BuildAnkanCandidates(Round round, PlayerIndex turnPlayerIndex, Hand hand, CallList callList, PlayerRoundStatus status)
     {
         if (!round.Wall.CanKan) { yield break; }
 
         // 暗槓は手牌の同種 4 枚全てを使用するため、赤ドラ有無で選択肢は生じない
-        foreach (var group in hand.GroupBy(x => x.Kind).Where(x => x.Count() >= 4))
+        var groups = hand.GroupBy(x => x.Kind).Where(x => x.Count() >= 4).ToList();
+        if (!status.IsRiichi)
         {
-            yield return new AnkanCandidate([.. group.Take(4)]);
+            foreach (var group in groups)
+            {
+                yield return new AnkanCandidate([.. group.Take(4)]);
+            }
+
+            yield break;
+        }
+
+        // 立直中は送り槓禁止の 3 条件を満たす暗槓のみ許可:
+        // 1. 暗槓する牌種 = 直前のツモ牌の牌種 (4 枚のうち 1 枚が今引いたツモ牌であること)
+        // 2. 4 枚除去後の待ち牌種集合が元の待ち牌種集合と一致 (待ち不変)
+        // 3. 元手牌 (ツモ前 13 枚相当) のすべての分解解釈で該当牌種が刻子として使われる (順子解釈が 1 つでも存在すれば禁止)
+        // ツモ直後の総枚数は 手牌 + 副露で 14 枚相当 (既存暗槓があると手牌は減るため副露込みで判定)
+        var totalTileCount = hand.Count() + callList.Sum(x => x.Tiles.Count);
+        if (totalTileCount < 14) { yield break; }
+
+        var tsumoTile = hand.Last();
+        var handWithoutTsumo = new Hand(RemoveFirst(hand, tsumoTile));
+        var waitsBefore = tenpaiChecker.EnumerateWaitTileKinds(handWithoutTsumo, callList);
+        foreach (var group in groups)
+        {
+            if (group.Key != tsumoTile.Kind) { continue; }
+
+            var four = group.Take(4).ToImmutableArray();
+            var handAfter = new Hand(RemoveFour(hand, four));
+            // 暗槓後の待ち判定は新暗槓を副露として加えた状態で計算する
+            // (Hand と CallList で「14 枚相当」を維持することで ITenpaiChecker の整合前提を満たす)
+            var ankanCall = new Call(CallType.Ankan, [.. four], turnPlayerIndex, calledTile: null);
+            var callListAfter = callList.Add(ankanCall);
+            var waitsAfter = tenpaiChecker.EnumerateWaitTileKinds(handAfter, callListAfter);
+            if (!waitsBefore.SetEquals(waitsAfter)) { continue; }
+            if (!tenpaiChecker.IsKoutsuOnlyInAllInterpretations(handWithoutTsumo, callList, group.Key)) { continue; }
+
+            yield return new AnkanCandidate(four);
+        }
+    }
+
+    private static IEnumerable<Tile> RemoveFour(Hand hand, ImmutableArray<Tile> fourTiles)
+    {
+        var remaining = fourTiles.ToList();
+        foreach (var tile in hand)
+        {
+            var index = remaining.FindIndex(x => x.Equals(tile));
+            if (index >= 0)
+            {
+                remaining.RemoveAt(index);
+                continue;
+            }
+
+            yield return tile;
         }
     }
 
@@ -311,6 +363,7 @@ public sealed class ResponseCandidateEnumerator(
         foreach (var kind in ponKinds)
         {
             if (!handByKind.TryGetValue(kind, out var tilesOfKind)) { continue; }
+
             foreach (var variant in EnumerateRedCountVariants(tilesOfKind, 1))
             {
                 yield return new KakanCandidate(variant[0]);

@@ -13,6 +13,12 @@ namespace Mahjong.Lib.Game.Rounds.Managing;
 /// </summary>
 public interface IGameTracer
 {
+    /// <summary>
+    /// true の場合、<see cref="CompositeGameTracer"/> から呼び出されたときの例外を握り潰さず再 throw する。
+    /// データ整合性が重要な tracer (牌譜の IO 出力など) では true にして fail-fast を強制する
+    /// </summary>
+    bool IsCritical => false;
+
     void OnNotificationSent(NotificationId notificationId, PlayerIndex recipientIndex, RoundNotification notification);
     void OnGameNotificationSent(NotificationId notificationId, PlayerIndex recipientIndex, GameNotification notification);
     void OnResponseReceived(NotificationId notificationId, PlayerIndex senderIndex, PlayerResponse response);
