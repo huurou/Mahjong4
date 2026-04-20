@@ -9,6 +9,7 @@ using Mahjong.Lib.Game.States.RoundStates;
 using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Walls;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace Mahjong.Lib.Game.AutoPlay;
 
@@ -37,9 +38,14 @@ public sealed class AutoPlayRunner(
         for (var i = 0; i < gameCount; i++)
         {
             ct.ThrowIfCancellationRequested();
+            var sw = Stopwatch.StartNew();
             try
             {
-                await RunSingleGameAsync(i, ct);
+                var finalPoints = await RunSingleGameAsync(i, gameCount, ct);
+                sw.Stop();
+                var percent = (i + 1) * 100.0 / gameCount;
+                logger.LogInformation("対局 {GameNumber}/{GameCount} ({Percent:00.00}%) 完了 ({ElapsedSeconds:F1}s) {Ranking}",
+                    i + 1, gameCount, percent, sw.Elapsed.TotalSeconds, FormatRanking(finalPoints));
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -47,16 +53,29 @@ public sealed class AutoPlayRunner(
             }
             catch (Exception ex)
             {
+                sw.Stop();
                 statsTracer.RecordGameFailed();
                 logger.LogError(ex, "対局 {GameNumber} が例外で中断しました。次の対局に進みます。", i);
+                var percent = (i + 1) * 100.0 / gameCount;
+                logger.LogInformation("対局 {GameNumber}/{GameCount} ({Percent:00.00}%) 失敗 ({ElapsedSeconds:F1}s)",
+                    i + 1, gameCount, percent, sw.Elapsed.TotalSeconds);
             }
         }
         return statsTracer.Build();
     }
 
-    private async Task RunSingleGameAsync(int gameNumber, CancellationToken ct)
+    private async Task<PointArray> RunSingleGameAsync(int gameNumber, int gameCount, CancellationToken ct)
     {
         var playerList = CreatePlayers();
+        var progressTracer = new ProgressTracer(
+            gameNumber,
+            gameCount,
+            loggerFactory.CreateLogger<ProgressTracer>()
+        );
+        var composite = new CompositeGameTracer(
+            [tracer, progressTracer],
+            loggerFactory.CreateLogger<CompositeGameTracer>()
+        );
         using var manager = new GameManager(
             playerList,
             rules,
@@ -67,13 +86,24 @@ public sealed class AutoPlayRunner(
             enumerator,
             priorityPolicy,
             defaultFactory,
-            tracer,
+            composite,
             loggerFactory.CreateLogger<GameStateContext>(),
             loggerFactory.CreateLogger<RoundStateContext>()
         );
 
         await manager.StartAsync(ct);
+        progressTracer.SetContext(manager.Context);
         await WaitForGameEndAsync(manager, GameTimeout, ct);
+        return manager.Context.Game.PointArray;
+    }
+
+    private static string FormatRanking(PointArray points)
+    {
+        var ranked = Enumerable.Range(0, PlayerIndex.PLAYER_COUNT)
+            .Select(x => (PlayerIndex: x, Point: points[new PlayerIndex(x)].Value))
+            .OrderByDescending(x => x.Point)
+            .Select((x, rank) => $"{rank + 1}位 P{x.PlayerIndex}={x.Point}");
+        return $"[{string.Join(", ", ranked)}]";
     }
 
     private PlayerList CreatePlayers()

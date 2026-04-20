@@ -16,15 +16,14 @@ var options = AutoPlayOptions.Parse(args);
 Console.WriteLine($"[AutoPlay] Games: {options.GameCount} Seed: {options.Seed} Output: {options.OutputDirectory} WritePaifu: {options.WritePaifu}");
 
 var services = new ServiceCollection();
-services.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Warning));
+services.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Information));
 var rules = new GameRules();
 services.AddSingleton(rules);
 services.AddSingleton<IWallGenerator>(_ => new ShuffledWallGenerator(options.Seed));
 services.AddSingleton<IScoreCalculator>(_ => new ScoreCalculatorImpl(rules));
 services.AddSingleton<ITenpaiChecker, TenpaiCheckerImpl>();
 services.AddSingleton<IRoundViewProjector, RoundViewProjector>();
-services.AddSingleton<IResponseCandidateEnumerator>(sp =>
-    new ResponseCandidateEnumerator(sp.GetRequiredService<ITenpaiChecker>(), rules));
+services.AddSingleton<IResponseCandidateEnumerator>(sp => new ResponseCandidateEnumerator(sp.GetRequiredService<ITenpaiChecker>(), rules));
 services.AddSingleton<IResponsePriorityPolicy, TenhouResponsePriorityPolicy>();
 services.AddSingleton<IDefaultResponseFactory, DefaultResponseFactory>();
 services.AddSingleton<IPlayerFactory>(_ => new AI_v0_1_0_ランダムFactory(options.Seed));
