@@ -1,15 +1,9 @@
-﻿using Mahjong.Lib.Game.Calls;
-using Mahjong.Lib.Game.Candidates;
+﻿using Mahjong.Lib.Game.Candidates;
 using Mahjong.Lib.Game.Games;
-using Mahjong.Lib.Game.Games.Scoring;
-using Mahjong.Lib.Game.Hands;
-using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Rounds.Managing;
-using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Tests.Rounds;
 using Mahjong.Lib.Game.Tiles;
-using Moq;
 using System.Collections.Immutable;
 
 namespace Mahjong.Lib.Game.Tests.Rounds.Managing;
@@ -21,7 +15,7 @@ public class ResponseCandidateEnumerator_EnumerateForTsumoTests
     {
         // Arrange
         var round = RoundTestHelper.CreateRound().Haipai().Tsumo();
-        var enumerator = new ResponseCandidateEnumerator(RoundTestHelper.NoOpTenpaiChecker, new GameRules());
+        var enumerator = new ResponseCandidateEnumerator(new GameRules());
 
         // Act
         var candidates = enumerator.EnumerateForTsumo(round, round.Turn);
@@ -38,7 +32,7 @@ public class ResponseCandidateEnumerator_EnumerateForTsumoTests
         var round = RoundTestHelper.CreateRound().Haipai().Tsumo();
         var status = round.PlayerRoundStatusArray[round.Turn] with { IsRiichi = true };
         round = round with { PlayerRoundStatusArray = round.PlayerRoundStatusArray.SetStatus(round.Turn, status) };
-        var enumerator = new ResponseCandidateEnumerator(RoundTestHelper.NoOpTenpaiChecker, new GameRules());
+        var enumerator = new ResponseCandidateEnumerator(new GameRules());
 
         // Act
         var candidates = enumerator.EnumerateForTsumo(round, round.Turn);
@@ -53,7 +47,7 @@ public class ResponseCandidateEnumerator_EnumerateForTsumoTests
     {
         // Arrange
         var round = RoundTestHelper.CreateRound().Haipai().Tsumo();
-        var enumerator = new ResponseCandidateEnumerator(RoundTestHelper.NoOpTenpaiChecker, new GameRules());
+        var enumerator = new ResponseCandidateEnumerator(new GameRules());
 
         // Act
         var candidates = enumerator.EnumerateForTsumo(round, round.Turn);
@@ -63,50 +57,11 @@ public class ResponseCandidateEnumerator_EnumerateForTsumoTests
     }
 
     [Fact]
-    public void ツモ牌が待ちに含まれかつフリテンでない_TsumoAgariCandidateが提示される()
-    {
-        // Arrange
-        var round = RoundTestHelper.CreateRound().Haipai().Tsumo();
-        var tsumoTile = round.HandArray[round.Turn].Last();
-        var tenpaiMock = new Mock<ITenpaiChecker>();
-        tenpaiMock.Setup(x => x.IsTenpai(It.IsAny<Hand>(), It.IsAny<CallList>())).Returns(true);
-        tenpaiMock.Setup(x => x.EnumerateWaitTileKinds(It.IsAny<Hand>(), It.IsAny<CallList>()))
-            .Returns([tsumoTile.Kind]);
-        var enumerator = new ResponseCandidateEnumerator(tenpaiMock.Object, new GameRules());
-
-        // Act
-        var candidates = enumerator.EnumerateForTsumo(round, round.Turn);
-
-        // Assert
-        Assert.True(candidates.HasCandidate<TsumoAgariCandidate>());
-    }
-
-    [Fact]
-    public void フリテン時でもTsumoAgariCandidateが提示される()
-    {
-        // Arrange: フリテンはロン/チャンカンのみ禁止で、ツモ和了は可能
-        var round = RoundTestHelper.CreateRound().Haipai().Tsumo();
-        var tsumoTile = round.HandArray[round.Turn].Last();
-        var status = round.PlayerRoundStatusArray[round.Turn] with { IsFuriten = true, IsTemporaryFuriten = true };
-        round = round with { PlayerRoundStatusArray = round.PlayerRoundStatusArray.SetStatus(round.Turn, status) };
-        var tenpaiMock = new Mock<ITenpaiChecker>();
-        tenpaiMock.Setup(x => x.EnumerateWaitTileKinds(It.IsAny<Hand>(), It.IsAny<CallList>()))
-            .Returns([tsumoTile.Kind]);
-        var enumerator = new ResponseCandidateEnumerator(tenpaiMock.Object, new GameRules());
-
-        // Act
-        var candidates = enumerator.EnumerateForTsumo(round, round.Turn);
-
-        // Assert
-        Assert.True(candidates.HasCandidate<TsumoAgariCandidate>());
-    }
-
-    [Fact]
     public void 手牌に同種4枚_AnkanCandidateが提示される()
     {
         // Arrange: CreateRound の連番ウォールで親は yama[135,134,133,132] (全て kind 33) を取得
         var round = RoundTestHelper.CreateRound().Haipai().Tsumo();
-        var enumerator = new ResponseCandidateEnumerator(RoundTestHelper.NoOpTenpaiChecker, new GameRules());
+        var enumerator = new ResponseCandidateEnumerator(new GameRules());
 
         // Act
         var candidates = enumerator.EnumerateForTsumo(round, round.Turn);
@@ -130,7 +85,7 @@ public class ResponseCandidateEnumerator_EnumerateForTsumoTests
         var hand = yaochuuTiles.Concat(nonYaochuu);
         var round = RoundTestHelper.CreateRound().Haipai();
         round = RoundTestHelper.InjectHand(round, round.RoundNumber.ToDealer(), hand);
-        var enumerator = new ResponseCandidateEnumerator(RoundTestHelper.NoOpTenpaiChecker, new GameRules());
+        var enumerator = new ResponseCandidateEnumerator(new GameRules());
 
         // Act
         var candidates = enumerator.EnumerateForTsumo(round, round.Turn);

@@ -89,7 +89,7 @@ public class AI_v0_2_0_有効牌_OnDahaiTests
 
     private static AI_v0_2_0_有効牌 CreateAI()
     {
-        return new AI_v0_2_0_有効牌(PlayerId.NewId(), new PlayerIndex(0), new Random(42), new FakeShantenEvaluator());
+        return new AI_v0_2_0_有効牌(PlayerId.NewId(), new PlayerIndex(0), new Random(42));
     }
 
     private static PlayerRoundView CreateView()

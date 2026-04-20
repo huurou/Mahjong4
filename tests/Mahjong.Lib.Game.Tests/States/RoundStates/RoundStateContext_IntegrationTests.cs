@@ -24,6 +24,7 @@ public class RoundStateContext_IntegrationTests : IDisposable
 
         // Act
         RoundStateContextTestHelper.DriveResponseOk(context_);
+        RoundStateContextTestHelper.ReplaceHandForTsumoAgari(context_, context_.Round.Turn);
         RoundStateContextTestHelper.DriveTsumoWin(context_);
 
         // Assert
@@ -38,6 +39,7 @@ public class RoundStateContext_IntegrationTests : IDisposable
 
         // Act
         RoundStateContextTestHelper.DriveResponseOk(context_);
+        RoundStateContextTestHelper.InjectRonAgariScenario(context_, new PlayerIndex(1));
         RoundStateContextTestHelper.DriveResponseDahai(context_, RoundStateContextTestHelper.PickTileToDahai(context_));
         // 子(index 1)が親(index 0)からロン
         RoundStateContextTestHelper.DriveRonWin(context_, new PlayerIndex(1), new PlayerIndex(0));

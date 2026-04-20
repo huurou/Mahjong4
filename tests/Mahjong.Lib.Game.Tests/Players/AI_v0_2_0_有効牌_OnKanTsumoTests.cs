@@ -7,7 +7,6 @@ using Mahjong.Lib.Game.Players.Impl;
 using Mahjong.Lib.Game.Responses;
 using Mahjong.Lib.Game.Rivers;
 using Mahjong.Lib.Game.Rounds;
-using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Tiles;
 using Mahjong.Lib.Game.Views;
 
@@ -19,7 +18,7 @@ public class AI_v0_2_0_有効牌_OnKanTsumoTests
     public async Task RinshanTsumoAgariCandidateあり_RinshanTsumoResponseを返す()
     {
         // Arrange
-        var player = CreateAI(new FakeShantenEvaluator());
+        var player = CreateAI();
         var candidates = new CandidateList(
         [
             new RinshanTsumoAgariCandidate(),
@@ -41,8 +40,7 @@ public class AI_v0_2_0_有効牌_OnKanTsumoTests
         var hand = new Hand(Enumerable.Range(0, 14).Select(x => new Tile(x * 4)));
         var tileA = new Tile(0);
         var options = new DahaiOptionList([new DahaiOption(tileA, RiichiAvailable: true)]);
-        var evaluator = new FakeShantenEvaluator(calcShanten: (_, _) => 0);
-        var player = CreateAI(evaluator, hand: hand);
+        var player = CreateAI(hand: hand);
 
         var candidates = new CandidateList([new DahaiCandidate(options)]);
         var notification = new KanTsumoNotification(CreateView(hand), tileA, candidates, [new PlayerIndex(0)]);
@@ -63,8 +61,7 @@ public class AI_v0_2_0_有効牌_OnKanTsumoTests
         var hand = new Hand(Enumerable.Range(0, 14).Select(x => new Tile(x * 4)));
         var tileA = new Tile(0);
         var options = new DahaiOptionList([new DahaiOption(tileA, RiichiAvailable: false)]);
-        var evaluator = new FakeShantenEvaluator(calcShanten: (_, _) => 0);
-        var player = CreateAI(evaluator, hand: hand);
+        var player = CreateAI(hand: hand);
 
         var candidates = new CandidateList([new DahaiCandidate(options)]);
         var notification = new KanTsumoNotification(CreateView(hand), tileA, candidates, [new PlayerIndex(0)]);
@@ -82,7 +79,7 @@ public class AI_v0_2_0_有効牌_OnKanTsumoTests
     public async Task DahaiCandidateなし_例外()
     {
         // Arrange
-        var player = CreateAI(new FakeShantenEvaluator());
+        var player = CreateAI();
         var candidates = new CandidateList([]);
         var notification = new KanTsumoNotification(CreateView(new Hand()), new Tile(0), candidates, [new PlayerIndex(0)]);
 
@@ -93,9 +90,9 @@ public class AI_v0_2_0_有効牌_OnKanTsumoTests
         Assert.IsType<InvalidOperationException>(ex);
     }
 
-    private static AI_v0_2_0_有効牌 CreateAI(IShantenEvaluator evaluator, int seed = 42, Hand? hand = null)
+    private static AI_v0_2_0_有効牌 CreateAI(int seed = 42, Hand? hand = null)
     {
-        return new AI_v0_2_0_有効牌(PlayerId.NewId(), new PlayerIndex(0), new Random(seed), evaluator);
+        return new AI_v0_2_0_有効牌(PlayerId.NewId(), new PlayerIndex(0), new Random(seed));
     }
 
     private static PlayerRoundView CreateView(Hand ownHand)

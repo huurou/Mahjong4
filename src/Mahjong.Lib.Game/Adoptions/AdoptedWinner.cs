@@ -1,4 +1,4 @@
-﻿using Mahjong.Lib.Game.Games.Scoring;
+﻿using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Tiles;
 

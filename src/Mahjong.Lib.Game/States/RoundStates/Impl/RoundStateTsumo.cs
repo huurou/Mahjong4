@@ -26,7 +26,7 @@ public record RoundStateTsumo : RoundState
             {
                 round = round.PendRiichi(round.Turn);
             }
-            return round.Dahai(evt.Tile, context.TenpaiChecker);
+            return round.Dahai(evt.Tile);
         });
     }
 
@@ -63,7 +63,8 @@ public record RoundStateTsumo : RoundState
         var loserIndex = context.Round.Turn;
         // Tsumo の和了牌 = 和了者の手牌末尾 (直前にツモった牌)
         var winTile = context.Round.HandArray[context.Round.Turn].Last();
-        var (settledRound, details) = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, winTile, context.ScoreCalculator);
+        var scoreResults = CalculateScoreResults(context, context.Round, evt.WinnerIndices, loserIndex, evt.WinType, winTile);
+        var (settledRound, details) = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, winTile, scoreResults);
         var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType, details.Winners, details.Honba, details.KyoutakuRiichiAward);
         Transit(context, () => new RoundStateWin(eventArgs), _ => settledRound);
     }

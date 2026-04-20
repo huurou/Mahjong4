@@ -95,7 +95,7 @@ public partial class RoundStateContext
         // (3 段目 副作用防止は throw により Round 更新前に停止することで達成)
         if (isInquired)
         {
-            var semantic = ResponseValidator.ValidateSemantic(response, round, playerSpec.PlayerIndex, spec.Phase, TenpaiChecker);
+            var semantic = ResponseValidator.ValidateSemantic(response, round, playerSpec.PlayerIndex, spec.Phase);
             if (!semantic.IsValid)
             {
                 tracer.OnInvalidResponse(notificationId, playerSpec.PlayerIndex, response, playerSpec.CandidateList);

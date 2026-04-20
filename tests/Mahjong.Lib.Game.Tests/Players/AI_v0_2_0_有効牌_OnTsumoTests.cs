@@ -7,7 +7,6 @@ using Mahjong.Lib.Game.Players.Impl;
 using Mahjong.Lib.Game.Responses;
 using Mahjong.Lib.Game.Rivers;
 using Mahjong.Lib.Game.Rounds;
-using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Tiles;
 using Mahjong.Lib.Game.Views;
 
@@ -19,13 +18,13 @@ public class AI_v0_2_0_有効牌_OnTsumoTests
     public async Task TsumoAgariCandidateあり_TsumoAgariResponseを返す()
     {
         // Arrange
-        var player = CreateAI(new FakeShantenEvaluator());
+        var player = CreateAI();
         var candidates = new CandidateList(
         [
             new TsumoAgariCandidate(),
             new DahaiCandidate(new DahaiOptionList([new DahaiOption(new Tile(0), false)])),
         ]);
-        var notification = new TsumoNotification(CreateView(new Hand()), new Tile(0), candidates, [new PlayerIndex(0)]);
+        var notification = new TsumoNotification(CreateView(new Hand(Enumerable.Range(0, 14).Select(x => new Tile(x * 4)))), new Tile(0), candidates, [new PlayerIndex(0)]);
 
         // Act
         var response = await player.OnTsumoAsync(notification, TestContext.Current.CancellationToken);
@@ -35,31 +34,13 @@ public class AI_v0_2_0_有効牌_OnTsumoTests
     }
 
     [Fact]
-    public async Task シャンテンが最小になる打牌候補が選ばれる()
+    public async Task DahaiCandidateあり_有効なDahaiResponseを返す()
     {
         // Arrange
         var hand = new Hand(Enumerable.Range(0, 14).Select(x => new Tile(x * 4)));
         var tileA = new Tile(0);
-        var tileB = new Tile(4);
-        var tileC = new Tile(8);
-        var options = new DahaiOptionList(
-        [
-            new DahaiOption(tileA, false),
-            new DahaiOption(tileB, false),
-            new DahaiOption(tileC, false),
-        ]);
-
-        var evaluator = new FakeShantenEvaluator(
-            calcShanten: (h, _) =>
-            {
-                var ids = h.Select(x => x.Id).ToHashSet();
-                if (!ids.Contains(tileA.Id)) { return 0; } // tileA を抜いた
-                if (!ids.Contains(tileB.Id)) { return 1; } // tileB を抜いた
-                if (!ids.Contains(tileC.Id)) { return 2; } // tileC を抜いた
-                return 3;
-            }
-        );
-        var player = CreateAI(evaluator, hand: hand);
+        var options = new DahaiOptionList([new DahaiOption(tileA, false)]);
+        var player = CreateAI(hand: hand);
 
         var candidates = new CandidateList([new DahaiCandidate(options)]);
         var notification = new TsumoNotification(CreateView(hand), tileA, candidates, [new PlayerIndex(0)]);
@@ -70,47 +51,6 @@ public class AI_v0_2_0_有効牌_OnTsumoTests
         // Assert
         var dahai = Assert.IsType<DahaiResponse>(response);
         Assert.Equal(tileA.Id, dahai.Tile.Id);
-        Assert.False(dahai.IsRiichi);
-    }
-
-    [Fact]
-    public async Task シャンテン同値で有効牌枚数が最多の打牌候補が選ばれる()
-    {
-        // Arrange
-        var hand = new Hand(Enumerable.Range(0, 14).Select(x => new Tile(x * 4)));
-        var tileA = new Tile(0);
-        var tileB = new Tile(4);
-        var tileC = new Tile(8);
-        var options = new DahaiOptionList(
-        [
-            new DahaiOption(tileA, false),
-            new DahaiOption(tileB, false),
-            new DahaiOption(tileC, false),
-        ]);
-
-        // すべて同じシャンテンだが有効牌が異なる: tileB 抜きが最多 (牌種 20 = 4枚未見)
-        var evaluator = new FakeShantenEvaluator(
-            calcShanten: (_, _) => 0,
-            enumerateUseful: (h, _) =>
-            {
-                var ids = h.Select(x => x.Id).ToHashSet();
-                if (!ids.Contains(tileA.Id)) { return [18]; }     // 1種
-                if (!ids.Contains(tileB.Id)) { return [19, 20]; } // 2種 (8枚分)
-                if (!ids.Contains(tileC.Id)) { return [21]; }     // 1種
-                return [];
-            }
-        );
-        var player = CreateAI(evaluator, hand: hand);
-
-        var candidates = new CandidateList([new DahaiCandidate(options)]);
-        var notification = new TsumoNotification(CreateView(hand), tileA, candidates, [new PlayerIndex(0)]);
-
-        // Act
-        var response = await player.OnTsumoAsync(notification, TestContext.Current.CancellationToken);
-
-        // Assert
-        var dahai = Assert.IsType<DahaiResponse>(response);
-        Assert.Equal(tileB.Id, dahai.Tile.Id);
     }
 
     [Fact]
@@ -123,8 +63,7 @@ public class AI_v0_2_0_有効牌_OnTsumoTests
         [
             new DahaiOption(tileA, RiichiAvailable: true),
         ]);
-        var evaluator = new FakeShantenEvaluator(calcShanten: (_, _) => 0);
-        var player = CreateAI(evaluator, hand: hand);
+        var player = CreateAI(hand: hand);
 
         var candidates = new CandidateList([new DahaiCandidate(options)]);
         var notification = new TsumoNotification(CreateView(hand), tileA, candidates, [new PlayerIndex(0)]);
@@ -138,7 +77,80 @@ public class AI_v0_2_0_有効牌_OnTsumoTests
     }
 
     [Fact]
-    public async Task 全候補同点_同一シードで同じ打牌を返す()
+    public async Task シャンテンが最小になる打牌候補が選ばれる()
+    {
+        // Arrange: 七対子 6 対 + 孤立 2 枚 (m5, p5) の 14 枚手牌
+        // - m5 切り / p5 切り → 七対子テンパイ (shanten=0)
+        // - m1 切り → 七対子 2 シャンテン (対子を崩す)
+        // AI は m1 切りを選ばないはず
+        var hand = new Hand(
+        [
+            new Tile(0), new Tile(1),      // m1 m1
+            new Tile(8), new Tile(9),      // m3 m3
+            new Tile(36), new Tile(37),    // p1 p1
+            new Tile(44), new Tile(45),    // p3 p3
+            new Tile(72), new Tile(73),    // s1 s1
+            new Tile(80), new Tile(81),    // s3 s3
+            new Tile(16),                   // m5 (孤立)
+            new Tile(52),                   // p5 (孤立)
+        ]);
+        var tileM5 = new Tile(16);
+        var tileP5 = new Tile(52);
+        var tileM1 = new Tile(0);
+        var options = new DahaiOptionList(
+        [
+            new DahaiOption(tileM5, false),
+            new DahaiOption(tileP5, false),
+            new DahaiOption(tileM1, false),
+        ]);
+        var player = CreateAI(hand: hand);
+        var candidates = new CandidateList([new DahaiCandidate(options)]);
+        var notification = new TsumoNotification(CreateView(hand), tileM5, candidates, [new PlayerIndex(0)]);
+
+        // Act
+        var response = await player.OnTsumoAsync(notification, TestContext.Current.CancellationToken);
+
+        // Assert: m1 切りは 2 シャンテンになるため選ばれない
+        var dahai = Assert.IsType<DahaiResponse>(response);
+        Assert.NotEqual(tileM1.Id, dahai.Tile.Id);
+    }
+
+    [Fact]
+    public async Task シャンテン同値で有効牌枚数が最多の打牌候補が選ばれる()
+    {
+        // Arrange: 14 枚和了形 m123 p123 s123 m456 + 東東
+        // - m1 切り → shanten=0、有効牌 {m1, m4} (6 枚未見)
+        // - 東 切り → shanten=0、有効牌 {東} (2 枚未見、手に東 2 枚なので)
+        // AI は有効牌数が多い m1 切りを選ぶ
+        var hand = new Hand(
+        [
+            new Tile(0), new Tile(4), new Tile(8),      // m123
+            new Tile(36), new Tile(40), new Tile(44),   // p123
+            new Tile(72), new Tile(76), new Tile(80),   // s123
+            new Tile(12), new Tile(16), new Tile(20),   // m456
+            new Tile(108), new Tile(109),                // 東東
+        ]);
+        var tileM1 = new Tile(0);
+        var tileTon = new Tile(108);
+        var options = new DahaiOptionList(
+        [
+            new DahaiOption(tileM1, false),
+            new DahaiOption(tileTon, false),
+        ]);
+        var player = CreateAI(hand: hand);
+        var candidates = new CandidateList([new DahaiCandidate(options)]);
+        var notification = new TsumoNotification(CreateView(hand), tileM1, candidates, [new PlayerIndex(0)]);
+
+        // Act
+        var response = await player.OnTsumoAsync(notification, TestContext.Current.CancellationToken);
+
+        // Assert
+        var dahai = Assert.IsType<DahaiResponse>(response);
+        Assert.Equal(tileM1.Id, dahai.Tile.Id);
+    }
+
+    [Fact]
+    public async Task 同一シードで同じ打牌を返す()
     {
         // Arrange
         var hand = new Hand(Enumerable.Range(0, 14).Select(x => new Tile(x * 4)));
@@ -150,13 +162,12 @@ public class AI_v0_2_0_有効牌_OnTsumoTests
             new DahaiOption(new Tile(12), false),
         ]);
 
-        var evaluator = new FakeShantenEvaluator(calcShanten: (_, _) => 0);
         var candidates = new CandidateList([new DahaiCandidate(options)]);
         var notification = new TsumoNotification(CreateView(hand), new Tile(0), candidates, [new PlayerIndex(0)]);
 
-        // Act: 同一シードで 2 個の player を作り、同じ入力に対して同じ応答が返ることを確認
-        var player1 = CreateAI(evaluator, seed: 100, hand: hand);
-        var player2 = CreateAI(evaluator, seed: 100, hand: hand);
+        // Act
+        var player1 = CreateAI(seed: 100, hand: hand);
+        var player2 = CreateAI(seed: 100, hand: hand);
         var responses1 = new List<int>();
         var responses2 = new List<int>();
         for (var i = 0; i < 10; i++)
@@ -175,7 +186,7 @@ public class AI_v0_2_0_有効牌_OnTsumoTests
     public async Task DahaiCandidateなし_例外()
     {
         // Arrange
-        var player = CreateAI(new FakeShantenEvaluator());
+        var player = CreateAI();
         var candidates = new CandidateList([]);
         var notification = new TsumoNotification(CreateView(new Hand()), new Tile(0), candidates, [new PlayerIndex(0)]);
 
@@ -186,9 +197,9 @@ public class AI_v0_2_0_有効牌_OnTsumoTests
         Assert.IsType<InvalidOperationException>(ex);
     }
 
-    private static AI_v0_2_0_有効牌 CreateAI(IShantenEvaluator evaluator, int seed = 42, Hand? hand = null)
+    private static AI_v0_2_0_有効牌 CreateAI(int seed = 42, Hand? hand = null)
     {
-        return new AI_v0_2_0_有効牌(PlayerId.NewId(), new PlayerIndex(0), new Random(seed), evaluator);
+        return new AI_v0_2_0_有効牌(PlayerId.NewId(), new PlayerIndex(0), new Random(seed));
     }
 
     private static PlayerRoundView CreateView(Hand ownHand)

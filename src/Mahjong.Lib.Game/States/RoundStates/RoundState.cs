@@ -1,8 +1,11 @@
-﻿using Mahjong.Lib.Game.Inquiries;
-using Mahjong.Lib.Game.Adoptions;
+﻿using Mahjong.Lib.Game.Games;
+using Mahjong.Lib.Game.Inquiries;
+using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Rounds.Managing;
 using Mahjong.Lib.Game.States.RoundStates.Impl;
+using Mahjong.Lib.Game.Tiles;
+using System.Collections.Immutable;
 
 namespace Mahjong.Lib.Game.States.RoundStates;
 
@@ -72,7 +75,7 @@ public abstract record RoundState
     /// 順序は Exit → updateRound 適用 (null 以外のとき) → createNextState 評価 → State 差替 → Entry。
     /// イミュータブル集約 <see cref="Round"/> の外部書き換えを防ぐため、状態遷移時の Round 更新はこの経路のみで行う。
     /// updateRound 適用後の <see cref="RoundStateContext.Round"/> を遷移先のプロパティへ封入したい場合は
-    /// createNextState 内で <c>context.Round</c> を参照する (例: <see cref="Impl.RoundStateCall.SnapshotRound"/>)
+    /// createNextState 内で <c>context.Round</c> を参照する (例: <see cref="RoundStateCall.SnapshotRound"/>)
     /// </summary>
     /// <param name="context">状態遷移コンテキスト</param>
     /// <param name="createNextState">updateRound 適用後に評価される遷移先状態ファクトリ</param>
@@ -80,5 +83,22 @@ public abstract record RoundState
     protected static void Transit(RoundStateContext context, Func<RoundState> createNextState, Func<Round, Round>? updateRound = null)
     {
         context.Transit(createNextState, updateRound);
+    }
+
+    /// <summary>
+    /// 各和了者ごとに <see cref="ScoringHelper.Calculate"/> を呼び出して <see cref="ScoreResult"/> を集めます。
+    /// 全 ResponseWin ハンドラ (Dahai/Tsumo/Kan/KanTsumo) で共通利用する。
+    /// 立直キャンセル等で <paramref name="round"/> が <see cref="RoundStateContext.Round"/> と異なるケースに備え、評価対象 Round を引数で受け取る
+    /// </summary>
+    protected static ImmutableArray<ScoreResult> CalculateScoreResults(
+        RoundStateContext context,
+        Round round,
+        ImmutableArray<PlayerIndex> winnerIndices,
+        PlayerIndex loserIndex,
+        WinType winType,
+        Tile winTile
+    )
+    {
+        return [.. winnerIndices.Select(x => ScoringHelper.Calculate(new ScoreRequest(round, x, loserIndex, winType, winTile), context.Rules))];
     }
 }

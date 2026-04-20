@@ -1,12 +1,11 @@
-﻿using System.Collections.Immutable;
-using Mahjong.Lib.Game.Calls;
+﻿using Mahjong.Lib.Game.Calls;
 using Mahjong.Lib.Game.Candidates;
-using Mahjong.Lib.Game.Hands;
 using Mahjong.Lib.Game.Inquiries;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Responses;
 using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Tiles;
+using System.Collections.Immutable;
 
 namespace Mahjong.Lib.Game.Rounds.Managing;
 
@@ -66,15 +65,14 @@ internal static class ResponseValidator
         PlayerResponse response,
         Round round,
         PlayerIndex playerIndex,
-        RoundInquiryPhase phase,
-        ITenpaiChecker tenpaiChecker
+        RoundInquiryPhase phase
     )
     {
         return response switch
         {
             OkResponse => SemanticValidationResult.Ok,
-            DahaiResponse d => ValidateDahai(round, playerIndex, d.Tile, d.IsRiichi, tenpaiChecker),
-            KanTsumoDahaiResponse d => ValidateDahai(round, playerIndex, d.Tile, d.IsRiichi, tenpaiChecker),
+            DahaiResponse d => ValidateDahai(round, playerIndex, d.Tile, d.IsRiichi),
+            KanTsumoDahaiResponse d => ValidateDahai(round, playerIndex, d.Tile, d.IsRiichi),
             AnkanResponse a => ValidateAnkan(round, playerIndex, a.Tile),
             KanTsumoAnkanResponse a => ValidateAnkan(round, playerIndex, a.Tile),
             KakanResponse k => ValidateKakan(round, playerIndex, k.Tile),
@@ -102,8 +100,7 @@ internal static class ResponseValidator
         Round round,
         PlayerIndex playerIndex,
         Tile tile,
-        bool isRiichi,
-        ITenpaiChecker tenpaiChecker
+        bool isRiichi
     )
     {
         var hand = round.HandArray[playerIndex];
@@ -119,20 +116,24 @@ internal static class ResponseValidator
             {
                 return SemanticValidationResult.Invalid("門前ではないため立直宣言できません。");
             }
+
             if (status.IsRiichi)
             {
                 return SemanticValidationResult.Invalid("既に立直宣言済みです。");
             }
+
             if (round.PointArray[playerIndex].Value < RIICHI_POINT_MIN)
             {
                 return SemanticValidationResult.Invalid($"持ち点が {RIICHI_POINT_MIN} 点未満のため立直宣言できません。");
             }
+
             if (round.Wall.LiveRemaining < RIICHI_WALL_MIN)
             {
                 return SemanticValidationResult.Invalid($"ツモ山残が {RIICHI_WALL_MIN} 枚未満のため立直宣言できません。");
             }
-            var remaining = new Hand(RemoveFirst(hand, tile));
-            if (!tenpaiChecker.IsTenpai(remaining, round.CallListArray[playerIndex]))
+
+            var remaining = new Hands.Hand(RemoveFirst(hand, tile));
+            if (!TenpaiHelper.IsTenpai(remaining))
             {
                 return SemanticValidationResult.Invalid("打牌後テンパイしていないため立直宣言できません。");
             }
@@ -176,25 +177,31 @@ internal static class ResponseValidator
         {
             return SemanticValidationResult.Invalid($"チーの手牌使用枚数は 2 枚ですが {handTiles.Length} 枚でした。");
         }
+
         var hand = round.HandArray[playerIndex];
         if (!ContainsAll(hand, handTiles))
         {
             return SemanticValidationResult.Invalid("チーで使用する手牌が実際の手牌に存在しません。");
         }
+
         var discardedTile = round.RiverArray[round.Turn].LastOrDefault();
         if (discardedTile is null)
         {
             return SemanticValidationResult.Invalid("直前の打牌が見つかりません。");
         }
+
         var kinds = new[] { handTiles[0].Kind, handTiles[1].Kind, discardedTile.Kind }.OrderBy(x => x).ToArray();
-        if (kinds[0] >= 27 || kinds[0] / 9 != kinds[2] / 9)
+        if (!kinds[0].IsNumber || !kinds[0].IsSameSuit(kinds[2]))
         {
             return SemanticValidationResult.Invalid("チーは同一数牌スートの連続 3 牌のみ可能です。");
         }
-        if (kinds[1] != kinds[0] + 1 || kinds[2] != kinds[0] + 2)
+
+        if (!kinds[0].TryGetAtDistance(1, out var next1) || next1 != kinds[1] ||
+            !kinds[0].TryGetAtDistance(2, out var next2) || next2 != kinds[2])
         {
             return SemanticValidationResult.Invalid($"チーの順子が連続 3 牌ではありません ({kinds[0]},{kinds[1]},{kinds[2]})。");
         }
+
         return SemanticValidationResult.Ok;
     }
 
@@ -208,6 +215,7 @@ internal static class ResponseValidator
         {
             return SemanticValidationResult.Invalid($"ポンの手牌使用枚数は 2 枚ですが {handTiles.Length} 枚でした。");
         }
+
         return ValidateSameKindCall(round, playerIndex, handTiles, callName: "ポン");
     }
 
@@ -221,6 +229,7 @@ internal static class ResponseValidator
         {
             return SemanticValidationResult.Invalid($"大明槓の手牌使用枚数は 3 枚ですが {handTiles.Length} 枚でした。");
         }
+
         return ValidateSameKindCall(round, playerIndex, handTiles, callName: "大明槓");
     }
 
@@ -236,15 +245,18 @@ internal static class ResponseValidator
         {
             return SemanticValidationResult.Invalid($"{callName}で使用する手牌が実際の手牌に存在しません。");
         }
+
         var discardedTile = round.RiverArray[round.Turn].LastOrDefault();
         if (discardedTile is null)
         {
             return SemanticValidationResult.Invalid("直前の打牌が見つかりません。");
         }
+
         if (handTiles.Any(x => x.Kind != discardedTile.Kind))
         {
             return SemanticValidationResult.Invalid($"{callName}は全牌が打牌と同種である必要があります。");
         }
+
         return SemanticValidationResult.Ok;
     }
 
@@ -255,10 +267,12 @@ internal static class ResponseValidator
         {
             return SemanticValidationResult.Invalid("フリテン状態のためロン宣言できません。");
         }
+
         if (status.IsTemporaryFuriten)
         {
             return SemanticValidationResult.Invalid("同巡フリテン状態のためロン宣言できません。");
         }
+
         return SemanticValidationResult.Ok;
     }
 
@@ -272,6 +286,7 @@ internal static class ResponseValidator
         {
             return SemanticValidationResult.Invalid($"ツモ和了は手牌 + 副露で 14 枚相当が必要ですが {totalCount} 枚でした。");
         }
+
         return SemanticValidationResult.Ok;
     }
 
@@ -282,28 +297,34 @@ internal static class ResponseValidator
         {
             return SemanticValidationResult.Invalid("九種九牌は第一打前のみ宣言できます。");
         }
+
         var hand = round.HandArray[playerIndex];
-        var yaochuuKinds = hand.Select(x => x.Kind).Where(IsYaochuuKind).Distinct().Count();
+        var yaochuuKinds = hand.Select(x => x.Kind).Where(x => x.IsYaochu).Distinct().Count();
         if (yaochuuKinds < KYUUSHU_KIND_MIN)
         {
             return SemanticValidationResult.Invalid($"九種九牌は幺九牌 {KYUUSHU_KIND_MIN} 種以上が必要ですが {yaochuuKinds} 種でした。");
         }
+
         return SemanticValidationResult.Ok;
     }
 
-    private static bool ContainsAll(Hand hand, ImmutableArray<Tile> tiles)
+    private static bool ContainsAll(Hands.Hand hand, ImmutableArray<Tile> tiles)
     {
         var remaining = hand.ToList();
         foreach (var tile in tiles)
         {
             var index = remaining.FindIndex(x => x.Equals(tile));
-            if (index < 0) { return false; }
+            if (index < 0)
+            {
+                return false;
+            }
+
             remaining.RemoveAt(index);
         }
         return true;
     }
 
-    private static IEnumerable<Tile> RemoveFirst(Hand hand, Tile target)
+    private static IEnumerable<Tile> RemoveFirst(Hands.Hand hand, Tile target)
     {
         var removed = false;
         foreach (var tile in hand)
@@ -313,13 +334,9 @@ internal static class ResponseValidator
                 removed = true;
                 continue;
             }
+
             yield return tile;
         }
-    }
-
-    private static bool IsYaochuuKind(int kind)
-    {
-        return kind is 0 or 8 or 9 or 17 or 18 or 26 or >= 27;
     }
 }
 

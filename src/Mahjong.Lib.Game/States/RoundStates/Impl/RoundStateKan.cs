@@ -1,5 +1,6 @@
 ﻿using Mahjong.Lib.Game.Calls;
 using Mahjong.Lib.Game.Candidates;
+using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Inquiries;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
@@ -12,8 +13,10 @@ namespace Mahjong.Lib.Game.States.RoundStates.Impl;
 /// <summary>
 /// 槓（暗槓・加槓）
 /// ResponseWin は加槓に対する槍槓ロン、および暗槓に対する国士無双の槍槓ロンで発生する。
-/// 暗槓チャンカンは <see cref="Games.GameRules.AllowAnkanChankanForKokushi"/> が true かつ国士無双テンパイの場合のみ成立する。
-/// 成立可否の判定 (国士無双以外の役満を不許可とする等) は <see cref="IScoreCalculator"/> 側に委譲する。
+/// 暗槓チャンカンは <see cref="GameRules.AllowAnkanChankanForKokushi"/> が true かつ国士無双テンパイの場合のみ成立する。
+/// 暗槓チャンカンの非国士役除外は <see cref="ResponseCandidateEnumerator.EnumerateForKan"/> の候補列挙段階で
+/// 「暗槓 + 全幺九牌 + ロン候補成立」の 3 条件を確認することで保証する
+/// (<see cref="ScoringHelper"/> には暗槓/加槓を区別する情報が渡されないため、ここでは候補絞り込み側に責任を置く)
 /// </summary>
 /// <param name="KanType">直前に実行された槓の種別 (Ankan または Kakan)</param>
 /// <param name="KanTiles">直前の槓で使われた槓子4枚
@@ -37,12 +40,13 @@ public record RoundStateKan(CallType KanType, ImmutableArray<Tile> KanTiles) : R
         }
 
         // 放銃者は現手番 (= 槓宣言者)。
-        // 暗槓チャンカンは国士無双のみ成立可能。役判定は ScoreCalculator に委譲する。
+        // 暗槓チャンカンは国士無双のみ成立可能 (候補絞り込みは ResponseCandidateEnumerator で保証済み)。
         var loserIndex = context.Round.Turn;
         // Chankan の和了牌 = 槓で追加された牌 (加槓: addedTile / 暗槓: 国士対応時の槓子末尾)。
         // 副露リスト末尾ではなく KanTiles 末尾を参照するため、過去の加槓/ポン等と混同しない
         var winTile = KanTiles[^1];
-        var (settledRound, details) = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, winTile, context.ScoreCalculator);
+        var scoreResults = CalculateScoreResults(context, context.Round, evt.WinnerIndices, loserIndex, evt.WinType, winTile);
+        var (settledRound, details) = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, winTile, scoreResults);
         var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType, details.Winners, details.Honba, details.KyoutakuRiichiAward);
         Transit(context, () => new RoundStateWin(eventArgs), _ => settledRound);
     }

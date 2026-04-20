@@ -1,5 +1,6 @@
 ﻿using Mahjong.Lib.Game.Calls;
 using Mahjong.Lib.Game.Candidates;
+using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Inquiries;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
@@ -25,7 +26,7 @@ public record RoundStateDahai : RoundState
         if (IsRyuukyoku(confirmedRound))
         {
             // 荒牌平局: テンパイ者・流し満貫者を判定し RyuukyokuSettler に渡す
-            var tenpaiPlayers = EnumerateTenpaiPlayers(confirmedRound, context.TenpaiChecker);
+            var tenpaiPlayers = EnumerateTenpaiPlayers(confirmedRound);
             var nagashiManganPlayers = EnumerateNagashiManganPlayers(confirmedRound);
             var eventArgs = new RoundEndedByRyuukyokuEventArgs(RyuukyokuType.KouhaiHeikyoku, tenpaiPlayers, nagashiManganPlayers);
             var settledRound = confirmedRound.SettleRyuukyoku(RyuukyokuType.KouhaiHeikyoku, tenpaiPlayers, nagashiManganPlayers);
@@ -77,7 +78,8 @@ public record RoundStateDahai : RoundState
         var loserIndex = round.Turn;
         // Ron の和了牌 = 放銃者の河末尾 (= 直前に打たれた牌)
         var winTile = round.RiverArray[loserIndex].Last();
-        var (settledRound, details) = round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, winTile, context.ScoreCalculator);
+        var scoreResults = CalculateScoreResults(context, round, evt.WinnerIndices, loserIndex, evt.WinType, winTile);
+        var (settledRound, details) = round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, winTile, scoreResults);
         var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType, details.Winners, details.Honba, details.KyoutakuRiichiAward);
         Transit(context, () => new RoundStateWin(eventArgs), _ => settledRound);
     }
@@ -103,13 +105,13 @@ public record RoundStateDahai : RoundState
         return new RoundInquirySpec(RoundInquiryPhase.Dahai, specs.ToImmutable(), inquiredBuilder.ToImmutable(), round.Turn);
     }
 
-    private static ImmutableArray<PlayerIndex> EnumerateTenpaiPlayers(Round round, ITenpaiChecker tenpaiChecker)
+    private static ImmutableArray<PlayerIndex> EnumerateTenpaiPlayers(Round round)
     {
         var builder = ImmutableArray.CreateBuilder<PlayerIndex>();
         for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
         {
             var playerIndex = new PlayerIndex(i);
-            if (tenpaiChecker.IsTenpai(round.HandArray[playerIndex], round.CallListArray[playerIndex]))
+            if (TenpaiHelper.IsTenpai(round.HandArray[playerIndex]))
             {
                 builder.Add(playerIndex);
             }

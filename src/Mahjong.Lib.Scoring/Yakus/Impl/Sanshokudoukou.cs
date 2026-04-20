@@ -31,7 +31,7 @@ public record Sanshokudoukou : Yaku
             {
                 foreach (var sou in sous)
                 {
-                    if (man[0].Value % 9 == pin[0].Value % 9 && pin[0].Value % 9 == sou[0].Value % 9) { return true; }
+                    if (man[0].Number == pin[0].Number && pin[0].Number == sou[0].Number) { return true; }
                 }
             }
         }

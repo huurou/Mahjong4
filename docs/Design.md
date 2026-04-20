@@ -331,7 +331,7 @@ AdoptedRoundAction (abstract)
 - **`IGameTracer`の購読方式**: `GameManager`には単一の`IGameTracer`を注入する。複数購読したい場合は利用側で`CompositeGameTracer`を構成
 - **`Game`の局履歴**: `Game` record に過去局の履歴は持たない。履歴集計は`IGameTracer`実装側の責務
 - **対局開始パラメータ**: `GameManager`コンストラクタで外部から直接注入(`PlayerList` / `GameRules` / `ImmutableArray<Player>` / `IWallGenerator`)。初期持ち点は`GameRules`(対局前に決まる要素)。当面の初期持ち点は全員35000点。起家は`PlayerList`の並びで表現する(index 0 が起家、並び替えは呼び出し側責務)
-- **点数計算の接続**: `Mahjong.Lib.Game` に `IScoreCalculator` 抽象を定義し、`GameManager`に注入する。`Mahjong.Lib.Scoring` の `HandCalculator` をラップする実装は**上位層**(ApiService等)で作って注入する(`Lib.Game` は `Lib.Scoring` に直接依存しない方針を維持)。流局時のノーテン罰符・テンパイ料計算は点数計算器に含めず、`GameManager`/`RoundState`側で天鳳ルール準拠で処理
+- **点数計算の接続**: `Mahjong.Lib.Game` は `Mahjong.Lib.Scoring` に `ProjectReference` で**直接依存する**。和了時の点数計算・テンパイ判定・向聴計算は `ScoringHelper` / `TenpaiHelper` / `ShantenHelper` の静的ヘルパー (`internal`) 経由で `HandCalculator` / `ShantenCalculator` / `HandDivider` を呼び出す。流局時のノーテン罰符・テンパイ料計算はヘルパー側に含めず、`Round.SettleRyuukyoku` 内で天鳳ルール準拠で処理する。将来「特殊ルールで点数計算を差し替える」要件が発生した場合は静的ヘルパーを抽象化し直す
 - **連荘・本場**: 親和了 → 連荘+本場+1、親テンパイ流局 → 連荘+本場+1、子和了/親ノーテン流局 → 親流れ+本場リセット。途中流局(九種九牌/四風連打/四家立直/三家和/四槓散了)は点数移動なし・親流れなし・本場+1(天鳳ルール)。ダブロンなど複雑ケースの扱いはルール実装時に再検討
 - **オーラス親あがり止め**: 親がオーラス(南四局など対局形式の最終局)で和了し、その時点で**1位単独確定**の場合のみ止める。同点トップ/1位だが2位との点差で逆転余地がある場合は続行(連荘)。判定は`GameRules`に定義された原点/対局形式に基づき`GameEndPolicy.ShouldEndAfterRound`が局終了時に実施
 - **流局時点数移動**: 荒牌平局のテンパイ料(1人:3000 / 2人:1500・3000 / 3人:1000・3000)、ノーテン罰符。いずれも天鳳ルール準拠

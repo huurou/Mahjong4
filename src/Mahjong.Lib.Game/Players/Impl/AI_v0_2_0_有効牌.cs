@@ -3,6 +3,7 @@ using Mahjong.Lib.Game.Notifications;
 using Mahjong.Lib.Game.Responses;
 using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Views;
+using Mahjong.Lib.Scoring.Tiles;
 using System.Collections.Immutable;
 
 namespace Mahjong.Lib.Game.Players.Impl;
@@ -15,8 +16,7 @@ namespace Mahjong.Lib.Game.Players.Impl;
 public sealed class AI_v0_2_0_有効牌(
     PlayerId playerId,
     PlayerIndex playerIndex,
-    Random rng,
-    IShantenEvaluator evaluator
+    Random rng
 ) : Player(playerId, DISPLAY_NAME, playerIndex)
 {
     /// <summary>
@@ -25,7 +25,6 @@ public sealed class AI_v0_2_0_有効牌(
     public const string DISPLAY_NAME = "ver.0.2.0 有効牌";
 
     private readonly Random rng_ = rng;
-    private readonly IShantenEvaluator evaluator_ = evaluator;
 
     public override Task<OkResponse> OnGameStartAsync(GameStartNotification notification, CancellationToken ct = default)
     {
@@ -138,30 +137,29 @@ public sealed class AI_v0_2_0_有効牌(
         }
 
         var hand14 = view.OwnHand;
-        var callList = view.CallListArray[view.ViewerIndex];
 
         // Tile.Kind をキーに Shanten / 有効牌 / 未見枚数をメモ化する。
-        // 同一 Kind の打牌候補 (例: 萬1 を 3 枚持つ場合の各牌) は Hand13 が同形になるため結果が一致する。
-        // 最悪で Kind 種数ぶんしか ShantenCalculator を呼ばないため、34 牌種ループの重複計算を抑制できる
-        var shantenCache = new Dictionary<int, int>();
-        var usefulCache = new Dictionary<int, ImmutableHashSet<int>>();
-        var visibleCache = new Dictionary<int, int>();
+        // 同一 Kind の打牌候補 (例: 萬1 を 3枚持つ場合の各牌) は Hand13 が同形になるため結果が一致する。
+        // 最悪で Kind 数しか ShantenCalculator を呼ばないため、34牌種ループの重複計算を抑制できる
+        var shantenCache = new Dictionary<TileKind, int>();
+        var usefulCache = new Dictionary<TileKind, ImmutableHashSet<TileKind>>();
+        var visibleCache = new Dictionary<TileKind, int>();
 
-        int GetShanten(Hands.Hand hand13, int kind)
+        int GetShanten(Hands.Hand hand13, TileKind kind)
         {
             if (!shantenCache.TryGetValue(kind, out var shanten))
             {
-                shanten = evaluator_.CalcShanten(hand13, callList);
+                shanten = ShantenHelper.CalcShanten(hand13);
                 shantenCache[kind] = shanten;
             }
             return shanten;
         }
 
-        int GetScore(Hands.Hand hand13, int kind)
+        int GetScore(Hands.Hand hand13, TileKind kind)
         {
             if (!usefulCache.TryGetValue(kind, out var useful))
             {
-                useful = evaluator_.EnumerateUsefulTileKinds(hand13, callList);
+                useful = ShantenHelper.EnumerateUsefulTileKinds(hand13);
                 usefulCache[kind] = useful;
             }
             var score = 0;
@@ -200,12 +198,12 @@ public sealed class AI_v0_2_0_有効牌(
 /// 各席には seed と index を <see cref="HashCode.Combine{T1, T2}(T1, T2)"/> で合成した値で Random を初期化し、
 /// 同一 seed に対する再現性を保ちつつ席間の内部状態が近接しないようにする
 /// </summary>
-public sealed class AI_v0_2_0_有効牌Factory(int seed, IShantenEvaluator evaluator) : IPlayerFactory
+public sealed class AI_v0_2_0_有効牌Factory(int seed) : IPlayerFactory
 {
     public string DisplayName => AI_v0_2_0_有効牌.DISPLAY_NAME;
 
     public Player Create(PlayerIndex index, PlayerId id)
     {
-        return new AI_v0_2_0_有効牌(id, index, new Random(HashCode.Combine(seed, index.Value)), evaluator);
+        return new AI_v0_2_0_有効牌(id, index, new Random(HashCode.Combine(seed, index.Value)));
     }
 }

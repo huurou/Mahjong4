@@ -27,7 +27,7 @@ public record RoundStateAfterKanTsumo : RoundState
             {
                 round = round.PendRiichi(round.Turn);
             }
-            return round.Dahai(evt.Tile, context.TenpaiChecker);
+            return round.Dahai(evt.Tile);
         });
     }
 

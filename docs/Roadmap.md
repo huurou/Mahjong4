@@ -180,13 +180,59 @@ Phase 5 で持ち越された下記項目を本フェーズ冒頭で解消した
 - 同一シードで再実行すると統計が完全一致
 - 全テスト 2186 件合格 (Lib.Game / Lib.Game.Scoring / Lib.Game.AutoPlay / Lib.Scoring 等)
 
-## Phase 7 AIアルゴリズム強化
+## Phase 7: 橋渡しプロジェクト撤廃と AI v0.2.0 (完了)
 
-- 書籍を参考にAIアルゴリズムを強化し、統計を取って確認しながら進める
+**目的**: Phase 6B で導入したブリッジプロジェクト `Mahjong.Lib.Game.Scoring` を撤廃し、`Lib.Game` が `Lib.Scoring` に直接依存する構造へ統合する。あわせて型安全性を上げ、AI v0.2.0 (有効牌) を導入する。
+
+### 実装済み
+
+**7A. ブリッジ撤廃と静的ヘルパー集約**
+
+- `Mahjong.Lib.Game.Scoring` プロジェクトおよび `Mahjong.Lib.Game.Scoring.Tests` を削除
+- `IScoreCalculator` / `ITenpaiChecker` / `IShantenEvaluator` の3抽象を撤廃 (元の実装が薄いラッパーで DI の価値が低かった、`ITenpaiChecker.IsTenpai/EnumerateWaitTileKinds` も実質 `CallList` を使っていなかった)
+- `Mahjong.Lib.Game` が `Mahjong.Lib.Scoring` に `ProjectReference` で直接依存
+- 静的ヘルパーへ集約 (いずれも `internal`):
+  - `ScoringHelper.Calculate(ScoreRequest, GameRules) : ScoreResult` — `HandCalculator.Calc` をラップ
+  - `TenpaiHelper.IsTenpai / EnumerateWaitTileKinds / IsKoutsuOnlyInAllInterpretations` — `ShantenCalculator.Calc` / `HandDivider.Divide` を呼ぶ
+  - `ShantenHelper.CalcShanten / EnumerateUsefulTileKinds` — `ShantenCalculator.Calc` を呼ぶ
+- いずれも副露を別途渡さない API。`ShantenCalculator.Calc` が `MentsuCount += (14 - tileKindList.Count) / 3` で副露・暗槓分を手牌枚数不足から自動補完するため、副露を引数として渡す必要がない
+- 型変換ヘルパー `ScoringConversions` (Hand → TileKindList、Call → Scoring.Call、GameRules → Scoring.GameRules、ScoreRequest → WinSituation) を `Mahjong.Lib.Game.Games` に集約
+
+**7B. 型安全性向上**
+
+- `Tile.Kind` を `int` → `Mahjong.Lib.Scoring.Tiles.TileKind` 型に昇格 (`TileKind.All[Id / 4]`)
+- `TileKind` に `IsSameSuit(other)` 追加 (`Value / 9` 同値判定)
+- `PaoDetector` / `Call` / `ResponseCandidateEnumerator` / `ResponseValidator` 等のマジックナンバー (27, 27/9 等) を `IsWind` / `IsDragon` / `IsNumber` / `IsYaochu` / `IsSameSuit` / `TryGetAtDistance` 呼び出しに置換
+
+**7C. Round.SettleWin の責任分離**
+
+- シグネチャを `IScoreCalculator scoreCalculator` → `ImmutableArray<ScoreResult> scoreResults` に変更
+- 各 `RoundState[Dahai/Tsumo/Kan/KanTsumo].ResponseWin` で事前に `RoundState.CalculateScoreResults` (基底 `protected static`) 経由で点数計算結果を構築し、`Round.SettleWin` に渡す
+- これにより `Round` 集約が点数計算器を知らない純粋な集約となる
+
+**7D. ScoreResult 設計の更新**
+
+- 旧 `YakuInfo` (独自の役情報型) を撤廃し、`ScoreResult.YakuList: Mahjong.Lib.Scoring.Yakus.YakuList` で `Yaku` 具象型集合を直接保持
+- 包 (責任払い) 判定は `YakuPaoExtensions.HasPaoEligibleYaku()` 拡張で `Daisangen / Daisuushii / DaisuushiiDouble / Suukantsu` を pattern match
+- `ScoreResult.IsMenzen` を追加 (副露なし or 暗槓のみ)。表示時に `Yaku.HanClosed` / `HanOpen` のどちらを参照するかの判定材料
+
+**7E. テスト整理**
+
+- 旧 Mock 依存テスト (`PermissiveTenpaiChecker` / `NoOpScoreCalculator`) を撤廃
+- `GameManager_IntegrationTests` のロン/ツモ/流局シナリオを実山牌配置 (`BuildOyaDahaiKoRonWall` / `BuildDealerTsumoAgariWall`) で deterministic に再構築
 
 ### v0.2.0 シャンテン数と有効牌
 
-- シャンテン数が減らない牌を切る
+- 書籍を参考にAIアルゴリズムを強化し、統計を取って確認しながら進める
+- `AI_v0_2_0_有効牌` — シャンテン数が減らない牌から、未見枚数で重み付けして選んで切る
+- `IShantenEvaluator` 抽象を撤廃し、`ShantenHelper` を直接呼ぶ
+- `MixedPlayerFactory` で複数 AI を混ぜた対局統計を取得可能に
+
+### Phase 7 完了の定義
+
+- `Mahjong.Lib.Game.Scoring` プロジェクト・テストが削除済
+- 全テスト合格 (Lib.Game / Lib.Game.AutoPlay / Lib.Scoring 等)
+- `dotnet run --project tools/Mahjong.Lib.Game.AutoPlay -- --games 100` が完走
 - シャンテン数が減らない牌の中で、それを切ったあと、見えていない有効牌の枚数が最も多いものを切る
 - 有効牌とは引いた時にシャンテン数が減る牌のことである
 - 有効牌の牌種別を求めるメソッドと牌種別を指定して見えてない枚数を求めるメソッドを用意して牌を判断する

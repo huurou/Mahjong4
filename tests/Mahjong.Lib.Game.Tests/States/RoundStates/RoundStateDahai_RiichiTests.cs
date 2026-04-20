@@ -38,13 +38,14 @@ public class RoundStateDahai_RiichiTests : IDisposable
     }
 
     [Fact]
-    public void 立直宣言付き打牌_ロン応答で不成立_持ち点と供託は変わらない()
+    public void 立直宣言付き打牌_ロン応答で不成立_供託に立直棒が積まれない()
     {
         // Arrange
         RoundStateContextTestHelper.InitDirect(context_, RoundStateContextTestHelper.CreateRound());
         RoundStateContextTestHelper.DriveResponseOk(context_);
+        // 親の手牌末尾を p5 + 子(index 1) に p5 単騎タンヤオテンパイを仕込む
+        RoundStateContextTestHelper.InjectRonAgariScenario(context_, new PlayerIndex(1));
         var dealer = new PlayerIndex(0);
-        var initialPoint = context_.Round.PointArray[dealer].Value;
         var initialKyoutaku = context_.Round.KyoutakuRiichiCount.Value;
         var tile = RoundStateContextTestHelper.PickTileToDahai(context_);
 
@@ -52,8 +53,8 @@ public class RoundStateDahai_RiichiTests : IDisposable
         RoundStateContextTestHelper.DriveResponseDahai(context_, tile, isRiichi: true);
         RoundStateContextTestHelper.DriveRonWin(context_, new PlayerIndex(1), dealer);
 
-        // Assert: 立直は不成立 → 持ち点も供託も変化なし、IsRiichi も false
-        Assert.Equal(initialPoint, context_.Round.PointArray[dealer].Value);
+        // Assert: 立直は不成立 → 供託立直棒は増えない、IsRiichi は false、PendingRiichi は解除
+        // (和了分の点数移動は発生するため親の持ち点は減少する。本テストは 立直 refund のみを検証する)
         Assert.Equal(initialKyoutaku, context_.Round.KyoutakuRiichiCount.Value);
         Assert.False(context_.Round.PlayerRoundStatusArray[dealer].IsRiichi);
         Assert.Null(context_.Round.PendingRiichiPlayerIndex);

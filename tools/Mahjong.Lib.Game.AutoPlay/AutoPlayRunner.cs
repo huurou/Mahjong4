@@ -1,12 +1,10 @@
 ﻿using Mahjong.Lib.Game.AutoPlay.Tracing;
 using Mahjong.Lib.Game.Games;
-using Mahjong.Lib.Game.Games.Scoring;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds.Managing;
 using Mahjong.Lib.Game.States.GameStates;
 using Mahjong.Lib.Game.States.GameStates.Impl;
 using Mahjong.Lib.Game.States.RoundStates;
-using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Walls;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
@@ -18,8 +16,6 @@ namespace Mahjong.Lib.Game.AutoPlay;
 /// </summary>
 public sealed class AutoPlayRunner(
     IWallGenerator wallGenerator,
-    IScoreCalculator scoreCalculator,
-    ITenpaiChecker tenpaiChecker,
     IRoundViewProjector projector,
     IResponseCandidateEnumerator enumerator,
     IResponsePriorityPolicy priorityPolicy,
@@ -81,8 +77,6 @@ public sealed class AutoPlayRunner(
             playerList,
             rules,
             wallGenerator,
-            scoreCalculator,
-            tenpaiChecker,
             projector,
             enumerator,
             priorityPolicy,

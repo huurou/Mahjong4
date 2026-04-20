@@ -1,15 +1,11 @@
-﻿using Mahjong.Lib.Game.Games;
-using Mahjong.Lib.Game.Games.Scoring;
-using Mahjong.Lib.Game.Notifications;
+﻿using Mahjong.Lib.Game.Notifications;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Rounds.Managing;
 using Mahjong.Lib.Game.States.GameStates.Impl;
 using Mahjong.Lib.Game.States.RoundStates;
-using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Walls;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using System.Diagnostics;
 using System.Threading.Channels;
 
@@ -21,8 +17,6 @@ namespace Mahjong.Lib.Game.States.GameStates;
 /// </summary>
 public class GameStateContext(
     IWallGenerator wallGenerator,
-    IScoreCalculator scoreCalculator,
-    ITenpaiChecker tenpaiChecker,
     PlayerList players,
     IRoundViewProjector projector,
     IResponseCandidateEnumerator enumerator,
@@ -57,16 +51,6 @@ public class GameStateContext(
     /// 山牌生成機
     /// </summary>
     public IWallGenerator WallGenerator { get; } = wallGenerator;
-
-    /// <summary>
-    /// テンパイ判定機 (Round 生成時に注入され、フリテン判定・荒牌平局精算で使用される)
-    /// </summary>
-    public ITenpaiChecker TenpaiChecker { get; } = tenpaiChecker;
-
-    /// <summary>
-    /// 和了時点数計算機 (Round 生成時に注入され、和了精算で使用される)
-    /// </summary>
-    public IScoreCalculator ScoreCalculator { get; } = scoreCalculator;
 
     /// <summary>
     /// 現在進行中の局の RoundStateContext 局終了と共に破棄される
@@ -147,8 +131,7 @@ public class GameStateContext(
             enumerator,
             priorityPolicy,
             defaultFactory,
-            TenpaiChecker,
-            ScoreCalculator,
+            Game.Rules,
             tracer,
             roundStateContextLogger
         );
@@ -301,8 +284,7 @@ public class GameStateContext(
     {
         GameEvent evt = args switch
         {
-            RoundEndedByWinEventArgs win => new GameEventRoundEndedByWin(
-                win.WinnerIndices, win.LoserIndex, win.WinType, win.Winners, win.Honba, win.KyoutakuRiichiAward),
+            RoundEndedByWinEventArgs win => new GameEventRoundEndedByWin(win.WinnerIndices, win.LoserIndex, win.WinType, win.Winners, win.Honba, win.KyoutakuRiichiAward),
             RoundEndedByRyuukyokuEventArgs ryuukyoku => new GameEventRoundEndedByRyuukyoku(ryuukyoku.Type, ryuukyoku.TenpaiPlayerIndices, ryuukyoku.NagashiManganPlayerIndices),
             _ => throw new NotSupportedException($"未対応の局終了引数: {args?.GetType().Name}"),
         };

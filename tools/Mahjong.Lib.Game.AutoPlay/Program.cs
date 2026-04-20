@@ -2,12 +2,9 @@
 using Mahjong.Lib.Game.AutoPlay.Paifu;
 using Mahjong.Lib.Game.AutoPlay.Tracing;
 using Mahjong.Lib.Game.Games;
-using Mahjong.Lib.Game.Games.Scoring;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Players.Impl;
 using Mahjong.Lib.Game.Rounds.Managing;
-using Mahjong.Lib.Game.Scoring;
-using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Walls;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -20,25 +17,21 @@ services.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Inf
 var rules = new GameRules();
 services.AddSingleton(rules);
 services.AddSingleton<IWallGenerator>(_ => new ShuffledWallGenerator(options.Seed));
-services.AddSingleton<IScoreCalculator>(_ => new ScoreCalculatorImpl(rules));
-services.AddSingleton<ITenpaiChecker, TenpaiCheckerImpl>();
-services.AddSingleton<IShantenEvaluator, ShantenEvaluatorImpl>();
 services.AddSingleton<IRoundViewProjector, RoundViewProjector>();
-services.AddSingleton<IResponseCandidateEnumerator>(sp => new ResponseCandidateEnumerator(sp.GetRequiredService<ITenpaiChecker>(), rules));
+services.AddSingleton<IResponseCandidateEnumerator>(_ => new ResponseCandidateEnumerator(rules));
 services.AddSingleton<IResponsePriorityPolicy, TenhouResponsePriorityPolicy>();
 services.AddSingleton<IDefaultResponseFactory, DefaultResponseFactory>();
 
 // AI の組み合わせはこの配列で指定する (同一 AI を 4 席並べれば単独対局)。
 // MixedPlayerFactory が対局ごとに席配置をランダムシャッフルする
-services.AddSingleton<IPlayerFactory>(sp =>
+services.AddSingleton<IPlayerFactory>(_ =>
 {
-    var evaluator = sp.GetRequiredService<IShantenEvaluator>();
     var aiFactories = new IPlayerFactory[]
     {
         new AI_v0_1_0_ランダムFactory(options.Seed),
         new AI_v0_1_0_ランダムFactory(options.Seed),
-        new AI_v0_2_0_有効牌Factory(options.Seed, evaluator),
-        new AI_v0_2_0_有効牌Factory(options.Seed, evaluator),
+        new AI_v0_2_0_有効牌Factory(options.Seed),
+        new AI_v0_2_0_有効牌Factory(options.Seed),
     };
     return new MixedPlayerFactory(aiFactories, new Random(options.Seed));
 });

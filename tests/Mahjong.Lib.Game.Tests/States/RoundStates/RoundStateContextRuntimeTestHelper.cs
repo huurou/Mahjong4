@@ -1,15 +1,9 @@
-﻿using Mahjong.Lib.Game.Calls;
-using Mahjong.Lib.Game.Games;
-using Mahjong.Lib.Game.Games.Scoring;
-using Mahjong.Lib.Game.Hands;
+﻿using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds.Managing;
 using Mahjong.Lib.Game.States.RoundStates;
-using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Tests.Players;
-using Mahjong.Lib.Game.Tests.Rounds;
 using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
 
 namespace Mahjong.Lib.Game.Tests.States.RoundStates;
 
@@ -30,47 +24,12 @@ internal static class RoundStateContextRuntimeTestHelper
     }
 
     /// <summary>
-    /// 親 (PlayerIndex 0) の 1 巡目 / 2 巡目のツモ牌種 (既定山: kind 13 / 14) を待ち牌とする <see cref="ITenpaiChecker"/>。
-    /// 全牌種を waits にすると <see cref="Round.Dahai"/> 後の <see cref="Round.EvaluateFuriten"/> が自分の打牌を待ち牌とみなして
-    /// IsFuriten=true を立て、直後のツモ和了候補が消えてしまう問題があるため、
-    /// 親の TsumoAgari だけを成立させる最小限の waits 集合にしている
-    /// </summary>
-    internal static ITenpaiChecker CreatePermissiveTenpaiChecker()
-    {
-        var mock = new Mock<ITenpaiChecker>();
-        mock.Setup(x => x.IsTenpai(It.IsAny<Hand>(), It.IsAny<CallList>())).Returns(false);
-        mock.Setup(x => x.EnumerateWaitTileKinds(It.IsAny<Hand>(), It.IsAny<CallList>()))
-            .Returns([13, 14]);
-        mock.Setup(x => x.IsKoutsuOnlyInAllInterpretations(It.IsAny<Hand>(), It.IsAny<CallList>(), It.IsAny<int>()))
-            .Returns(true);
-        return mock.Object;
-    }
-
-    /// <summary>
-    /// NoOp サービスを注入した <see cref="RoundStateContext"/> を生成する
+    /// 既定の <see cref="RoundStateContext"/> を生成する
     /// </summary>
     internal static RoundStateContext CreateDefaultContext(IEnumerable<Player> players)
     {
         return CreateContext(
             players,
-            RoundTestHelper.NoOpTenpaiChecker,
-            RoundTestHelper.NoOpScoreCalculator,
-            new GameRules(),
-            NullGameTracer.Instance,
-            NullLogger<RoundStateContext>.Instance
-        );
-    }
-
-    /// <summary>
-    /// 全牌種を待ち牌とする緩和 TenpaiChecker を使って <see cref="RoundStateContext"/> を生成する。
-    /// H4 合法応答検証の下で Ron/TsumoAgari を任意のタイミングで成立させたいテストで使用する
-    /// </summary>
-    internal static RoundStateContext CreatePermissiveContext(IEnumerable<Player> players)
-    {
-        return CreateContext(
-            players,
-            CreatePermissiveTenpaiChecker(),
-            RoundTestHelper.NoOpScoreCalculator,
             new GameRules(),
             NullGameTracer.Instance,
             NullLogger<RoundStateContext>.Instance
@@ -82,8 +41,6 @@ internal static class RoundStateContextRuntimeTestHelper
     /// </summary>
     internal static RoundStateContext CreateContext(
         IEnumerable<Player> players,
-        ITenpaiChecker tenpaiChecker,
-        IScoreCalculator scoreCalculator,
         GameRules rules,
         IGameTracer tracer,
         Microsoft.Extensions.Logging.ILogger<RoundStateContext> logger
@@ -92,14 +49,22 @@ internal static class RoundStateContextRuntimeTestHelper
         return new RoundStateContext(
             new PlayerList(players),
             new RoundViewProjector(),
-            new ResponseCandidateEnumerator(tenpaiChecker, rules),
+            new ResponseCandidateEnumerator(rules),
             new TenhouResponsePriorityPolicy(),
             new DefaultResponseFactory(),
-            tenpaiChecker,
-            scoreCalculator,
+            rules,
             tracer,
             logger
         );
+    }
+
+    /// <summary>
+    /// 通知・応答集約ループの実計算ベースの <see cref="RoundStateContext"/> を返す。
+    /// (旧 Mock ベースの Permissive TenpaiChecker は廃止され、実計算に統一済。ここでは既定実装を返す)
+    /// </summary>
+    internal static RoundStateContext CreatePermissiveContext(IEnumerable<Player> players)
+    {
+        return CreateDefaultContext(players);
     }
 
     /// <summary>

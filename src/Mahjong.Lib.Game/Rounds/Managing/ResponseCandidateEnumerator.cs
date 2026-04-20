@@ -1,11 +1,12 @@
 ﻿using Mahjong.Lib.Game.Calls;
 using Mahjong.Lib.Game.Candidates;
 using Mahjong.Lib.Game.Games;
-using Mahjong.Lib.Game.Hands;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Tiles;
+using Mahjong.Lib.Scoring.Tiles;
 using System.Collections.Immutable;
+using Hand = Mahjong.Lib.Game.Hands.Hand;
 
 namespace Mahjong.Lib.Game.Rounds.Managing;
 
@@ -15,10 +16,7 @@ namespace Mahjong.Lib.Game.Rounds.Managing;
 /// ツモ前の手牌のすべての分解解釈で該当牌種が刻子として使われる) の 3 条件を満たす場合のみ提示する。
 /// 立直中の加槓は常に不可
 /// </summary>
-public sealed class ResponseCandidateEnumerator(
-    ITenpaiChecker tenpaiChecker,
-    GameRules rules
-) : IResponseCandidateEnumerator
+public sealed class ResponseCandidateEnumerator(GameRules rules) : IResponseCandidateEnumerator
 {
 
     private const int RIICHI_POINT_MIN = 1000;
@@ -32,20 +30,20 @@ public sealed class ResponseCandidateEnumerator(
         var callList = round.CallListArray[turnPlayerIndex];
         var status = round.PlayerRoundStatusArray[turnPlayerIndex];
 
-        builder.Add(BuildDahaiCandidate(round, turnPlayerIndex, hand, callList, status));
+        builder.Add(BuildDahaiCandidate(round, turnPlayerIndex, hand, status));
 
-        if (TryBuildTsumoAgariCandidate(hand, callList, status) is { } tsumoAgari)
+        if (TryBuildTsumoAgariCandidate(hand) is { } tsumoAgari)
         {
             builder.Add(tsumoAgari);
         }
 
-        builder.AddRange(BuildAnkanCandidates(round, turnPlayerIndex, hand, callList, status));
+        builder.AddRange(BuildAnkanCandidates(round, hand, callList, status));
         if (!status.IsRiichi)
         {
             builder.AddRange(BuildKakanCandidates(round, hand, callList));
         }
 
-        if (status.IsFirstTurnBeforeDiscard && hand.Select(x => x.Kind).Where(IsYaochuuKind).Distinct().Count() >= KYUUSHU_KIND_MIN)
+        if (status.IsFirstTurnBeforeDiscard && hand.Select(x => x.Kind).Where(x => x.IsYaochu).Distinct().Count() >= KYUUSHU_KIND_MIN)
         {
             builder.Add(new KyuushuKyuuhaiCandidate());
         }
@@ -57,10 +55,9 @@ public sealed class ResponseCandidateEnumerator(
     {
         var builder = ImmutableList.CreateBuilder<ResponseCandidate>();
         var hand = round.HandArray[responderIndex];
-        var callList = round.CallListArray[responderIndex];
         var status = round.PlayerRoundStatusArray[responderIndex];
 
-        if (TryBuildRonCandidate(hand, callList, status, discardedTile) is { } ron)
+        if (TryBuildRonCandidate(hand, status, discardedTile) is { } ron)
         {
             builder.Add(ron);
         }
@@ -92,9 +89,8 @@ public sealed class ResponseCandidateEnumerator(
         if (kanType is CallType.Kakan)
         {
             var hand = round.HandArray[responderIndex];
-            var callList = round.CallListArray[responderIndex];
             var status = round.PlayerRoundStatusArray[responderIndex];
-            if (TryBuildRonCandidate(hand, callList, status, kanTiles[0]) is not null)
+            if (TryBuildRonCandidate(hand, status, kanTiles[0]) is not null)
             {
                 builder.Add(new ChankanRonCandidate());
             }
@@ -102,14 +98,13 @@ public sealed class ResponseCandidateEnumerator(
         else if (kanType is CallType.Ankan && rules.AllowAnkanChankanForKokushi)
         {
             // 暗槓チャンカンは国士無双のみ成立。手牌13枚と暗槓牌種がすべて幺九牌である場合に候補を提示する
-            // (役制限は ScoreCalculator 側で国士無双以外を不成立として担保する)
+            // (役制限は ScoringHelper 側で国士無双以外を不成立として担保する)
             var hand = round.HandArray[responderIndex];
-            var callList = round.CallListArray[responderIndex];
             var status = round.PlayerRoundStatusArray[responderIndex];
             var ankanKind = kanTiles[0].Kind;
-            if (IsYaochuuKind(ankanKind) &&
-                hand.All(x => IsYaochuuKind(x.Kind)) &&
-                TryBuildRonCandidate(hand, callList, status, kanTiles[0]) is not null)
+            if (ankanKind.IsYaochu &&
+                hand.All(x => x.Kind.IsYaochu) &&
+                TryBuildRonCandidate(hand, status, kanTiles[0]) is not null)
             {
                 builder.Add(new ChankanRonCandidate());
             }
@@ -126,12 +121,12 @@ public sealed class ResponseCandidateEnumerator(
         var callList = round.CallListArray[turnPlayerIndex];
         var status = round.PlayerRoundStatusArray[turnPlayerIndex];
 
-        builder.Add(BuildDahaiCandidate(round, turnPlayerIndex, hand, callList, status));
-        if (TryBuildTsumoAgariCandidate(hand, callList, status) is not null)
+        builder.Add(BuildDahaiCandidate(round, turnPlayerIndex, hand, status));
+        if (TryBuildTsumoAgariCandidate(hand) is not null)
         {
             builder.Add(new RinshanTsumoAgariCandidate());
         }
-        builder.AddRange(BuildAnkanCandidates(round, turnPlayerIndex, hand, callList, status));
+        builder.AddRange(BuildAnkanCandidates(round, hand, callList, status));
         if (!status.IsRiichi)
         {
             builder.AddRange(BuildKakanCandidates(round, hand, callList));
@@ -147,8 +142,8 @@ public sealed class ResponseCandidateEnumerator(
         var callList = round.CallListArray[turnPlayerIndex];
         var status = round.PlayerRoundStatusArray[turnPlayerIndex];
 
-        builder.Add(BuildDahaiCandidate(round, turnPlayerIndex, hand, callList, status));
-        builder.AddRange(BuildAnkanCandidates(round, turnPlayerIndex, hand, callList, status));
+        builder.Add(BuildDahaiCandidate(round, turnPlayerIndex, hand, status));
+        builder.AddRange(BuildAnkanCandidates(round, hand, callList, status));
         if (!status.IsRiichi)
         {
             builder.AddRange(BuildKakanCandidates(round, hand, callList));
@@ -157,11 +152,10 @@ public sealed class ResponseCandidateEnumerator(
         return new CandidateList(builder.ToImmutable());
     }
 
-    private DahaiCandidate BuildDahaiCandidate(
+    private static DahaiCandidate BuildDahaiCandidate(
         Round round,
         PlayerIndex turnPlayerIndex,
         Hand hand,
-        CallList callList,
         PlayerRoundStatus status
     )
     {
@@ -175,14 +169,14 @@ public sealed class ResponseCandidateEnumerator(
         foreach (var tile in candidateTiles)
         {
             var remaining = new Hand(RemoveFirst(hand, tile));
-            var riichiAvailable = riichiBase && tenpaiChecker.IsTenpai(remaining, callList);
+            var riichiAvailable = riichiBase && TenpaiHelper.IsTenpai(remaining);
             options.Add(new DahaiOption(tile, riichiAvailable));
         }
 
         return new DahaiCandidate(new DahaiOptionList(options.ToImmutable()));
     }
 
-    private TsumoAgariCandidate? TryBuildTsumoAgariCandidate(Hand hand, CallList callList, PlayerRoundStatus status)
+    private static TsumoAgariCandidate? TryBuildTsumoAgariCandidate(Hand hand)
     {
         // フリテンはロン/チャンカンのみ禁止で、ツモ和了は可能
         if (hand.Count() < 2)
@@ -192,13 +186,12 @@ public sealed class ResponseCandidateEnumerator(
 
         var tsumoTile = hand.Last();
         var remaining = new Hand(RemoveFirst(hand, tsumoTile));
-        var waits = tenpaiChecker.EnumerateWaitTileKinds(remaining, callList);
+        var waits = TenpaiHelper.EnumerateWaitTileKinds(remaining);
         return waits.Contains(tsumoTile.Kind) ? new TsumoAgariCandidate() : null;
     }
 
-    private RonCandidate? TryBuildRonCandidate(
+    private static RonCandidate? TryBuildRonCandidate(
         Hand hand,
-        CallList callList,
         PlayerRoundStatus status,
         Tile targetTile
     )
@@ -208,7 +201,7 @@ public sealed class ResponseCandidateEnumerator(
             return null;
         }
 
-        var waits = tenpaiChecker.EnumerateWaitTileKinds(hand, callList);
+        var waits = TenpaiHelper.EnumerateWaitTileKinds(hand);
         return waits.Contains(targetTile.Kind) ? new RonCandidate() : null;
     }
 
@@ -242,20 +235,13 @@ public sealed class ResponseCandidateEnumerator(
         Tile discardedTile
     )
     {
-        if (responderIndex != round.Turn.Next() || discardedTile.Kind >= 27) { yield break; }
+        if (responderIndex != round.Turn.Next() || !discardedTile.Kind.IsNumber) { yield break; }
 
-        var suit = discardedTile.Kind / 9;
         var tilesByKind = hand.GroupBy(x => x.Kind).ToDictionary(x => x.Key, x => x.ToList());
-        var patterns = new (int KindA, int KindB)[]
+        foreach (var (distanceA, distanceB) in new[] { (-2, -1), (-1, 1), (1, 2) })
         {
-            (discardedTile.Kind - 2, discardedTile.Kind - 1),
-            (discardedTile.Kind - 1, discardedTile.Kind + 1),
-            (discardedTile.Kind + 1, discardedTile.Kind + 2),
-        };
-        foreach (var (kindA, kindB) in patterns)
-        {
-            if (kindA < 0 || kindB < 0 || kindA >= 27 || kindB >= 27 ||
-                kindA / 9 != suit || kindB / 9 != suit ||
+            if (!discardedTile.Kind.TryGetAtDistance(distanceA, out var kindA) ||
+                !discardedTile.Kind.TryGetAtDistance(distanceB, out var kindB) ||
                 !tilesByKind.TryGetValue(kindA, out var tilesA) ||
                 !tilesByKind.TryGetValue(kindB, out var tilesB))
             {
@@ -293,7 +279,7 @@ public sealed class ResponseCandidateEnumerator(
         }
     }
 
-    private IEnumerable<AnkanCandidate> BuildAnkanCandidates(Round round, PlayerIndex turnPlayerIndex, Hand hand, CallList callList, PlayerRoundStatus status)
+    private static IEnumerable<AnkanCandidate> BuildAnkanCandidates(Round round, Hand hand, CallList callList, PlayerRoundStatus status)
     {
         if (!round.Wall.CanKan) { yield break; }
 
@@ -319,20 +305,16 @@ public sealed class ResponseCandidateEnumerator(
 
         var tsumoTile = hand.Last();
         var handWithoutTsumo = new Hand(RemoveFirst(hand, tsumoTile));
-        var waitsBefore = tenpaiChecker.EnumerateWaitTileKinds(handWithoutTsumo, callList);
+        var waitsBefore = TenpaiHelper.EnumerateWaitTileKinds(handWithoutTsumo);
         foreach (var group in groups)
         {
             if (group.Key != tsumoTile.Kind) { continue; }
 
             var four = group.Take(4).ToImmutableArray();
             var handAfter = new Hand(RemoveFour(hand, four));
-            // 暗槓後の待ち判定は新暗槓を副露として加えた状態で計算する
-            // (Hand と CallList で「14 枚相当」を維持することで ITenpaiChecker の整合前提を満たす)
-            var ankanCall = new Call(CallType.Ankan, [.. four], turnPlayerIndex, calledTile: null);
-            var callListAfter = callList.Add(ankanCall);
-            var waitsAfter = tenpaiChecker.EnumerateWaitTileKinds(handAfter, callListAfter);
+            var waitsAfter = TenpaiHelper.EnumerateWaitTileKinds(handAfter);
             if (!waitsBefore.SetEquals(waitsAfter)) { continue; }
-            if (!tenpaiChecker.IsKoutsuOnlyInAllInterpretations(handWithoutTsumo, callList, group.Key)) { continue; }
+            if (!TenpaiHelper.IsKoutsuOnlyInAllInterpretations(handWithoutTsumo, group.Key)) { continue; }
 
             yield return new AnkanCandidate(four);
         }
@@ -384,10 +366,5 @@ public sealed class ResponseCandidateEnumerator(
 
             yield return tile;
         }
-    }
-
-    private static bool IsYaochuuKind(int kind)
-    {
-        return kind is 0 or 8 or 9 or 17 or 18 or 26 or >= 27;
     }
 }

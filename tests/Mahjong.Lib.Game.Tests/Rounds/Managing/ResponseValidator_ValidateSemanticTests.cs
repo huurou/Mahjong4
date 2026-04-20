@@ -40,7 +40,7 @@ public class ResponseValidator_ValidateSemanticTests
             dealerHand.Add(new Tile(dealerHand.Count * 3 + 21));
         }
         round = RoundTestHelper.InjectHand(round, round.Turn, dealerHand.Take(14));
-        return round.Dahai(dahaiTile, RoundTestHelper.NoOpTenpaiChecker);
+        return round.Dahai(dahaiTile);
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public class ResponseValidator_ValidateSemanticTests
 
         // Act
         var result = ResponseValidator.ValidateSemantic(
-            new OkResponse(), round, new PlayerIndex(0), RoundInquiryPhase.Haipai, RoundTestHelper.NoOpTenpaiChecker);
+            new OkResponse(), round, new PlayerIndex(0), RoundInquiryPhase.Haipai);
 
         // Assert
         Assert.True(result.IsValid);
@@ -66,7 +66,7 @@ public class ResponseValidator_ValidateSemanticTests
 
         // Act
         var result = ResponseValidator.ValidateSemantic(
-            new DahaiResponse(tile), round, round.Turn, RoundInquiryPhase.Tsumo, RoundTestHelper.NoOpTenpaiChecker);
+            new DahaiResponse(tile), round, round.Turn, RoundInquiryPhase.Tsumo);
 
         // Assert
         Assert.True(result.IsValid);
@@ -82,7 +82,7 @@ public class ResponseValidator_ValidateSemanticTests
 
         // Act
         var result = ResponseValidator.ValidateSemantic(
-            new DahaiResponse(absentTile), round, round.Turn, RoundInquiryPhase.Tsumo, RoundTestHelper.NoOpTenpaiChecker);
+            new DahaiResponse(absentTile), round, round.Turn, RoundInquiryPhase.Tsumo);
 
         // Assert
         Assert.False(result.IsValid);
@@ -102,7 +102,7 @@ public class ResponseValidator_ValidateSemanticTests
 
         // Act
         var result = ResponseValidator.ValidateSemantic(
-            new DahaiResponse(tile, IsRiichi: true), round, round.Turn, RoundInquiryPhase.Tsumo, RoundTestHelper.NoOpTenpaiChecker);
+            new DahaiResponse(tile, IsRiichi: true), round, round.Turn, RoundInquiryPhase.Tsumo);
 
         // Assert
         Assert.False(result.IsValid);
@@ -120,11 +120,9 @@ public class ResponseValidator_ValidateSemanticTests
             PointArray = new PointArray(new Point(25000))
                 .AddPoint(round.Turn, -24500), // 親を 500 点に
         };
-        var tenpaiChecker = CreateAlwaysTenpaiChecker();
-
         // Act
         var result = ResponseValidator.ValidateSemantic(
-            new DahaiResponse(tile, IsRiichi: true), round, round.Turn, RoundInquiryPhase.Tsumo, tenpaiChecker);
+            new DahaiResponse(tile, IsRiichi: true), round, round.Turn, RoundInquiryPhase.Tsumo);
 
         // Assert
         Assert.False(result.IsValid);
@@ -140,7 +138,7 @@ public class ResponseValidator_ValidateSemanticTests
 
         // Act
         var result = ResponseValidator.ValidateSemantic(
-            new DahaiResponse(tile, IsRiichi: true), round, round.Turn, RoundInquiryPhase.Tsumo, RoundTestHelper.NoOpTenpaiChecker);
+            new DahaiResponse(tile, IsRiichi: true), round, round.Turn, RoundInquiryPhase.Tsumo);
 
         // Assert
         Assert.False(result.IsValid);
@@ -155,12 +153,12 @@ public class ResponseValidator_ValidateSemanticTests
         // 手牌を同種 4 枚含む構成に差し替え
         var fourKind = Enumerable.Range(0, 4).Select(x => new Tile(x)).ToList();
         var hand = new List<Tile>(fourKind);
-        hand.AddRange(round.HandArray[round.Turn].Where(x => x.Kind != 0).Take(10));
+        hand.AddRange(round.HandArray[round.Turn].Where(x => x.Kind != Scoring.Tiles.TileKind.Man1).Take(10));
         round = RoundTestHelper.InjectHand(round, round.Turn, hand);
 
         // Act
         var result = ResponseValidator.ValidateSemantic(
-            new AnkanResponse(new Tile(0)), round, round.Turn, RoundInquiryPhase.Tsumo, RoundTestHelper.NoOpTenpaiChecker);
+            new AnkanResponse(new Tile(0)), round, round.Turn, RoundInquiryPhase.Tsumo);
 
         // Assert
         Assert.True(result.IsValid);
@@ -173,12 +171,12 @@ public class ResponseValidator_ValidateSemanticTests
         var round = CreateHaipaiRound();
         // 手牌: kind 0 を 3 枚だけ
         var hand = new List<Tile> { new(0), new(1), new(2) };
-        hand.AddRange(round.HandArray[round.Turn].Where(x => x.Kind != 0).Take(11));
+        hand.AddRange(round.HandArray[round.Turn].Where(x => x.Kind != Scoring.Tiles.TileKind.Man1).Take(11));
         round = RoundTestHelper.InjectHand(round, round.Turn, hand);
 
         // Act
         var result = ResponseValidator.ValidateSemantic(
-            new AnkanResponse(new Tile(0)), round, round.Turn, RoundInquiryPhase.Tsumo, RoundTestHelper.NoOpTenpaiChecker);
+            new AnkanResponse(new Tile(0)), round, round.Turn, RoundInquiryPhase.Tsumo);
 
         // Assert
         Assert.False(result.IsValid);
@@ -199,7 +197,7 @@ public class ResponseValidator_ValidateSemanticTests
 
         // Act
         var result = ResponseValidator.ValidateSemantic(
-            new RonResponse(), round, new PlayerIndex(1), RoundInquiryPhase.Dahai, RoundTestHelper.NoOpTenpaiChecker);
+            new RonResponse(), round, new PlayerIndex(1), RoundInquiryPhase.Dahai);
 
         // Assert
         Assert.False(result.IsValid);
@@ -221,7 +219,7 @@ public class ResponseValidator_ValidateSemanticTests
 
         // Act
         var result = ResponseValidator.ValidateSemantic(
-            new RonResponse(), round, new PlayerIndex(1), RoundInquiryPhase.Dahai, RoundTestHelper.NoOpTenpaiChecker);
+            new RonResponse(), round, new PlayerIndex(1), RoundInquiryPhase.Dahai);
 
         // Assert
         Assert.False(result.IsValid);
@@ -235,7 +233,7 @@ public class ResponseValidator_ValidateSemanticTests
 
         // Act
         var result = ResponseValidator.ValidateSemantic(
-            new RonResponse(), round, new PlayerIndex(1), RoundInquiryPhase.Dahai, RoundTestHelper.NoOpTenpaiChecker);
+            new RonResponse(), round, new PlayerIndex(1), RoundInquiryPhase.Dahai);
 
         // Assert
         Assert.True(result.IsValid);
@@ -249,7 +247,7 @@ public class ResponseValidator_ValidateSemanticTests
 
         // Act
         var result = ResponseValidator.ValidateSemantic(
-            new TsumoAgariResponse(), round, round.Turn, RoundInquiryPhase.Tsumo, RoundTestHelper.NoOpTenpaiChecker);
+            new TsumoAgariResponse(), round, round.Turn, RoundInquiryPhase.Tsumo);
 
         // Assert
         Assert.True(result.IsValid);
@@ -263,7 +261,7 @@ public class ResponseValidator_ValidateSemanticTests
 
         // Act (子 index 1 は 13 枚のまま)
         var result = ResponseValidator.ValidateSemantic(
-            new TsumoAgariResponse(), round, new PlayerIndex(1), RoundInquiryPhase.Tsumo, RoundTestHelper.NoOpTenpaiChecker);
+            new TsumoAgariResponse(), round, new PlayerIndex(1), RoundInquiryPhase.Tsumo);
 
         // Assert
         Assert.False(result.IsValid);
@@ -284,7 +282,7 @@ public class ResponseValidator_ValidateSemanticTests
 
         // Act
         var result = ResponseValidator.ValidateSemantic(
-            new KyuushuKyuuhaiResponse(), round, round.Turn, RoundInquiryPhase.Tsumo, RoundTestHelper.NoOpTenpaiChecker);
+            new KyuushuKyuuhaiResponse(), round, round.Turn, RoundInquiryPhase.Tsumo);
 
         // Assert
         Assert.False(result.IsValid);
@@ -305,7 +303,7 @@ public class ResponseValidator_ValidateSemanticTests
 
         // Act
         var result = ResponseValidator.ValidateSemantic(
-            new KyuushuKyuuhaiResponse(), round, round.Turn, RoundInquiryPhase.Tsumo, RoundTestHelper.NoOpTenpaiChecker);
+            new KyuushuKyuuhaiResponse(), round, round.Turn, RoundInquiryPhase.Tsumo);
 
         // Assert
         Assert.False(result.IsValid);
@@ -328,7 +326,7 @@ public class ResponseValidator_ValidateSemanticTests
         // Act
         var handTiles = ImmutableArray.Create(new Tile(0), new Tile(4));
         var result = ResponseValidator.ValidateSemantic(
-            new ChiResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai, RoundTestHelper.NoOpTenpaiChecker);
+            new ChiResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai);
 
         // Assert
         Assert.True(result.IsValid);
@@ -345,7 +343,7 @@ public class ResponseValidator_ValidateSemanticTests
         // Act (1 枚のみ)
         var handTiles = ImmutableArray.Create(new Tile(0));
         var result = ResponseValidator.ValidateSemantic(
-            new ChiResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai, RoundTestHelper.NoOpTenpaiChecker);
+            new ChiResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai);
 
         // Assert
         Assert.False(result.IsValid);
@@ -369,7 +367,7 @@ public class ResponseValidator_ValidateSemanticTests
         // Act (callerHand に無い m2 の別コピー Id=5 を指定)
         var handTiles = ImmutableArray.Create(new Tile(0), new Tile(5));
         var result = ResponseValidator.ValidateSemantic(
-            new ChiResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai, RoundTestHelper.NoOpTenpaiChecker);
+            new ChiResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai);
 
         // Assert
         Assert.False(result.IsValid);
@@ -393,7 +391,7 @@ public class ResponseValidator_ValidateSemanticTests
         // Act
         var handTiles = ImmutableArray.Create(new Tile(108), new Tile(112));
         var result = ResponseValidator.ValidateSemantic(
-            new ChiResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai, RoundTestHelper.NoOpTenpaiChecker);
+            new ChiResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai);
 
         // Assert
         Assert.False(result.IsValid);
@@ -417,7 +415,7 @@ public class ResponseValidator_ValidateSemanticTests
         // Act
         var handTiles = ImmutableArray.Create(new Tile(0), new Tile(36));
         var result = ResponseValidator.ValidateSemantic(
-            new ChiResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai, RoundTestHelper.NoOpTenpaiChecker);
+            new ChiResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai);
 
         // Assert
         Assert.False(result.IsValid);
@@ -440,7 +438,7 @@ public class ResponseValidator_ValidateSemanticTests
         // Act
         var handTiles = ImmutableArray.Create(new Tile(0), new Tile(4));
         var result = ResponseValidator.ValidateSemantic(
-            new ChiResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai, RoundTestHelper.NoOpTenpaiChecker);
+            new ChiResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai);
 
         // Assert
         Assert.False(result.IsValid);
@@ -464,7 +462,7 @@ public class ResponseValidator_ValidateSemanticTests
         // Act
         var handTiles = ImmutableArray.Create(new Tile(1), new Tile(2));
         var result = ResponseValidator.ValidateSemantic(
-            new PonResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai, RoundTestHelper.NoOpTenpaiChecker);
+            new PonResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai);
 
         // Assert
         Assert.True(result.IsValid);
@@ -481,7 +479,7 @@ public class ResponseValidator_ValidateSemanticTests
         // Act (3 枚指定)
         var handTiles = ImmutableArray.Create(new Tile(1), new Tile(2), new Tile(3));
         var result = ResponseValidator.ValidateSemantic(
-            new PonResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai, RoundTestHelper.NoOpTenpaiChecker);
+            new PonResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai);
 
         // Assert
         Assert.False(result.IsValid);
@@ -505,7 +503,7 @@ public class ResponseValidator_ValidateSemanticTests
         // Act
         var handTiles = ImmutableArray.Create(new Tile(1), new Tile(2));
         var result = ResponseValidator.ValidateSemantic(
-            new PonResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai, RoundTestHelper.NoOpTenpaiChecker);
+            new PonResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai);
 
         // Assert
         Assert.False(result.IsValid);
@@ -529,7 +527,7 @@ public class ResponseValidator_ValidateSemanticTests
         // Act
         var handTiles = ImmutableArray.Create(new Tile(1), new Tile(2), new Tile(3));
         var result = ResponseValidator.ValidateSemantic(
-            new DaiminkanResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai, RoundTestHelper.NoOpTenpaiChecker);
+            new DaiminkanResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai);
 
         // Assert
         Assert.True(result.IsValid);
@@ -546,7 +544,7 @@ public class ResponseValidator_ValidateSemanticTests
         // Act (2 枚指定)
         var handTiles = ImmutableArray.Create(new Tile(1), new Tile(2));
         var result = ResponseValidator.ValidateSemantic(
-            new DaiminkanResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai, RoundTestHelper.NoOpTenpaiChecker);
+            new DaiminkanResponse(handTiles), round, callerIndex, RoundInquiryPhase.Dahai);
 
         // Assert
         Assert.False(result.IsValid);
@@ -572,7 +570,7 @@ public class ResponseValidator_ValidateSemanticTests
 
         // Act: 加槓で m1 (Id=3) を手牌から出す
         var result = ResponseValidator.ValidateSemantic(
-            new KakanResponse(new Tile(3)), round, callerIndex, RoundInquiryPhase.Tsumo, RoundTestHelper.NoOpTenpaiChecker);
+            new KakanResponse(new Tile(3)), round, callerIndex, RoundInquiryPhase.Tsumo);
 
         // Assert
         Assert.True(result.IsValid);
@@ -591,7 +589,7 @@ public class ResponseValidator_ValidateSemanticTests
 
         // Act
         var result = ResponseValidator.ValidateSemantic(
-            new KakanResponse(new Tile(0)), round, round.Turn, RoundInquiryPhase.Tsumo, RoundTestHelper.NoOpTenpaiChecker);
+            new KakanResponse(new Tile(0)), round, round.Turn, RoundInquiryPhase.Tsumo);
 
         // Assert
         Assert.False(result.IsValid);
@@ -615,7 +613,7 @@ public class ResponseValidator_ValidateSemanticTests
 
         // Act: 手牌に無い m1 (Id=3) を指定
         var result = ResponseValidator.ValidateSemantic(
-            new KakanResponse(new Tile(3)), round, callerIndex, RoundInquiryPhase.Tsumo, RoundTestHelper.NoOpTenpaiChecker);
+            new KakanResponse(new Tile(3)), round, callerIndex, RoundInquiryPhase.Tsumo);
 
         // Assert
         Assert.False(result.IsValid);
@@ -630,7 +628,7 @@ public class ResponseValidator_ValidateSemanticTests
 
         // Act
         var result = ResponseValidator.ValidateSemantic(
-            new ChankanRonResponse(), round, new PlayerIndex(1), RoundInquiryPhase.AfterKanTsumo, RoundTestHelper.NoOpTenpaiChecker);
+            new ChankanRonResponse(), round, new PlayerIndex(1), RoundInquiryPhase.AfterKanTsumo);
 
         // Assert
         Assert.True(result.IsValid);
@@ -651,7 +649,7 @@ public class ResponseValidator_ValidateSemanticTests
 
         // Act
         var result = ResponseValidator.ValidateSemantic(
-            new ChankanRonResponse(), round, new PlayerIndex(1), RoundInquiryPhase.AfterKanTsumo, RoundTestHelper.NoOpTenpaiChecker);
+            new ChankanRonResponse(), round, new PlayerIndex(1), RoundInquiryPhase.AfterKanTsumo);
 
         // Assert
         Assert.False(result.IsValid);
@@ -666,7 +664,7 @@ public class ResponseValidator_ValidateSemanticTests
 
         // Act
         var result = ResponseValidator.ValidateSemantic(
-            new RinshanTsumoResponse(), round, round.Turn, RoundInquiryPhase.AfterKanTsumo, RoundTestHelper.NoOpTenpaiChecker);
+            new RinshanTsumoResponse(), round, round.Turn, RoundInquiryPhase.AfterKanTsumo);
 
         // Assert
         Assert.True(result.IsValid);
@@ -680,20 +678,10 @@ public class ResponseValidator_ValidateSemanticTests
 
         // Act
         var result = ResponseValidator.ValidateSemantic(
-            new RinshanTsumoResponse(), round, new PlayerIndex(1), RoundInquiryPhase.AfterKanTsumo, RoundTestHelper.NoOpTenpaiChecker);
+            new RinshanTsumoResponse(), round, new PlayerIndex(1), RoundInquiryPhase.AfterKanTsumo);
 
         // Assert
         Assert.False(result.IsValid);
     }
 
-    private static ITenpaiChecker CreateAlwaysTenpaiChecker()
-    {
-        var mock = new Mock<ITenpaiChecker>();
-        mock.Setup(x => x.IsTenpai(It.IsAny<Hand>(), It.IsAny<CallList>())).Returns(true);
-        mock.Setup(x => x.EnumerateWaitTileKinds(It.IsAny<Hand>(), It.IsAny<CallList>()))
-            .Returns([.. Enumerable.Range(0, 34)]);
-        mock.Setup(x => x.IsKoutsuOnlyInAllInterpretations(It.IsAny<Hand>(), It.IsAny<CallList>(), It.IsAny<int>()))
-            .Returns(true);
-        return mock.Object;
-    }
 }

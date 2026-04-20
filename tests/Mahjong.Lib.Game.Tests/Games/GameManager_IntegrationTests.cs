@@ -35,12 +35,73 @@ public class GameManager_IntegrationTests
         return (tcs, Handler);
     }
 
-    [Fact]
-    public async Task 子が親の打牌にロンすると対局が終了する()
+    /// <summary>
+    /// 親 (index 0) が 1 巡目ツモで タンヤオ 14 枚和了するように構築した 136 枚の山
+    /// 親の配牌 + 第1ツモ位置に m234 m567 p234 s234 p5p5 の 14 IDs を配置する
+    /// </summary>
+    private static int[] BuildDealerTsumoAgariWall()
     {
-        // Arrange
-        // 連番山の親第1ツモ = Tile(83) = kind 20 (3索)。PermissiveTenpaiChecker([20]) で全員 3索待ち。
-        // 親 OnTsumo でツモ牌をそのまま打牌 → 子 1 の OnDahai で RonResponse → 対局終了
+        var positions = new Dictionary<int, int>
+        {
+            [135] = 4, [134] = 8, [133] = 12, [132] = 16,   // 1 巡目配牌: m2 m3 m4 m5
+            [119] = 20, [118] = 24, [117] = 40, [116] = 44,  // 2 巡目配牌: m6 m7 p2 p3
+            [103] = 48, [102] = 76, [101] = 80, [100] = 84,  // 3 巡目配牌: p4 s2 s3 s4
+            [87] = 53,                                         // 4 巡目配牌: p5
+            [83] = 52,                                         // 親第1ツモ: p5 (winTile)
+        };
+        return BuildWallFromPositions(positions);
+    }
+
+    /// <summary>
+    /// 親 (index 0) が 1 巡目ツモで s3 を引いてそのまま打牌し、
+    /// 子 1 (index 1) が m234 m567 p234 p55 s24 (s3 カンチャン待ちタンヤオ聴牌) でロン和了する 136 枚の山
+    /// </summary>
+    private static int[] BuildOyaDahaiKoRonWall()
+    {
+        var positions = new Dictionary<int, int>
+        {
+            // 親 (index 0) 配牌 13 枚: 役なし、s3 (kind 20) を含まない
+            [135] = 0, [134] = 1, [133] = 28, [132] = 29,    // m1 m1 m8 m8
+            [119] = 56, [118] = 57, [117] = 60, [116] = 61,  // p6 p6 p7 p7
+            [103] = 88, [102] = 89, [101] = 108, [100] = 109, // s6 s6 東 東
+            [87] = 124,                                        // 白
+            // 親 第1ツモ位置: s3 (id 80)
+            [83] = 80,
+            // 子 1 (index 1) 配牌 13 枚: m234 m567 p234 p55 s24 (s3 カンチャン待ちタンヤオ聴牌)
+            [131] = 4, [130] = 8, [129] = 12, [128] = 16,    // m2 m3 m4 m5
+            [115] = 20, [114] = 24, [113] = 40, [112] = 44,  // m6 m7 p2 p3
+            [99] = 48, [98] = 52, [97] = 53, [96] = 76,      // p4 p5 p5 s2
+            [86] = 84,                                         // s4
+        };
+        return BuildWallFromPositions(positions);
+    }
+
+    private static int[] BuildWallFromPositions(Dictionary<int, int> positions)
+    {
+        var placed = positions.Values.ToHashSet();
+        var remaining = Enumerable.Range(0, 136).Where(x => !placed.Contains(x)).ToList();
+        var tileIds = new int[136];
+        foreach (var (pos, tileId) in positions)
+        {
+            tileIds[pos] = tileId;
+        }
+        var remainIdx = 0;
+        for (var i = 0; i < 136; i++)
+        {
+            if (!positions.ContainsKey(i))
+            {
+                tileIds[i] = remaining[remainIdx++];
+            }
+        }
+        return tileIds;
+    }
+
+    [Fact]
+    public async Task 親の打牌で子がロン和了すると対局が終了する()
+    {
+        // Arrange: 親 (index 0) が 1 巡目ツモで s3 を引きそのまま打牌、
+        // 子 1 (index 1) が m234 m567 p234 p55 s24 (s3 カンチャン待ちタンヤオ聴牌) でロン → SingleRound 終了
+        var tileIds = BuildOyaDahaiKoRonWall();
         var players = CreatePlayers();
         players[0] = new FakePlayer(players[0].PlayerId, players[0].DisplayName, players[0].PlayerIndex)
         {
@@ -48,9 +109,7 @@ public class GameManager_IntegrationTests
         };
         players[1] = new FakePlayer(players[1].PlayerId, players[1].DisplayName, players[1].PlayerIndex)
         {
-            OnDahai = (n, _) => n.InquiredPlayerIndices.Contains(new PlayerIndex(1))
-                ? new RonResponse()
-                : new OkResponse(),
+            OnDahai = (_, _) => new RonResponse(),
         };
         var rules = new GameRules
         {
@@ -60,7 +119,7 @@ public class GameManager_IntegrationTests
         using var manager = GamesTestHelper.CreateManager(
             new PlayerList(players),
             rules,
-            tenpaiChecker: GamesTestHelper.CreatePermissiveTenpaiChecker([20]));
+            wallGenerator: GamesTestHelper.CreateWallGenerator([.. tileIds]));
 
         // Act
         await manager.StartAsync(TestContext.Current.CancellationToken);
@@ -74,8 +133,8 @@ public class GameManager_IntegrationTests
     [Fact]
     public async Task 親ツモ和了で本場が1増加し同一親で次局が始まる()
     {
-        // Arrange
-        // 親 1 巡目に TsumoAgari → Renchan → Honba+1。次局 (東一局 1 本場) の開始通知で assertion
+        // Arrange: 親 1 巡目に TsumoAgari → Renchan → Honba+1。次局 (東一局 1 本場) の開始通知で assertion
+        var tileIds = BuildDealerTsumoAgariWall();
         var (tcs, roundStartHandler) = CreateRoundStartWaiter(targetCount: 2);
         var players = CreatePlayers();
         players[0] = new FakePlayer(players[0].PlayerId, players[0].DisplayName, players[0].PlayerIndex)
@@ -91,7 +150,7 @@ public class GameManager_IntegrationTests
         using var manager = GamesTestHelper.CreateManager(
             new PlayerList(players),
             rules,
-            tenpaiChecker: GamesTestHelper.CreatePermissiveTenpaiChecker([20]));
+            wallGenerator: GamesTestHelper.CreateWallGenerator([.. tileIds]));
 
         // Act
         await manager.StartAsync(TestContext.Current.CancellationToken);
@@ -106,8 +165,8 @@ public class GameManager_IntegrationTests
     [Fact]
     public async Task RenchanConditionがNoneの場合親ツモ和了でも親が流れる()
     {
-        // Arrange
-        // Tonpuu + None ルール、親ツモ和了 1 回で次局 (東二局) へ移行することを検証
+        // Arrange: Tonpuu + None ルール、親ツモ和了 1 回で次局 (東二局) へ移行することを検証
+        var tileIds = BuildDealerTsumoAgariWall();
         var (tcs, roundStartHandler) = CreateRoundStartWaiter(targetCount: 2);
         var players = CreatePlayers();
         players[0] = new FakePlayer(players[0].PlayerId, players[0].DisplayName, players[0].PlayerIndex)
@@ -123,7 +182,7 @@ public class GameManager_IntegrationTests
         using var manager = GamesTestHelper.CreateManager(
             new PlayerList(players),
             rules,
-            tenpaiChecker: GamesTestHelper.CreatePermissiveTenpaiChecker([20]));
+            wallGenerator: GamesTestHelper.CreateWallGenerator([.. tileIds]));
 
         // Act
         await manager.StartAsync(TestContext.Current.CancellationToken);

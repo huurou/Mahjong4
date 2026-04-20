@@ -1,10 +1,8 @@
-﻿using Mahjong.Lib.Game.Games;
+﻿using Mahjong.Lib.Game.AutoPlay.Tracing;
+using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Players.Impl;
 using Mahjong.Lib.Game.Rounds.Managing;
-using Mahjong.Lib.Game.Scoring;
 using Microsoft.Extensions.Logging.Abstractions;
-using AutoPlayLib = Mahjong.Lib.Game.AutoPlay;
-using StatsTracer = Mahjong.Lib.Game.AutoPlay.Tracing.StatsTracer;
 
 namespace Mahjong.Lib.Game.AutoPlay.Tests;
 
@@ -15,14 +13,11 @@ public class AutoPlayRunner_SmokeTests
     {
         // Arrange
         var rules = new GameRules();
-        var tenpaiChecker = new TenpaiCheckerImpl();
         var statsTracer = new StatsTracer();
-        var runner = new AutoPlayLib.AutoPlayRunner(
-            new AutoPlayLib.ShuffledWallGenerator(42),
-            new ScoreCalculatorImpl(rules),
-            tenpaiChecker,
+        var runner = new AutoPlayRunner(
+            new ShuffledWallGenerator(42),
             new RoundViewProjector(),
-            new ResponseCandidateEnumerator(tenpaiChecker, rules),
+            new ResponseCandidateEnumerator(rules),
             new TenhouResponsePriorityPolicy(),
             new DefaultResponseFactory(),
             statsTracer,

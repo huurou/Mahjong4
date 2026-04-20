@@ -2,7 +2,7 @@
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Tiles;
 
-namespace Mahjong.Lib.Game.Games.Scoring;
+namespace Mahjong.Lib.Game.Games;
 
 /// <summary>
 /// 点数計算リクエスト

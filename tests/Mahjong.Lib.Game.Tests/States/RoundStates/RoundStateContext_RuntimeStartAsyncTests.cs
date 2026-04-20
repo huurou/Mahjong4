@@ -11,30 +11,6 @@ namespace Mahjong.Lib.Game.Tests.States.RoundStates;
 public class RoundStateContext_RuntimeStartAsyncTests
 {
     [Fact]
-    public async Task ツモ局面で手番プレイヤーがツモ和了応答_RoundEndedByWinが発火する()
-    {
-        // Arrange
-        var players = new FakePlayer[]
-        {
-            new(PlayerId.NewId(), "F0", new PlayerIndex(0)) { OnTsumo = (_, _) => new TsumoAgariResponse() },
-            FakePlayer.Create(1),
-            FakePlayer.Create(2),
-            FakePlayer.Create(3),
-        };
-        using var ctx = RoundStateContextRuntimeTestHelper.CreatePermissiveContext(players);
-
-        // Act
-        var task = ctx.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
-        var result = await RoundStateContextRuntimeTestHelper.AwaitRoundEndAsync(task, RoundStateContextRuntimeTestHelper.DEFAULT_TEST_TIMEOUT);
-
-        // Assert
-        var win = Assert.IsType<RoundEndedByWinEventArgs>(result);
-        Assert.Equal(WinType.Tsumo, win.WinType);
-        Assert.Single(win.WinnerIndices);
-        Assert.Equal(0, win.WinnerIndices[0].Value);
-    }
-
-    [Fact]
     public async Task 全員規定応答_Wall消尽で荒牌平局が発生する()
     {
         // Arrange

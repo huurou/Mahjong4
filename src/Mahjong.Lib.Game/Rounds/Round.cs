@@ -1,7 +1,6 @@
-﻿using Mahjong.Lib.Game.Calls;
-using Mahjong.Lib.Game.Inquiries;
-using Mahjong.Lib.Game.Adoptions;
-using Mahjong.Lib.Game.Games.Scoring;
+﻿using Mahjong.Lib.Game.Adoptions;
+using Mahjong.Lib.Game.Calls;
+using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Hands;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rivers;
@@ -77,7 +76,10 @@ public record Round(
             for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
             {
                 var playerIndex = new PlayerIndex(i);
-                if (PlayerRoundStatusArray[playerIndex].IsPendingRiichi) { return playerIndex; }
+                if (PlayerRoundStatusArray[playerIndex].IsPendingRiichi)
+                {
+                    return playerIndex;
+                }
             }
             return null;
         }
@@ -176,7 +178,7 @@ public record Round(
     /// 一発フラグはツモ時点では維持し、打牌 (= ツモ和了しなかった) で消します。
     /// 打牌後に打牌者のフリテン状態を再評価します。
     /// </summary>
-    internal Round Dahai(Tile tile, ITenpaiChecker tenpaiChecker)
+    internal Round Dahai(Tile tile)
     {
         var handArray = HandArray.RemoveTile(Turn, tile);
         var riverArray = RiverArray.AddTile(Turn, tile);
@@ -186,7 +188,7 @@ public record Round(
             IsFirstTurnBeforeDiscard = false,
             IsIppatsu = false,
             IsRinshan = false,
-            IsNagashiMangan = currentStatus.IsNagashiMangan && tile.IsYaochuu,
+            IsNagashiMangan = currentStatus.IsNagashiMangan && tile.Kind.IsYaochu,
         };
         var statusArray = PlayerRoundStatusArray.SetStatus(Turn, status);
         var round = this with
@@ -195,7 +197,7 @@ public record Round(
             RiverArray = riverArray,
             PlayerRoundStatusArray = statusArray,
         };
-        return round.EvaluateFuriten(Turn, tenpaiChecker);
+        return round.EvaluateFuriten(Turn);
     }
 
     /// <summary>
@@ -290,10 +292,10 @@ public record Round(
     /// 打牌後に呼ぶことで、河が変わった打牌者のフリテンのみ更新します。
     /// (Phase 5 のロン見逃しによる同巡フリテンは <see cref="PlayerRoundStatus.IsTemporaryFuriten"/> で別途管理)
     /// </summary>
-    internal Round EvaluateFuriten(PlayerIndex playerIndex, ITenpaiChecker tenpaiChecker)
+    internal Round EvaluateFuriten(PlayerIndex playerIndex)
     {
         var currentStatus = PlayerRoundStatusArray[playerIndex];
-        var waitKinds = tenpaiChecker.EnumerateWaitTileKinds(HandArray[playerIndex], CallListArray[playerIndex]);
+        var waitKinds = TenpaiHelper.EnumerateWaitTileKinds(HandArray[playerIndex]);
         var isFuriten = waitKinds.Count > 0 &&
             (RiverArray[playerIndex].Any(x => waitKinds.Contains(x.Kind)) ||
                 currentStatus.TilesCalledFromRiver.Any(x => waitKinds.Contains(x.Kind)));
@@ -602,34 +604,40 @@ public record Round(
     /// <param name="loserIndex">放銃者のインデックス ロン/槍槓では打牌者/加槓宣言者、ツモ/嶺上では和了者自身</param>
     /// <param name="winType">和了種別</param>
     /// <param name="winTile">和了牌 (Ron=放銃牌 / Chankan=加槓追加牌 / Tsumo・Rinshan=ツモ牌)</param>
-    /// <param name="scoreCalculator">点数計算機</param>
+    /// <param name="scoreResults">各和了者の点数計算結果 (<paramref name="winners"/> と同順)</param>
     internal (Round Settled, WinSettlementDetails Details) SettleWin(
         ImmutableArray<PlayerIndex> winners,
         PlayerIndex loserIndex,
         WinType winType,
         Tile winTile,
-        IScoreCalculator scoreCalculator
+        ImmutableArray<ScoreResult> scoreResults
     )
     {
         if (winners.IsDefaultOrEmpty)
         {
             throw new InvalidOperationException("和了者が指定されていません。");
         }
+
         if (winners.Length != winners.Distinct().Count())
         {
             throw new InvalidOperationException("和了者に重複があります。");
         }
 
+        if (scoreResults.IsDefaultOrEmpty || scoreResults.Length != winners.Length)
+        {
+            throw new InvalidOperationException("scoreResults は winners と同じ個数が必要です。");
+        }
+
         var pointArray = PointArray;
         var winnersBuilder = ImmutableArray.CreateBuilder<AdoptedWinner>(winners.Length);
 
-        foreach (var winner in winners)
+        for (var wi = 0; wi < winners.Length; wi++)
         {
-            var request = new ScoreRequest(this, winner, loserIndex, winType, winTile);
-            var rawResult = scoreCalculator.Calculate(request);
+            var winner = winners[wi];
+            var rawResult = scoreResults[wi];
             var responsibleIndex = PaoResponsibleArray[winner];
             var isPaoApplicable = responsibleIndex is not null &&
-                rawResult.YakuInfos.Any(x => x.IsPaoEligible);
+                rawResult.YakuList.HasPaoEligibleYaku();
             var result = isPaoApplicable
                 ? rawResult with { PointDeltas = AdjustPointDeltasForPao(rawResult.PointDeltas, winner, responsibleIndex!, loserIndex, winType) }
                 : rawResult;
@@ -696,6 +704,7 @@ public record Round(
         {
             throw new InvalidOperationException("テンパイ者に重複があります。");
         }
+
         if (!nagashiManganPlayers.IsDefaultOrEmpty && nagashiManganPlayers.Length != nagashiManganPlayers.Distinct().Count())
         {
             throw new InvalidOperationException("流し満貫者に重複があります。");

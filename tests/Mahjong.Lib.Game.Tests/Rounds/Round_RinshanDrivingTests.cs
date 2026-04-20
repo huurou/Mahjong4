@@ -44,7 +44,7 @@ public class Round_RinshanDrivingTests
         Assert.True(round.PlayerRoundStatusArray[playerIndex].IsRinshan);
 
         // Act
-        var result = round.Dahai(round.HandArray[playerIndex].Last(), RoundTestHelper.NoOpTenpaiChecker);
+        var result = round.Dahai(round.HandArray[playerIndex].Last());
 
         // Assert
         Assert.False(result.PlayerRoundStatusArray[playerIndex].IsRinshan);

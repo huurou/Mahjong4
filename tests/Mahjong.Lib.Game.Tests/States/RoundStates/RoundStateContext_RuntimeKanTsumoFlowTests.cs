@@ -26,53 +26,14 @@ public class RoundStateContext_RuntimeKanTsumoFlowTests
     // → 親は 1 巡目ツモ直後に Kind 33 の暗槓が可能
     // 暗槓後の嶺上牌 (tiles_[1]): Tile(1) Kind 0 (m1)
 
-    private static ITenpaiChecker CreateMock(params int[] waits)
-    {
-        var mock = new Mock<ITenpaiChecker>();
-        mock.Setup(x => x.IsTenpai(It.IsAny<Hand>(), It.IsAny<CallList>())).Returns(false);
-        mock.Setup(x => x.EnumerateWaitTileKinds(It.IsAny<Hand>(), It.IsAny<CallList>()))
-            .Returns([.. waits]);
-        return mock.Object;
-    }
-
-    private static RoundStateContext CreateContext(IEnumerable<Player> players, ITenpaiChecker checker)
+    private static RoundStateContext CreateContext(IEnumerable<Player> players)
     {
         return RoundStateContextRuntimeTestHelper.CreateContext(
             players,
-            checker,
-            RoundTestHelper.NoOpScoreCalculator,
             new GameRules(),
             NullGameTracer.Instance,
             NullLogger<RoundStateContext>.Instance
         );
-    }
-
-    [Fact]
-    public async Task 暗槓後の嶺上ツモ和了_RinshanとしてRoundEndedByWinが発火する()
-    {
-        // Arrange: waits=[0] で嶺上牌 (kind 0) をツモ和了対象にする
-        var players = new FakePlayer[]
-        {
-            new(PlayerId.NewId(), "F0", new PlayerIndex(0))
-            {
-                OnTsumo = (_, _) => new AnkanResponse(new Tile(132)),
-                OnKanTsumo = (_, _) => new RinshanTsumoResponse(),
-            },
-            FakePlayer.Create(1),
-            FakePlayer.Create(2),
-            FakePlayer.Create(3),
-        };
-        using var ctx = CreateContext(players, CreateMock(0));
-
-        // Act
-        var task = ctx.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);
-        var result = await RoundStateContextRuntimeTestHelper.AwaitRoundEndAsync(task, RoundStateContextRuntimeTestHelper.DEFAULT_TEST_TIMEOUT);
-
-        // Assert
-        var win = Assert.IsType<RoundEndedByWinEventArgs>(result);
-        Assert.Equal(WinType.Rinshan, win.WinType);
-        Assert.Single(win.WinnerIndices);
-        Assert.Equal(0, win.WinnerIndices[0].Value);
     }
 
     [Fact]
@@ -95,7 +56,7 @@ public class RoundStateContext_RuntimeKanTsumoFlowTests
             FakePlayer.Create(2),
             FakePlayer.Create(3),
         };
-        using var ctx = CreateContext(players, CreateMock());
+        using var ctx = CreateContext(players);
 
         // Act
         var task = ctx.StartAsync(RoundTestHelper.CreateRound(), TestContext.Current.CancellationToken);

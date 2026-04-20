@@ -1,9 +1,7 @@
-﻿using Mahjong.Lib.Game.Games.Scoring;
-using Mahjong.Lib.Game.Players;
+﻿using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds.Managing;
 using Mahjong.Lib.Game.States.GameStates;
 using Mahjong.Lib.Game.States.RoundStates;
-using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Walls;
 using Microsoft.Extensions.Logging;
 
@@ -16,8 +14,6 @@ namespace Mahjong.Lib.Game.Games;
 /// <param name="playerList">プレイヤー席のリスト (index 0 が起家)</param>
 /// <param name="rules">対局ルール</param>
 /// <param name="wallGenerator">山牌生成機</param>
-/// <param name="scoreCalculator">和了時点数計算機</param>
-/// <param name="tenpaiChecker">テンパイ判定機</param>
 /// <param name="projector">視点射影</param>
 /// <param name="enumerator">合法応答候補列挙</param>
 /// <param name="priorityPolicy">応答優先順位解決</param>
@@ -29,8 +25,6 @@ public class GameManager(
     PlayerList playerList,
     GameRules rules,
     IWallGenerator wallGenerator,
-    IScoreCalculator scoreCalculator,
-    ITenpaiChecker tenpaiChecker,
     IRoundViewProjector projector,
     IResponseCandidateEnumerator enumerator,
     IResponsePriorityPolicy priorityPolicy,
@@ -63,8 +57,6 @@ public class GameManager(
 
         context_ = new GameStateContext(
             wallGenerator,
-            scoreCalculator,
-            tenpaiChecker,
             playerList,
             projector,
             enumerator,

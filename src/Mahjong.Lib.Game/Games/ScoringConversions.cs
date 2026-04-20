@@ -1,13 +1,51 @@
-﻿using Mahjong.Lib.Game.Games.Scoring;
+﻿using Mahjong.Lib.Game.Calls;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
+using Mahjong.Lib.Game.Tiles;
 using Mahjong.Lib.Scoring.Games;
-using GameRules = Mahjong.Lib.Game.Games.GameRules;
+using Mahjong.Lib.Scoring.Tiles;
 
-namespace Mahjong.Lib.Game.Scoring.Conversions;
+namespace Mahjong.Lib.Game.Games;
 
-internal static class WinSituationConverter
+internal static class ScoringConversions
 {
+    public static TileKindList ToScoringTileKindList(this Hands.Hand hand)
+    {
+        return [.. hand.Select(x => x.Kind)];
+    }
+
+    public static TileKindList ToScoringTileKindList(this IEnumerable<Tile> tiles)
+    {
+        return [.. tiles.Select(x => x.Kind)];
+    }
+
+    public static Scoring.Calls.Call ToScoringCall(this Call call)
+    {
+        var type = call.Type switch
+        {
+            CallType.Chi => Scoring.Calls.CallType.Chi,
+            CallType.Pon => Scoring.Calls.CallType.Pon,
+            CallType.Ankan => Scoring.Calls.CallType.Ankan,
+            CallType.Daiminkan => Scoring.Calls.CallType.Minkan,
+            CallType.Kakan => Scoring.Calls.CallType.Minkan,
+            _ => throw new ArgumentOutOfRangeException(nameof(call), call.Type, "未対応の副露種別です。"),
+        };
+        return new Scoring.Calls.Call(type, call.Tiles.ToScoringTileKindList());
+    }
+
+    public static Scoring.Calls.CallList ToScoringCallList(this CallList callList)
+    {
+        return [.. callList.Select(ToScoringCall)];
+    }
+
+    public static Scoring.Games.GameRules ToScoringGameRules(this GameRules rules)
+    {
+        return new Scoring.Games.GameRules
+        {
+            KuitanEnabled = rules.KuitanAllowed,
+        };
+    }
+
     public static WinSituation ToWinSituation(ScoreRequest request, GameRules rules)
     {
         var round = request.Round;
@@ -32,9 +70,7 @@ internal static class WinSituationConverter
             IsHoutei = request.WinType == WinType.Ron && isLiveExhausted,
             IsTenhou = request.WinType == WinType.Tsumo && isFirstTurn && winnerIndex == dealerIndex,
             IsChiihou = request.WinType == WinType.Tsumo && isFirstTurn && winnerIndex != dealerIndex,
-            // 人和: 子の第一打前のロン。鳴きが入ると PlayerRoundStatus.IsFirstTurnBeforeDiscard が全員 false になるので本条件だけで十分
             IsRenhou = request.WinType == WinType.Ron && isFirstTurn && winnerIndex != dealerIndex,
-            // 流し満貫は Round.SettleRyuukyoku 側で点数清算まで完結する設計のため、和了パスを通る本コンバーターでは常に false で良い
             IsNagashimangan = false,
             PlayerWind = ToWind(SeatWindOf(winnerIndex, dealerIndex)),
             RoundWind = ToWind(round.RoundWind.Value),

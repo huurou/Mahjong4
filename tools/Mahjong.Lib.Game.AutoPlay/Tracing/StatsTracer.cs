@@ -143,7 +143,7 @@ public sealed class StatsTracer : IGameTracer
                     var acc = GetOrCreate(winnerName);
                     acc.WinCount++;
                     acc.WinPointSum += winner.ScoreResult.PointDeltas[winner.PlayerIndex].Value;
-                    foreach (var yaku in winner.ScoreResult.YakuInfos)
+                    foreach (var yaku in winner.ScoreResult.YakuList)
                     {
                         yakuCounts_[yaku.Name] = yakuCounts_.GetValueOrDefault(yaku.Name) + 1;
                     }

@@ -6,6 +6,7 @@ using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Tiles;
 using Mahjong.Lib.Game.Views;
 using System.Collections.Immutable;
+using ScoringTileKind = Mahjong.Lib.Scoring.Tiles.TileKind;
 
 namespace Mahjong.Lib.Game.Tests.Views;
 
@@ -18,7 +19,7 @@ public class VisibleTileCounter_CountUnseenTests
         var view = CreateView();
 
         // Act
-        var count = VisibleTileCounter.CountUnseen(view, 0);
+        var count = VisibleTileCounter.CountUnseen(view, ScoringTileKind.All[0]);
 
         // Assert
         Assert.Equal(4, count);
@@ -31,7 +32,7 @@ public class VisibleTileCounter_CountUnseenTests
         var view = CreateView(ownHand: new Hand([Tile(0, 0)]));
 
         // Act
-        var count = VisibleTileCounter.CountUnseen(view, 0);
+        var count = VisibleTileCounter.CountUnseen(view, ScoringTileKind.All[0]);
 
         // Assert
         Assert.Equal(3, count);
@@ -46,7 +47,7 @@ public class VisibleTileCounter_CountUnseenTests
         var view = CreateView(rivers: rivers);
 
         // Act
-        var count = VisibleTileCounter.CountUnseen(view, 5);
+        var count = VisibleTileCounter.CountUnseen(view, ScoringTileKind.All[5]);
 
         // Assert
         Assert.Equal(2, count);
@@ -66,7 +67,7 @@ public class VisibleTileCounter_CountUnseenTests
         var view = CreateView(calls: calls);
 
         // Act
-        var count = VisibleTileCounter.CountUnseen(view, 10);
+        var count = VisibleTileCounter.CountUnseen(view, ScoringTileKind.All[10]);
 
         // Assert
         Assert.Equal(1, count);
@@ -86,7 +87,7 @@ public class VisibleTileCounter_CountUnseenTests
         var view = CreateView(calls: calls);
 
         // Act
-        var count = VisibleTileCounter.CountUnseen(view, 33);
+        var count = VisibleTileCounter.CountUnseen(view, ScoringTileKind.All[33]);
 
         // Assert
         Assert.Equal(0, count);
@@ -99,7 +100,7 @@ public class VisibleTileCounter_CountUnseenTests
         var view = CreateView(doraIndicators: [Tile(27, 0)]);
 
         // Act
-        var count = VisibleTileCounter.CountUnseen(view, 27);
+        var count = VisibleTileCounter.CountUnseen(view, ScoringTileKind.All[27]);
 
         // Assert
         Assert.Equal(3, count);
@@ -119,7 +120,7 @@ public class VisibleTileCounter_CountUnseenTests
         );
 
         // Act
-        var count = VisibleTileCounter.CountUnseen(view, 20);
+        var count = VisibleTileCounter.CountUnseen(view, ScoringTileKind.All[20]);
 
         // Assert
         Assert.Equal(0, count);
@@ -144,7 +145,7 @@ public class VisibleTileCounter_CountUnseenTests
         );
 
         // Act
-        var count = VisibleTileCounter.CountUnseen(view, 15);
+        var count = VisibleTileCounter.CountUnseen(view, ScoringTileKind.All[15]);
 
         // Assert
         Assert.Equal(0, count);

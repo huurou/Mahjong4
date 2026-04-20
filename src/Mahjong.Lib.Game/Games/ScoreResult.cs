@@ -1,7 +1,7 @@
 ﻿using Mahjong.Lib.Game.Players;
-using System.Collections.Immutable;
+using Mahjong.Lib.Scoring.Yakus;
 
-namespace Mahjong.Lib.Game.Games.Scoring;
+namespace Mahjong.Lib.Game.Games;
 
 /// <summary>
 /// 点数計算結果
@@ -10,10 +10,13 @@ namespace Mahjong.Lib.Game.Games.Scoring;
 /// <param name="Han">翻数</param>
 /// <param name="Fu">符数</param>
 /// <param name="PointDeltas">プレイヤー別の純粋な点数移動 (和了者は正、放銃者・他家は負)</param>
-/// <param name="YakuInfos">成立した役の一覧 (表示・ログ用)</param>
+/// <param name="YakuList">成立した役のリスト (Lib.Scoring の <see cref="Yaku"/> 集合)</param>
+/// <param name="IsMenzen">門前 (副露なし、または暗槓のみ) 和了かどうか
+/// 表示時に <see cref="Yaku.HanClosed"/> / <see cref="Yaku.HanOpen"/> のどちらを参照するかの判定材料として保持する</param>
 public record ScoreResult(
     int Han,
     int Fu,
     PointArray PointDeltas,
-    ImmutableList<YakuInfo> YakuInfos
+    YakuList YakuList,
+    bool IsMenzen
 );

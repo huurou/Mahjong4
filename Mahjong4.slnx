@@ -5,7 +5,6 @@
   </Folder>
   <Folder Name="/Lib/">
     <Project Path="src/Mahjong.Lib.Game/Mahjong.Lib.Game.csproj" />
-    <Project Path="src/Mahjong.Lib.Game.Scoring/Mahjong.Lib.Game.Scoring.csproj" />
     <Project Path="src/Mahjong.Lib.Scoring/Mahjong.Lib.Scoring.csproj" />
   </Folder>
   <Folder Name="/Samples/">
@@ -17,7 +16,6 @@
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="tests/Mahjong.Lib.Game.AutoPlay.Tests/Mahjong.Lib.Game.AutoPlay.Tests.csproj" />
-    <Project Path="tests/Mahjong.Lib.Game.Scoring.Tests/Mahjong.Lib.Game.Scoring.Tests.csproj" />
     <Project Path="tests/Mahjong.Lib.Game.Tests/Mahjong.Lib.Game.Tests.csproj" />
     <Project Path="tests/Mahjong.Lib.Scoring.Tests/Mahjong.Lib.Scoring.Tests.csproj" />
     <Project Path="tests/Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests/Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests.csproj" />

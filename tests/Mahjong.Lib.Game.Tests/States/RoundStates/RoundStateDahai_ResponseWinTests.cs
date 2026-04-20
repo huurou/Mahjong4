@@ -21,6 +21,8 @@ public class RoundStateDahai_ResponseWinTests : IDisposable
         // Arrange: 親が打牌 → RoundStateDahai
         RoundStateContextTestHelper.InitDirect(context_, RoundStateContextTestHelper.CreateRound());
         RoundStateContextTestHelper.DriveResponseOk(context_);
+        // 親の手牌末尾を p5 に、子(index 1)の手牌を p5 単騎テンパイに差し替える
+        RoundStateContextTestHelper.InjectRonAgariScenario(context_, new PlayerIndex(1));
         RoundStateContextTestHelper.DriveResponseDahai(context_, RoundStateContextTestHelper.PickTileToDahai(context_));
 
         // Act: 子(index 1)がロン
