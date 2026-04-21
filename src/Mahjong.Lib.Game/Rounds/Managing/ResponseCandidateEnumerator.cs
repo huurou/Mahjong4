@@ -2,6 +2,7 @@
 using Mahjong.Lib.Game.Candidates;
 using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Players;
+using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Tiles;
 using Mahjong.Lib.Scoring.Tiles;
@@ -32,7 +33,7 @@ public sealed class ResponseCandidateEnumerator(GameRules rules) : IResponseCand
 
         builder.Add(BuildDahaiCandidate(round, turnPlayerIndex, hand, status));
 
-        if (TryBuildTsumoAgariCandidate(hand) is { } tsumoAgari)
+        if (TryBuildTsumoAgariCandidate(round, turnPlayerIndex, WinType.Tsumo) is { } tsumoAgari)
         {
             builder.Add(tsumoAgari);
         }
@@ -57,7 +58,7 @@ public sealed class ResponseCandidateEnumerator(GameRules rules) : IResponseCand
         var hand = round.HandArray[responderIndex];
         var status = round.PlayerRoundStatusArray[responderIndex];
 
-        if (TryBuildRonCandidate(hand, status, discardedTile) is { } ron)
+        if (TryBuildRonCandidate(round, responderIndex, WinType.Ron, discardedTile) is { } ron)
         {
             builder.Add(ron);
         }
@@ -88,9 +89,7 @@ public sealed class ResponseCandidateEnumerator(GameRules rules) : IResponseCand
         var builder = ImmutableList.CreateBuilder<ResponseCandidate>();
         if (kanType is CallType.Kakan)
         {
-            var hand = round.HandArray[responderIndex];
-            var status = round.PlayerRoundStatusArray[responderIndex];
-            if (TryBuildRonCandidate(hand, status, kanTiles[0]) is not null)
+            if (TryBuildRonCandidate(round, responderIndex, WinType.Chankan, kanTiles[0]) is not null)
             {
                 builder.Add(new ChankanRonCandidate());
             }
@@ -100,11 +99,10 @@ public sealed class ResponseCandidateEnumerator(GameRules rules) : IResponseCand
             // 暗槓チャンカンは国士無双のみ成立。手牌13枚と暗槓牌種がすべて幺九牌である場合に候補を提示する
             // (役制限は ScoringHelper 側で国士無双以外を不成立として担保する)
             var hand = round.HandArray[responderIndex];
-            var status = round.PlayerRoundStatusArray[responderIndex];
             var ankanKind = kanTiles[0].Kind;
             if (ankanKind.IsYaochu &&
                 hand.All(x => x.Kind.IsYaochu) &&
-                TryBuildRonCandidate(hand, status, kanTiles[0]) is not null)
+                TryBuildRonCandidate(round, responderIndex, WinType.Chankan, kanTiles[0]) is not null)
             {
                 builder.Add(new ChankanRonCandidate());
             }
@@ -122,7 +120,7 @@ public sealed class ResponseCandidateEnumerator(GameRules rules) : IResponseCand
         var status = round.PlayerRoundStatusArray[turnPlayerIndex];
 
         builder.Add(BuildDahaiCandidate(round, turnPlayerIndex, hand, status));
-        if (TryBuildTsumoAgariCandidate(hand) is not null)
+        if (TryBuildTsumoAgariCandidate(round, turnPlayerIndex, WinType.Rinshan) is not null)
         {
             builder.Add(new RinshanTsumoAgariCandidate());
         }
@@ -176,9 +174,10 @@ public sealed class ResponseCandidateEnumerator(GameRules rules) : IResponseCand
         return new DahaiCandidate(new DahaiOptionList(options.ToImmutable()));
     }
 
-    private static TsumoAgariCandidate? TryBuildTsumoAgariCandidate(Hand hand)
+    private TsumoAgariCandidate? TryBuildTsumoAgariCandidate(Round round, PlayerIndex winnerIndex, WinType winType)
     {
         // フリテンはロン/チャンカンのみ禁止で、ツモ和了は可能
+        var hand = round.HandArray[winnerIndex];
         if (hand.Count() < 2)
         {
             return null;
@@ -187,22 +186,31 @@ public sealed class ResponseCandidateEnumerator(GameRules rules) : IResponseCand
         var tsumoTile = hand.Last();
         var remaining = new Hand(RemoveFirst(hand, tsumoTile));
         var waits = TenpaiHelper.EnumerateWaitTileKinds(remaining);
-        return waits.Contains(tsumoTile.Kind) ? new TsumoAgariCandidate() : null;
+        if (!waits.Contains(tsumoTile.Kind)) { return null; }
+        // 役なしツモを候補から除外: AI が役なし和了応答を繰り返し InvalidEventReceived ループに陥るのを防ぐ
+        if (!ScoringHelper.CanWin(round, winnerIndex, winType, tsumoTile, rules)) { return null; }
+        return new TsumoAgariCandidate();
     }
 
-    private static RonCandidate? TryBuildRonCandidate(
-        Hand hand,
-        PlayerRoundStatus status,
+    private RonCandidate? TryBuildRonCandidate(
+        Round round,
+        PlayerIndex winnerIndex,
+        WinType winType,
         Tile targetTile
     )
     {
+        var hand = round.HandArray[winnerIndex];
+        var status = round.PlayerRoundStatusArray[winnerIndex];
         if (status.IsFuriten || status.IsTemporaryFuriten)
         {
             return null;
         }
 
         var waits = TenpaiHelper.EnumerateWaitTileKinds(hand);
-        return waits.Contains(targetTile.Kind) ? new RonCandidate() : null;
+        if (!waits.Contains(targetTile.Kind)) { return null; }
+        // 役なしロン/チャンカンを候補から除外: AI が無効応答を繰り返す無限ループを防ぐ
+        if (!ScoringHelper.CanWin(round, winnerIndex, winType, targetTile, rules)) { return null; }
+        return new RonCandidate();
     }
 
     /// <summary>

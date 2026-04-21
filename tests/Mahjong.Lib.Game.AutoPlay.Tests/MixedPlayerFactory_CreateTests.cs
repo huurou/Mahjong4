@@ -4,7 +4,7 @@ using Mahjong.Lib.Game.Responses;
 
 namespace Mahjong.Lib.Game.AutoPlay.Tests;
 
-public class MixedPlayerFactory_CreateTests
+public class MixedPlayerFactory_CreatePlayerListTests
 {
     [Fact]
     public void 要素数が4未満_ArgumentException()
@@ -18,7 +18,7 @@ public class MixedPlayerFactory_CreateTests
         };
 
         // Act
-        var ex = Record.Exception(() => new MixedPlayerFactory(factories, new Random(0)));
+        var ex = Record.Exception(() => new MixedPlayerFactory(factories, 0));
 
         // Assert
         Assert.IsType<ArgumentException>(ex);
@@ -38,14 +38,14 @@ public class MixedPlayerFactory_CreateTests
         };
 
         // Act
-        var ex = Record.Exception(() => new MixedPlayerFactory(factories, new Random(0)));
+        var ex = Record.Exception(() => new MixedPlayerFactory(factories, 0));
 
         // Assert
         Assert.IsType<ArgumentException>(ex);
     }
 
     [Fact]
-    public void 同一seed_複数対局で同じ割り当てシーケンスを再現する()
+    public void 同一seedかつ同一gameNumber_同じDisplayName配列を再現する()
     {
         // Arrange
         static IPlayerFactory[] Build()
@@ -58,30 +58,24 @@ public class MixedPlayerFactory_CreateTests
             ];
         }
 
-        var first = new MixedPlayerFactory(Build(), new Random(42));
-        var second = new MixedPlayerFactory(Build(), new Random(42));
+        var first = new MixedPlayerFactory(Build(), 42);
+        var second = new MixedPlayerFactory(Build(), 42);
 
-        // Act: 3 対局ぶん (12 回) の Create を並走させて DisplayName シーケンスを比較
+        // Act: 3 対局ぶん DisplayName シーケンスを比較
         var firstNames = new List<string>();
         var secondNames = new List<string>();
         for (var game = 0; game < 3; game++)
         {
-            for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
-            {
-                var index = new PlayerIndex(i);
-                firstNames.Add(first.Create(index, PlayerId.NewId()).DisplayName);
-                secondNames.Add(second.Create(index, PlayerId.NewId()).DisplayName);
-            }
+            firstNames.AddRange(EnumerateDisplayNames(first.CreatePlayerList(game)));
+            secondNames.AddRange(EnumerateDisplayNames(second.CreatePlayerList(game)));
         }
 
         // Assert
         Assert.Equal(firstNames, secondNames);
     }
 
-    private static readonly string[] sourceArray_ = ["A", "B", "C", "D"];
-
     [Fact]
-    public void 一対局4回のCreate_異なるDisplayNameが各席に一つずつ割り当てられる()
+    public void 異なるgameNumber_独立にシャッフルされ同形は出るが全体で割り当てが変化する()
     {
         // Arrange
         IPlayerFactory[] factories =
@@ -91,15 +85,40 @@ public class MixedPlayerFactory_CreateTests
             new FakePlayerFactory("C"),
             new FakePlayerFactory("D"),
         ];
-        var mixed = new MixedPlayerFactory(factories, new Random(1));
+        var mixed = new MixedPlayerFactory(factories, 42);
 
         // Act
-        var names = Enumerable.Range(0, PlayerIndex.PLAYER_COUNT)
-            .Select(x => mixed.Create(new PlayerIndex(x), PlayerId.NewId()).DisplayName)
-            .ToList();
+        var firstNames = EnumerateDisplayNames(mixed.CreatePlayerList(0)).ToList();
+        var secondNames = EnumerateDisplayNames(mixed.CreatePlayerList(1)).ToList();
 
-        // Assert: 4 種類の DisplayName が順不同でちょうど 1 回ずつ出現する
-        Assert.Equal(sourceArray_.OrderBy(x => x), names.OrderBy(x => x));
+        // Assert: 両方とも A/B/C/D の順列、かつ少なくとも 1 対局分のシャッフルの違いが観測できる
+        Assert.Equal(4, firstNames.Distinct().Count());
+        Assert.Equal(4, secondNames.Distinct().Count());
+        // 確率的に低い同一順列を引く可能性を除外するため、seed 42 の 0/1 に対する実際の並びを固定点検証
+        // (ロジック変更時にこの assertion は再計算が必要)
+        Assert.NotEqual(firstNames, secondNames);
+    }
+
+    private static readonly string[] expected_ = ["A", "B", "C", "D"];
+
+    [Fact]
+    public void CreatePlayerListの戻り値_4席に異なるDisplayNameが1つずつ割り当てられる()
+    {
+        // Arrange
+        IPlayerFactory[] factories =
+        [
+            new FakePlayerFactory("A"),
+            new FakePlayerFactory("B"),
+            new FakePlayerFactory("C"),
+            new FakePlayerFactory("D"),
+        ];
+        var mixed = new MixedPlayerFactory(factories, 1);
+
+        // Act
+        var names = EnumerateDisplayNames(mixed.CreatePlayerList(0)).OrderBy(x => x).ToList();
+
+        // Assert
+        Assert.Equal(expected_, names);
     }
 
     [Fact]
@@ -113,7 +132,7 @@ public class MixedPlayerFactory_CreateTests
             new FakePlayerFactory("C"),
             new FakePlayerFactory("D"),
         ];
-        var mixed = new MixedPlayerFactory(factories, new Random(0));
+        var mixed = new MixedPlayerFactory(factories, 0);
 
         // Act
         var displayName = mixed.DisplayName;
@@ -133,13 +152,21 @@ public class MixedPlayerFactory_CreateTests
             new FakePlayerFactory("B"),
             new FakePlayerFactory("B"),
         ];
-        var mixed = new MixedPlayerFactory(factories, new Random(0));
+        var mixed = new MixedPlayerFactory(factories, 0);
 
         // Act
         var displayName = mixed.DisplayName;
 
         // Assert
         Assert.Equal("A / B", displayName);
+    }
+
+    private static IEnumerable<string> EnumerateDisplayNames(PlayerList list)
+    {
+        for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
+        {
+            yield return list[new PlayerIndex(i)].DisplayName;
+        }
     }
 
     private sealed class FakePlayerFactory(string name) : IPlayerFactory

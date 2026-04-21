@@ -27,7 +27,7 @@ dotnet run --project samples/Mahjong.Lib.Scoring.SampleApp/Mahjong.Lib.Scoring.S
 dotnet run --project tools/Mahjong.Lib.Scoring.TenhouPaifuValidation/Mahjong.Lib.Scoring.TenhouPaifuValidation.csproj
 
 # 自動対局ツール実行（4人AI対局を指定回数繰り返し、順位統計を出力）
-dotnet run --project tools/Mahjong.Lib.Game.AutoPlay/Mahjong.Lib.Game.AutoPlay.csproj -- --games 100 --seed 1 --write-paifu
+dotnet run --project tools/Mahjong.Lib.Game.AutoPlay/Mahjong.Lib.Game.AutoPlay.csproj -- --games 100 --seed 1 --write-paifu --parallel 4
 
 # コードカバレッジ計測（PowerShell）
 pwsh scripts/TestCoverage.ps1
@@ -123,7 +123,7 @@ pwsh scripts/TestCoverage.ps1
 - **点数結果型** ([Mahjong.Lib.Game/Games/ScoreResult.cs](src/Mahjong.Lib.Game/Games/ScoreResult.cs)) — `ScoreResult(Han, Fu, PointDeltas, YakuList)` は `ScoringHelper.Calculate` の戻り値。成立役は `Mahjong.Lib.Scoring.Yakus.YakuList` (= `Yaku` 具象型の集合) をそのまま保持する。包 (責任払い) 判定は [YakuPaoExtensions.HasPaoEligibleYaku](src/Mahjong.Lib.Game/Games/YakuPaoExtensions.cs) で `Daisangen` / `Daisuushii` / `DaisuushiiDouble` / `Suukantsu` を pattern match する
 - **プレイヤー抽象** ([Mahjong.Lib.Game/Players/Player.cs](src/Mahjong.Lib.Game/Players/Player.cs)) — `Player` は abstract **class**（record ではない: 可変状態を持つ AI/人間実装での record + mutable property の相互作用リスク回避）。`PlayerId` + `DisplayName` ベースのカスタム `Equals` / `GetHashCode` / `==` / `!=` を実装し `PlayerList` / `Game` の value equality を維持。通知メソッド 15 種 (`OnGameStartAsync` / `OnRoundStartAsync` / `OnHaipaiAsync` / `OnTsumoAsync` / `OnOtherPlayerTsumoAsync` / `OnDahaiAsync` / `OnCallAsync` / `OnKanAsync` / `OnKanTsumoAsync` / `OnOtherPlayerKanTsumoAsync` / `OnDoraRevealAsync` / `OnWinAsync` / `OnRyuukyokuAsync` / `OnRoundEndAsync` / `OnGameEndAsync`) を `public abstract` で定義し、戻り値は通知ごとに異なる応答型。全メソッドに `CancellationToken ct = default` を付与 (`RoundStateContext` の通知・応答集約ループのタイムアウト制御用)
 - **テスト用疑似プレイヤー** ([tests/Mahjong.Lib.Game.Tests/Players/FakePlayer.cs](tests/Mahjong.Lib.Game.Tests/Players/FakePlayer.cs)) — `Func<TNotification, CancellationToken, TResponse>` デリゲート群を init プロパティで受け取る `Player` 実装。未設定時は安全な既定応答（OK / 先頭 `DahaiCandidate` を打牌 / `PassResponse` / `KanPassResponse` 等）を返し、受信通知を `ReceivedNotifications` に記録する
-- **AI プレイヤー実装** ([src/Mahjong.Lib.Game/Players/Impl/](src/Mahjong.Lib.Game/Players/Impl/)) — 命名は `AI_v{major}_{minor}_{patch}_{識別名}` 形式。v0.1.0 ランダム打牌、v0.2.0 有効牌（`ShantenHelper` で向聴数を下げる候補を選ぶ）。各 AI はクラスと対になる `{AI名}Factory` を提供し、自動対局ツール側が `IPlayerFactory` 抽象経由で注入する
+- **AI プレイヤー実装** ([src/Mahjong.Lib.Game/Players/Impl/](src/Mahjong.Lib.Game/Players/Impl/)) — 命名は `AI_v{major}_{minor}_{patch}_{識別名}` 形式。v0.1.0 ランダム打牌、v0.2.0 有効牌（`ShantenHelper` で向聴数を下げる候補を選ぶ）、v0.3.0 評価値（有効牌枚数同点時のタイブレーカーとして、対象牌を孤立牌と見立てた面子完成ポテンシャル評価値が低い牌を優先）。AI の設計思想・評価式は [docs/AiDesign.md](docs/AiDesign.md) を参照。各 AI はクラスと対になる `{AI名}Factory` を提供し、自動対局ツール側が `IPlayerFactory` 抽象経由で注入する
 
 #### 対局(Game)レベル
 
@@ -150,8 +150,8 @@ pwsh scripts/TestCoverage.ps1
 
 AI同士の4人対局を一括実行して統計を取るコンソールアプリ。`Microsoft.Extensions.DependencyInjection` で `GameStateContext` に必要な抽象を組み立てる。
 
-- **実行時オプション** (`AutoPlayOptions`): `--games` 回数 / `--seed` 乱数シード / `--output` 出力先 / `--write-paifu` JSONL 牌譜出力フラグ
-- **対局ランナー** (`AutoPlayRunner`): 1対局ごとに `PlayerList` を生成し `GameStateContext` を `using` で起動、`GameStateEnd` を監視して次対局へ進む。対局単位の 5 分タイムアウトと例外時のスキップ＋次局継続を担う
+- **実行時オプション** (`AutoPlayOptions`): `--games` 回数 / `--seed` 乱数シード / `--output` 出力先 / `--write-paifu` JSONL 牌譜出力フラグ / `--parallel` 並列 worker 数（0 以下で `Environment.ProcessorCount`、既定値は 4。ベンチマーク結果で wall-clock 最小だった設定）
+- **対局ランナー** (`AutoPlayRunner`): 並列 worker 数に対局を均等分配し、各 worker が独立 `StatsTracer` で集計した結果を最後に `StatsTracer.Merge` で統合する（`Parallel.ForEachAsync` ベース）。1 対局ごとに `PlayerList` を生成し `GameStateContext` を `using` で起動、`GameStateEnd` を監視して次対局へ進む。対局単位の 5 分タイムアウトと例外時のスキップ＋次局継続を担う
 - **プレイヤー構成**: [MixedPlayerFactory](tools/Mahjong.Lib.Game.AutoPlay/MixedPlayerFactory.cs) が `IPlayerFactory[]` を受け取り、各対局開始時に席配置をシャッフル。`Program.cs` で AI を組み替えると混在対局の統計が取れる
 - **トレーサー合成**: [CompositeGameTracer](src/Mahjong.Lib.Game/Rounds/Managing/CompositeGameTracer.cs) に `StatsTracer`（順位・和了率・流局率集計）、`ProgressTracer`（局進行のログ出力）、必要に応じて `PaifuRecorder`（JSONL 牌譜書き出し）を束ねて `IGameTracer` として渡す
 - **山牌生成**: [ShuffledWallGenerator](tools/Mahjong.Lib.Game.AutoPlay/ShuffledWallGenerator.cs) は seed 指定の再現可能な Fisher–Yates シャッフル実装（天鳳互換 MT19937 ではないため検証用途では `WallGeneratorTenhou` を使うこと）

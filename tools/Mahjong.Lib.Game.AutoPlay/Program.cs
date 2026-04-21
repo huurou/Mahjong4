@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 var options = AutoPlayOptions.Parse(args);
-Console.WriteLine($"[AutoPlay] Games: {options.GameCount} Seed: {options.Seed} Output: {options.OutputDirectory} WritePaifu: {options.WritePaifu}");
+Console.WriteLine($"[AutoPlay] Games: {options.GameCount} Seed: {options.Seed} Output: {options.OutputDirectory} WritePaifu: {options.WritePaifu} LogicalProcessors: {Environment.ProcessorCount}");
 
 var services = new ServiceCollection();
 services.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Information));
@@ -21,8 +21,8 @@ services.AddSingleton<IResponsePriorityPolicy, TenhouResponsePriorityPolicy>();
 services.AddSingleton<IDefaultResponseFactory, DefaultResponseFactory>();
 
 // AI の組み合わせはこの配列で指定する (同一 AI を 4 席並べれば単独対局)。
-// MixedPlayerFactory が対局ごとに席配置をランダムシャッフルする
-services.AddSingleton<IPlayerFactory>(_ =>
+// MixedPlayerFactory が対局ごとに席配置を決定的にシャッフルする
+services.AddSingleton(_ =>
 {
     var aiFactories = new IPlayerFactory[]
     {
@@ -31,16 +31,14 @@ services.AddSingleton<IPlayerFactory>(_ =>
         new AI_v0_3_0_評価値Factory(options.Seed),
         new AI_v0_3_0_評価値Factory(options.Seed),
     };
-    return new MixedPlayerFactory(aiFactories, new Random(options.Seed));
+    return new MixedPlayerFactory(aiFactories, options.Seed);
 });
 
-services.AddSingleton<StatsTracer>();
 services.AddTransient<AutoPlayRunner>();
 
 await using var provider = services.BuildServiceProvider();
 
 var runner = provider.GetRequiredService<AutoPlayRunner>();
-var statsTracer = provider.GetRequiredService<StatsTracer>();
 
 using var cts = new CancellationTokenSource();
 Console.CancelKeyPress += (_, e) =>
@@ -53,12 +51,12 @@ Console.CancelKeyPress += (_, e) =>
 StatsReport report;
 try
 {
-    report = await runner.RunAsync(options.GameCount, statsTracer, cts.Token);
+    report = await runner.RunAsync(options.GameCount, cts.Token);
 }
 catch (OperationCanceledException)
 {
     Console.WriteLine("キャンセルされました。");
-    report = statsTracer.Build();
+    return;
 }
 
 Console.WriteLine(StatsReportFormatter.Format(report));

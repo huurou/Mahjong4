@@ -14,14 +14,16 @@ using System.Diagnostics;
 namespace Mahjong.Lib.Game.AutoPlay;
 
 /// <summary>
-/// 4 人 AI 自動対局を指定回数実行するランナー
+/// 4 人 AI 自動対局を指定回数実行するランナー。
+/// 並列対局時は <see cref="Environment.ProcessorCount"/> 個の worker に対局を均等分配し、
+/// 各 worker が独立 <see cref="StatsTracer"/> で集計した結果を最後に <see cref="StatsTracer.Merge"/> で統合する
 /// </summary>
 public sealed class AutoPlayRunner(
     IRoundViewProjector projector,
     IResponseCandidateEnumerator enumerator,
     IResponsePriorityPolicy priorityPolicy,
     IDefaultResponseFactory defaultFactory,
-    IPlayerFactory playerFactory,
+    MixedPlayerFactory playerListFactory,
     GameRules rules,
     AutoPlayOptions options,
     ILoggerFactory loggerFactory
@@ -29,41 +31,74 @@ public sealed class AutoPlayRunner(
 {
     private static TimeSpan GameTimeout { get; } = TimeSpan.FromMinutes(5);
 
-    public async Task<StatsReport> RunAsync(int gameCount, StatsTracer statsTracer, CancellationToken ct = default)
+    public async Task<StatsReport> RunAsync(int totalGameCount, CancellationToken ct = default)
     {
         var logger = loggerFactory.CreateLogger<AutoPlayRunner>();
-        for (var i = 0; i < gameCount; i++)
+        var requested = options.Parallelism > 0 ? options.Parallelism : Environment.ProcessorCount;
+        var workerCount = Math.Max(1, Math.Min(requested, totalGameCount));
+        var gamesPerWorker = (totalGameCount + workerCount - 1) / workerCount;
+        var actualTotal = gamesPerWorker * workerCount;
+
+        logger.LogInformation(
+            "並列実行: Workers={WorkerCount} 対局/worker={GamesPerWorker} 実対局数={ActualTotal} (指定={Specified})",
+            workerCount, gamesPerWorker, actualTotal, totalGameCount
+        );
+
+        var tracers = new StatsTracer[workerCount];
+        for (var i = 0; i < workerCount; i++)
         {
-            ct.ThrowIfCancellationRequested();
-            var sw = Stopwatch.StartNew();
-            try
-            {
-                var result = await RunSingleGameAsync(i, gameCount, statsTracer, ct);
-                sw.Stop();
-                var percent = (i + 1) * 100.0 / gameCount;
-                logger.LogInformation("対局 {GameNumber}/{GameCount} ({Percent:00.00}%) 完了 ({ElapsedSeconds:F1}s) {Ranking}",
-                    i + 1, gameCount, percent, sw.Elapsed.TotalSeconds, FormatRanking(result.Points, result.PlayerList));
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                sw.Stop();
-                statsTracer.RecordGameFailed();
-                logger.LogError(ex, "対局 {GameNumber} が例外で中断しました。次の対局に進みます。", i);
-                var percent = (i + 1) * 100.0 / gameCount;
-                logger.LogInformation("対局 {GameNumber}/{GameCount} ({Percent:00.00}%) 失敗 ({ElapsedSeconds:F1}s)",
-                    i + 1, gameCount, percent, sw.Elapsed.TotalSeconds);
-            }
+            tracers[i] = new StatsTracer();
         }
-        return statsTracer.Build();
+
+        var completedGameCount = 0;
+        var parallelOpts = new ParallelOptions { MaxDegreeOfParallelism = workerCount, CancellationToken = ct };
+        await Parallel.ForEachAsync(Enumerable.Range(0, workerCount), parallelOpts, async (workerId, workerCt) =>
+        {
+            var tracer = tracers[workerId];
+            for (var local = 0; local < gamesPerWorker; local++)
+            {
+                workerCt.ThrowIfCancellationRequested();
+                var gameNumber = workerId * gamesPerWorker + local;
+                var sw = Stopwatch.StartNew();
+                try
+                {
+                    var result = await RunSingleGameAsync(gameNumber, actualTotal, tracer, workerCt);
+                    sw.Stop();
+                    var done = Interlocked.Increment(ref completedGameCount);
+                    var percent = done * 100.0 / actualTotal;
+                    logger.LogInformation(
+                        "W{WorkerId} 対局 {GameNumber}/{Total} ({Percent:00.00}%) 完了 ({ElapsedSeconds:F1}s)",
+                        workerId, done, actualTotal, percent, sw.Elapsed.TotalSeconds
+                    );
+                }
+                catch (OperationCanceledException) when (workerCt.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    sw.Stop();
+                    tracer.RecordGameFailed();
+                    var done = Interlocked.Increment(ref completedGameCount);
+                    logger.LogError(ex, "W{WorkerId} 対局 {GameNumber} が例外で中断。", workerId, gameNumber);
+                    logger.LogInformation(
+                        "W{WorkerId} 対局 {GameNumber}/{Total} ({Percent:00.00}%) 失敗 ({ElapsedSeconds:F1}s)",
+                        workerId, done, actualTotal, done * 100.0 / actualTotal, sw.Elapsed.TotalSeconds
+                    );
+                }
+            }
+        });
+
+        return StatsTracer.Merge(tracers).Build();
     }
 
-    private async Task<(PointArray Points, PlayerList PlayerList)> RunSingleGameAsync(int gameNumber, int gameCount, StatsTracer statsTracer, CancellationToken ct)
+    private async Task<(PointArray Points, PlayerList PlayerList)> RunSingleGameAsync(
+        int gameNumber,
+        int gameCount,
+        StatsTracer statsTracer,
+        CancellationToken ct)
     {
-        var playerList = CreatePlayers();
+        var playerList = playerListFactory.CreatePlayerList(gameNumber);
         var progressTracer = new ProgressTracer(
             gameNumber,
             gameCount,
@@ -123,23 +158,6 @@ public sealed class AutoPlayRunner(
             paifuRecorder?.Dispose();
             paifuWriter?.Dispose();
         }
-    }
-
-    private static string FormatRanking(PointArray points, PlayerList playerList)
-    {
-        var ranked = Enumerable.Range(0, PlayerIndex.PLAYER_COUNT)
-            .Select(x => (PlayerIndex: x, Point: points[new PlayerIndex(x)].Value, Name: playerList[new PlayerIndex(x)].DisplayName))
-            .OrderByDescending(x => x.Point)
-            .Select((x, rank) => $"{rank + 1}位 P{x.PlayerIndex}({x.Name})={x.Point}");
-        return $"[{string.Join(", ", ranked)}]";
-    }
-
-    private PlayerList CreatePlayers()
-    {
-        var players = Enumerable.Range(0, PlayerIndex.PLAYER_COUNT)
-            .Select(x => playerFactory.Create(new PlayerIndex(x), PlayerId.NewId()))
-            .ToArray();
-        return new PlayerList(players);
     }
 
     private static async Task WaitForGameEndAsync(GameStateContext ctx, TimeSpan timeout, CancellationToken ct)

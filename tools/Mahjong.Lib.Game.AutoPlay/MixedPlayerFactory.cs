@@ -4,23 +4,19 @@ namespace Mahjong.Lib.Game.AutoPlay;
 
 /// <summary>
 /// プレイヤーインデックスごとに異なる <see cref="IPlayerFactory"/> を委譲する複合 Factory。
-/// 対局 (= 4 回の <see cref="Create"/> 呼び出し) ごとに内部で席配置をランダムシャッフルし、
-/// 起家バイアスを均して AI 比較の公平性を確保する。
+/// 対局ごとに席配置をシャッフルして起家バイアスを均し、AI 比較の公平性を確保する。
 /// </summary>
 /// <remarks>
-/// <see cref="Create"/> は 1 対局につき 4 回連続で呼ばれる前提。callIndex_ は 4 回周期で 0 に戻り、
-/// 0 を検知するたびに席配置 currentAssignment_ をシャッフルする。
-/// このため 1 対局で 4 回未満しか呼ばれない/5 回以上呼ばれる/対局途中に差し込まれる呼び出しが混ざると
-/// 席配置が崩れて公平性が破れる。呼び出し側はこの契約 (1 対局 = 4 回の Create 連続呼び出し) を守ること
+/// 並列対局に耐えるため完全にステートレス。席配置は <paramref name="baseSeed"/> と
+/// <see cref="CreatePlayerList"/> の gameNumber から Fibonacci hashing で決定的に導出し、
+/// 同一 (seed, gameNumber) に対して常に同じ割り当てを返す
 /// </remarks>
-public sealed class MixedPlayerFactory : IPlayerFactory
+public sealed class MixedPlayerFactory
 {
     private readonly IPlayerFactory[] factories_;
-    private readonly Random shuffleRng_;
-    private readonly int[] currentAssignment_ = new int[PlayerIndex.PLAYER_COUNT];
-    private int callIndex_;
+    private readonly int baseSeed_;
 
-    public MixedPlayerFactory(IPlayerFactory[] factories, Random shuffleRng)
+    public MixedPlayerFactory(IPlayerFactory[] factories, int baseSeed)
     {
         if (factories.Length != PlayerIndex.PLAYER_COUNT)
         {
@@ -29,34 +25,34 @@ public sealed class MixedPlayerFactory : IPlayerFactory
                 nameof(factories)
             );
         }
-
         factories_ = factories;
-        shuffleRng_ = shuffleRng;
-        for (var i = 0; i < currentAssignment_.Length; i++)
-        {
-            currentAssignment_[i] = i;
-        }
+        baseSeed_ = baseSeed;
     }
 
     public string DisplayName => string.Join(" / ", factories_.Select(x => x.DisplayName).Distinct());
 
-    public Player Create(PlayerIndex index, PlayerId id)
+    public PlayerList CreatePlayerList(int gameNumber)
     {
-        if (callIndex_ == 0)
+        var rng = new Random(DeriveSeed(baseSeed_, gameNumber));
+        var assignment = new int[PlayerIndex.PLAYER_COUNT];
+        for (var i = 0; i < assignment.Length; i++) { assignment[i] = i; }
+        for (var i = assignment.Length - 1; i > 0; i--)
         {
-            Shuffle(currentAssignment_);
+            var j = rng.Next(i + 1);
+            (assignment[i], assignment[j]) = (assignment[j], assignment[i]);
         }
-        var factory = factories_[currentAssignment_[index.Value]];
-        callIndex_ = (callIndex_ + 1) % PlayerIndex.PLAYER_COUNT;
-        return factory.Create(index, id);
+
+        var players = Enumerable.Range(0, PlayerIndex.PLAYER_COUNT)
+            .Select(x => factories_[assignment[x]].Create(new PlayerIndex(x), PlayerId.NewId()))
+            .ToArray();
+        return new PlayerList(players);
     }
 
-    private void Shuffle(int[] arr)
+    private static int DeriveSeed(int baseSeed, int gameNumber)
     {
-        for (var i = arr.Length - 1; i > 0; i--)
+        unchecked
         {
-            var j = shuffleRng_.Next(i + 1);
-            (arr[i], arr[j]) = (arr[j], arr[i]);
+            return (int)((uint)baseSeed * 0x9E3779B9u ^ (uint)gameNumber);
         }
     }
 }

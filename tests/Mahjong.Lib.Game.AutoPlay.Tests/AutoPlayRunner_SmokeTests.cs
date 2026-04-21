@@ -1,5 +1,5 @@
-﻿using Mahjong.Lib.Game.AutoPlay.Tracing;
-using Mahjong.Lib.Game.Games;
+﻿using Mahjong.Lib.Game.Games;
+using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Players.Impl;
 using Mahjong.Lib.Game.Rounds.Managing;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -13,24 +13,31 @@ public class AutoPlayRunner_SmokeTests
     {
         // Arrange
         var rules = new GameRules();
-        var statsTracer = new StatsTracer();
-        var options = new AutoPlayOptions(GameCount: 3, Seed: 42, OutputDirectory: "./tmp-paifu-smoke", WritePaifu: false);
+        var options = new AutoPlayOptions(GameCount: 3, Seed: 42, OutputDirectory: "./tmp-paifu-smoke", WritePaifu: false, Parallelism: 1);
+        var aiFactories = new IPlayerFactory[]
+        {
+            new AI_v0_1_0_ランダムFactory(42),
+            new AI_v0_1_0_ランダムFactory(42),
+            new AI_v0_1_0_ランダムFactory(42),
+            new AI_v0_1_0_ランダムFactory(42),
+        };
+        var playerListFactory = new MixedPlayerFactory(aiFactories, options.Seed);
         var runner = new AutoPlayRunner(
             new RoundViewProjector(),
             new ResponseCandidateEnumerator(rules),
             new TenhouResponsePriorityPolicy(),
             new DefaultResponseFactory(),
-            new AI_v0_1_0_ランダムFactory(42),
+            playerListFactory,
             rules,
             options,
             NullLoggerFactory.Instance
         );
 
         // Act
-        var report = await runner.RunAsync(3, statsTracer, TestContext.Current.CancellationToken);
+        var report = await runner.RunAsync(3, TestContext.Current.CancellationToken);
 
-        // Assert
-        Assert.Equal(3, report.GameCount);
+        // Assert: 実対局数は worker 分配で指定値以上 (ceil(3/workerCount) × workerCount)
+        Assert.True(report.GameCount >= 3);
         Assert.True(report.RoundCount > 0);
     }
 }

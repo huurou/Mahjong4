@@ -1,4 +1,5 @@
 ﻿using Mahjong.Lib.Game.Calls;
+using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Tiles;
 using Mahjong.Lib.Game.Walls;
@@ -15,6 +16,39 @@ namespace Mahjong.Lib.Game.Games;
 internal static class ScoringHelper
 {
     public static ScoreResult Calculate(ScoreRequest request, GameRules rules)
+    {
+        var result = CalcHandResult(request, rules);
+        if (result.ErrorMessage is not null)
+        {
+            // 役なし等で HandCalculator がエラーを返した場合は例外として扱い、不正な和了応答を SettleWin へ進めない。
+            // 候補列挙時点で <see cref="CanWin"/> により役なし和了は除外される想定だが、
+            // 予期せず侵入した役なし和了を 0 点で黙って通さないよう最終防衛として例外化する。
+            // 例外は RoundStateContext.ProcessEventAsync が InvalidEventReceived イベントに回送する
+            throw new InvalidOperationException(
+                $"HandCalculator がエラーを返しました: {result.ErrorMessage} " +
+                $"(winnerIndex={request.WinnerIndex.Value}, loserIndex={request.LoserIndex.Value}, " +
+                $"winType={request.WinType}, winTile.Id={request.WinTile.Id})"
+            );
+        }
+
+        var callList = request.Round.CallListArray[request.WinnerIndex];
+        var deltas = PointDistribution.Distribute(result, request);
+        var isMenzen = callList.All(x => x.Type is CallType.Ankan);
+        return new ScoreResult(result.Han, result.Fu, deltas, result.YakuList, isMenzen);
+    }
+
+    /// <summary>
+    /// 指定和了が役あり (HandCalculator がエラーを返さない) かを判定する。
+    /// 候補列挙時に役なし和了を除外するために使用し、AI が役なしロン/ツモを無限ループで再送するのを防ぐ。
+    /// 役判定は winnerIndex のみで決まるため loserIndex は不要 (内部的に winnerIndex を流用)
+    /// </summary>
+    public static bool CanWin(Round round, PlayerIndex winnerIndex, WinType winType, Tile winTile, GameRules rules)
+    {
+        var request = new ScoreRequest(round, winnerIndex, winnerIndex, winType, winTile);
+        return CalcHandResult(request, rules).ErrorMessage is null;
+    }
+
+    private static HandResult CalcHandResult(ScoreRequest request, GameRules rules)
     {
         var round = request.Round;
         var winnerIndex = request.WinnerIndex;
@@ -40,7 +74,7 @@ internal static class ScoringHelper
         var scoringRules = rules.ToScoringGameRules();
         // 天和は HandValidator 側で winTile=null を要求するため明示的に null を渡す。他の和了種別は通常どおり winTile を渡す
         var winTileKind = winSituation.IsTenhou ? null : request.WinTile.Kind;
-        var result = HandCalculator.Calc(
+        return HandCalculator.Calc(
             handTileKindList,
             winTileKind,
             scoringCallList,
@@ -49,23 +83,6 @@ internal static class ScoringHelper
             winSituation,
             scoringRules
         );
-
-        if (result.ErrorMessage is not null)
-        {
-            // 役なし等で HandCalculator がエラーを返した場合は例外として扱い、不正な和了応答を SettleWin へ進めない。
-            // ResponseCandidateEnumerator は待ち牌一致のみで Ron/TsumoAgari 候補を提示しており役の存在は検証しないため、
-            // ここで 0 点和了として黙って通すと未立直役なしロン等が 0 点和了として成立してしまう。
-            // 例外は RoundStateContext.ProcessEventAsync が InvalidEventReceived イベントに回送する
-            throw new InvalidOperationException(
-                $"HandCalculator がエラーを返しました: {result.ErrorMessage} " +
-                $"(winnerIndex={winnerIndex.Value}, loserIndex={request.LoserIndex.Value}, " +
-                $"winType={request.WinType}, winTile.Id={request.WinTile.Id})"
-            );
-        }
-
-        var deltas = PointDistribution.Distribute(result, request);
-        var isMenzen = callList.All(x => x.Type is CallType.Ankan);
-        return new ScoreResult(result.Han, result.Fu, deltas, result.YakuList, isMenzen);
     }
 
     private static TileKindList CollectIndicators(Wall wall, Func<Wall, int, Tile> getIndicator)

@@ -240,4 +240,42 @@ public sealed class StatsTracer : IGameTracer
             failedGameCount_
         );
     }
+
+    /// <summary>
+    /// 並列対局で各 worker が独立した <see cref="StatsTracer"/> を持つ前提の下、
+    /// worker 終了後にその集計を合算して 1 本の <see cref="StatsTracer"/> に統合する。
+    /// 合算対象は対局単位の累積値のみ (ラウンド内状態 <see cref="currentNames_"/> /
+    /// <see cref="riichiDeclaredThisRound_"/> / <see cref="calledThisRound_"/> は破棄)
+    /// </summary>
+    public static StatsTracer Merge(IEnumerable<StatsTracer> sources)
+    {
+        var merged = new StatsTracer();
+        foreach (var src in sources)
+        {
+            merged.gameCount_ += src.gameCount_;
+            merged.roundCount_ += src.roundCount_;
+            merged.failedGameCount_ += src.failedGameCount_;
+            foreach (var (name, srcAcc) in src.byName_)
+            {
+                var target = merged.GetOrCreate(name);
+                for (var i = 0; i < PLAYER_COUNT; i++) { target.RankCounts[i] += srcAcc.RankCounts[i]; }
+                target.GameSeatCount += srcAcc.GameSeatCount;
+                target.RoundAppearance += srcAcc.RoundAppearance;
+                target.WinCount += srcAcc.WinCount;
+                target.HoujuuCount += srcAcc.HoujuuCount;
+                target.RiichiCount += srcAcc.RiichiCount;
+                target.CallCount += srcAcc.CallCount;
+                target.WinPointSum += srcAcc.WinPointSum;
+            }
+            foreach (var (yaku, count) in src.yakuCounts_)
+            {
+                merged.yakuCounts_[yaku] = merged.yakuCounts_.GetValueOrDefault(yaku) + count;
+            }
+            foreach (var (type, count) in src.ryuukyokuCounts_)
+            {
+                merged.ryuukyokuCounts_[type] = merged.ryuukyokuCounts_.GetValueOrDefault(type) + count;
+            }
+        }
+        return merged;
+    }
 }

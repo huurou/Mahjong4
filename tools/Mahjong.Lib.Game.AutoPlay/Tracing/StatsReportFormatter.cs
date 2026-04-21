@@ -42,7 +42,7 @@ public static class StatsReportFormatter
         sb.AppendLine();
         var totalWins = report.PlayerStats.Sum(x => x.WinCount);
         sb.AppendLine($"役出現回数 (上位 20、和了回数 {totalWins} 回に対する出現率):");
-        foreach (var kv in report.YakuCounts.OrderByDescending(x => x.Value).Take(20))
+        foreach (var kv in report.YakuCounts.OrderByDescending(x => x.Value).ThenBy(x => x.Key, StringComparer.Ordinal).Take(20))
         {
             var rate = totalWins == 0 ? 0.0 : (double)kv.Value / totalWins;
             sb.AppendLine($"  {kv.Key,-20} {kv.Value,5} ({rate,6:P1})");
@@ -50,7 +50,7 @@ public static class StatsReportFormatter
 
         sb.AppendLine();
         sb.AppendLine("流局種別別回数:");
-        foreach (var kv in report.RyuukyokuCounts.OrderByDescending(x => x.Value))
+        foreach (var kv in report.RyuukyokuCounts.OrderByDescending(x => x.Value).ThenBy(x => x.Key))
         {
             sb.AppendLine($"  {kv.Key,-20} {kv.Value}");
         }
