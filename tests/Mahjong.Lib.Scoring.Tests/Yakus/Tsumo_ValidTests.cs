@@ -39,7 +39,6 @@ public class Tsumo_ValidTests
     public void Valid_副露あり_ツモ和了_成立しない()
     {
         // Arrange
-        var hand = new Hand([new(man: "234"), new(man: "567"), new(pin: "88")]);
         var callList = new CallList([Call.Chi(new(sou: "345"))]);
         var winSituation = new WinSituation { IsTsumo = true };
 

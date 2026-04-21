@@ -26,10 +26,10 @@ services.AddSingleton<IPlayerFactory>(_ =>
 {
     var aiFactories = new IPlayerFactory[]
     {
-        new AI_v0_1_0_ランダムFactory(options.Seed),
-        new AI_v0_1_0_ランダムFactory(options.Seed),
         new AI_v0_2_0_有効牌Factory(options.Seed),
         new AI_v0_2_0_有効牌Factory(options.Seed),
+        new AI_v0_3_0_評価値Factory(options.Seed),
+        new AI_v0_3_0_評価値Factory(options.Seed),
     };
     return new MixedPlayerFactory(aiFactories, new Random(options.Seed));
 });

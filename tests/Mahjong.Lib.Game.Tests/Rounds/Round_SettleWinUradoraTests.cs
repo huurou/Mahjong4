@@ -10,7 +10,10 @@ public class Round_SettleWinUradoraTests
 {
     private static Tile DummyWinTile { get; } = new(0);
 
-    private static ScoreResult EmptyResult() => new(0, 0, new PointArray(new Point(0)), [], IsMenzen: true);
+    private static ScoreResult EmptyResult()
+    {
+        return new(0, 0, new PointArray(new Point(0)), [], IsMenzen: true);
+    }
 
     private static Round CreateBaseRound()
     {

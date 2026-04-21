@@ -101,7 +101,7 @@ public static class TenhouMeldStringEncoder
         // 前提: RedDoraTiles は同一種につき 1 枚のみ。暗槓 1 組に赤が 2 枚以上含まれる構成はルール上生じないため、
         // 2 枚以上のケースは例外で検知する (黙って誤出力するより早期に気づける)
         var tiles = call.Tiles.OrderBy(x => rules.RedDoraTiles.Contains(x) ? 1 : 0).ThenBy(x => x.Id).ToList();
-        var redCount = tiles.Count(x => rules.RedDoraTiles.Contains(x));
+        var redCount = tiles.Count(rules.RedDoraTiles.Contains);
         if (redCount > 1)
         {
             throw new InvalidOperationException($"暗槓 1 組に赤ドラが複数枚含まれる構成は未対応です。redCount:{redCount}");

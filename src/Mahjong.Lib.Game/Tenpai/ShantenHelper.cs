@@ -16,10 +16,14 @@ internal static class ShantenHelper
         return ShantenCalculator.Calc(hand.ToScoringTileKindList());
     }
 
-    public static ImmutableHashSet<TileKind> EnumerateUsefulTileKinds(Hands.Hand hand)
+    /// <summary>
+    /// 指定手牌の有効牌 (引くとシャンテン数が減る牌種) 集合を返す。
+    /// <paramref name="knownShanten"/> に呼び出し元で既に計算したシャンテン数を渡すと重複計算を避けられる
+    /// </summary>
+    public static ImmutableHashSet<TileKind> EnumerateUsefulTileKinds(Hands.Hand hand, int? knownShanten = null)
     {
         var tileKindList = hand.ToScoringTileKindList();
-        var current = ShantenCalculator.Calc(tileKindList);
+        var current = knownShanten ?? ShantenCalculator.Calc(tileKindList);
         if (current == -1)
         {
             return [];

@@ -691,7 +691,7 @@ public record Round(
             PlayerRoundStatusArray[x].IsDoubleRiichi);
         var uraDoraIndicators = anyRiichi
             ? CollectUraDoraIndicators()
-            : ImmutableArray<Tile>.Empty;
+            : [];
 
         var details = new WinSettlementDetails(winnersBuilder.ToImmutable(), Honba, kyoutakuAward, uraDoraIndicators);
         var settled = this with { PointArray = pointArray, KyoutakuRiichiCount = KyoutakuRiichiCount.Clear() };

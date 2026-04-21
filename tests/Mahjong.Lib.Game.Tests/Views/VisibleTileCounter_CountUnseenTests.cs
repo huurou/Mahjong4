@@ -42,7 +42,6 @@ public class VisibleTileCounter_CountUnseenTests
     public void 他家の河に2枚_2を返す()
     {
         // Arrange
-        var river = new River([Tile(5, 0), Tile(5, 1)]);
         var rivers = new RiverArray().AddTile(new PlayerIndex(1), Tile(5, 0)).AddTile(new PlayerIndex(1), Tile(5, 1));
         var view = CreateView(rivers: rivers);
 
