@@ -16,8 +16,14 @@ public class GameEndPolicy_ShouldEndAfterRoundTests
             winType,
             [],
             new Honba(0),
-            new KyoutakuRiichiAward(winner, 0)
+            new KyoutakuRiichiAward(winner, 0),
+            []
         );
+    }
+
+    private static GameEventRoundEndedByRyuukyoku CreateRyuukyokuEvent(RyuukyokuType type)
+    {
+        return new GameEventRoundEndedByRyuukyoku(type, [], [], new PointArray(new Point(0)));
     }
 
     [Fact]
@@ -28,7 +34,7 @@ public class GameEndPolicy_ShouldEndAfterRoundTests
         {
             PointArray = new PointArray(new Point(25000)).SubtractPoint(new PlayerIndex(0), 30000),
         };
-        var evt = new GameEventRoundEndedByRyuukyoku(RyuukyokuType.KouhaiHeikyoku, [], []);
+        var evt = CreateRyuukyokuEvent(RyuukyokuType.KouhaiHeikyoku);
 
         // Act
         var result = GameEndPolicy.ShouldEndAfterRound(game, evt, dealerContinues: false);
@@ -42,7 +48,7 @@ public class GameEndPolicy_ShouldEndAfterRoundTests
     {
         // Arrange
         var game = GameAggregate.Create(GamesTestHelper.CreatePlayerList(), new GameRules { Format = GameFormat.SingleRound });
-        var evt = new GameEventRoundEndedByRyuukyoku(RyuukyokuType.KouhaiHeikyoku, [], []);
+        var evt = CreateRyuukyokuEvent(RyuukyokuType.KouhaiHeikyoku);
 
         // Act
         var result = GameEndPolicy.ShouldEndAfterRound(game, evt, dealerContinues: false);
@@ -56,7 +62,7 @@ public class GameEndPolicy_ShouldEndAfterRoundTests
     {
         // Arrange
         var game = GameAggregate.Create(GamesTestHelper.CreatePlayerList(), new GameRules { Format = GameFormat.Tonpuu });
-        var evt = new GameEventRoundEndedByRyuukyoku(RyuukyokuType.KouhaiHeikyoku, [], []);
+        var evt = CreateRyuukyokuEvent(RyuukyokuType.KouhaiHeikyoku);
 
         // Act
         var result = GameEndPolicy.ShouldEndAfterRound(game, evt, dealerContinues: false);
@@ -73,7 +79,7 @@ public class GameEndPolicy_ShouldEndAfterRoundTests
             .AdvanceToNextRound(RoundAdvanceMode.DealerChangeResetHonba)    // 東二局
             .AdvanceToNextRound(RoundAdvanceMode.DealerChangeResetHonba)    // 東三局
             .AdvanceToNextRound(RoundAdvanceMode.DealerChangeResetHonba);   // 東四局
-        var evt = new GameEventRoundEndedByRyuukyoku(RyuukyokuType.KouhaiHeikyoku, [], []);
+        var evt = CreateRyuukyokuEvent(RyuukyokuType.KouhaiHeikyoku);
 
         // Act
         var result = GameEndPolicy.ShouldEndAfterRound(game, evt, dealerContinues: false);
@@ -208,7 +214,7 @@ public class GameEndPolicy_ShouldEndAfterRoundTests
             game = game.AdvanceToNextRound(RoundAdvanceMode.DealerChangeResetHonba);
         }
         // 南4局相当
-        var evt = new GameEventRoundEndedByRyuukyoku(RyuukyokuType.KouhaiHeikyoku, [], []);
+        var evt = CreateRyuukyokuEvent(RyuukyokuType.KouhaiHeikyoku);
 
         // Act
         var result = GameEndPolicy.ShouldEndAfterRound(game, evt, dealerContinues: false);

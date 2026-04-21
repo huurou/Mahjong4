@@ -206,4 +206,62 @@ public class Round_SettleWinPaoTests
         Assert.Equal(-16000, adjusted[loser].Value);
         Assert.Equal(0, adjusted[new PlayerIndex(1)].Value);
     }
+
+    [Fact]
+    public void 包適用時_AdoptedWinnerのPaoPlayerIndexに責任者が設定される()
+    {
+        // Arrange
+        var winner = new PlayerIndex(0);
+        var responsible = new PlayerIndex(2);
+        var scoreResults = ImmutableArray.Create(YakumanResult(winner, 48000));
+        var round = CreateBaseRound() with
+        {
+            PaoResponsibleArray = new PlayerResponsibilityArray().SetResponsible(winner, responsible),
+        };
+
+        // Act
+        var (_, details) = round.SettleWin([winner], winner, WinType.Tsumo, DummyWinTile, scoreResults);
+
+        // Assert
+        Assert.Equal(responsible, details.Winners[0].PaoPlayerIndex);
+    }
+
+    [Fact]
+    public void 包対象役がない和了_AdoptedWinnerのPaoPlayerIndexはnull()
+    {
+        // Arrange: 立直のみの和了で PaoResponsibleArray に責任者を入れても包対象役がなければ PaoPlayerIndex は null
+        var winner = new PlayerIndex(0);
+        var responsible = new PlayerIndex(2);
+        var deltas = new PointArray(new Point(0))
+            .AddPoint(winner, 12000)
+            .SubtractPoint(new PlayerIndex(1), 4000)
+            .SubtractPoint(new PlayerIndex(2), 4000)
+            .SubtractPoint(new PlayerIndex(3), 4000);
+        var scoreResults = ImmutableArray.Create(new ScoreResult(0, 0, deltas, [Yaku.Riichi], IsMenzen: true));
+        var round = CreateBaseRound() with
+        {
+            PaoResponsibleArray = new PlayerResponsibilityArray().SetResponsible(winner, responsible),
+        };
+
+        // Act
+        var (_, details) = round.SettleWin([winner], winner, WinType.Tsumo, DummyWinTile, scoreResults);
+
+        // Assert
+        Assert.Null(details.Winners[0].PaoPlayerIndex);
+    }
+
+    [Fact]
+    public void 責任者未設定の和了_AdoptedWinnerのPaoPlayerIndexはnull()
+    {
+        // Arrange
+        var winner = new PlayerIndex(0);
+        var scoreResults = ImmutableArray.Create(YakumanResult(winner, 48000));
+        var round = CreateBaseRound();
+
+        // Act
+        var (_, details) = round.SettleWin([winner], winner, WinType.Tsumo, DummyWinTile, scoreResults);
+
+        // Assert
+        Assert.Null(details.Winners[0].PaoPlayerIndex);
+    }
 }

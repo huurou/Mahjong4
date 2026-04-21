@@ -1,4 +1,6 @@
-﻿namespace Mahjong.Lib.Game.AutoPlay;
+﻿using System.Security.Cryptography;
+
+namespace Mahjong.Lib.Game.AutoPlay;
 
 /// <summary>
 /// 自動対局オプション
@@ -12,7 +14,7 @@ public record AutoPlayOptions(int GameCount, int Seed, string OutputDirectory, b
     public static AutoPlayOptions Parse(string[] args)
     {
         var gameCount = 20;
-        var seed = Environment.TickCount;
+        var seed = RandomNumberGenerator.GetInt32(int.MinValue, int.MaxValue);
         // デフォルト出力先は .gitignore で除外されている tmp-paifu/ 配下にする
         var outputDirectory = "./tmp-paifu";
         var writePaifu = false;
@@ -33,7 +35,7 @@ public record AutoPlayOptions(int GameCount, int Seed, string OutputDirectory, b
                     outputDirectory = args[++i];
                     break;
 
-                case "--paifu":
+                case "--write-paifu":
                     writePaifu = true;
                     break;
             }

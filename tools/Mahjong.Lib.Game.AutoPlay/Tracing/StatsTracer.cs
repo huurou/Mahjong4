@@ -1,4 +1,5 @@
 ﻿using Mahjong.Lib.Game.Adoptions;
+using Mahjong.Lib.Game.Calls;
 using Mahjong.Lib.Game.Candidates;
 using Mahjong.Lib.Game.Inquiries;
 using Mahjong.Lib.Game.Notifications;
@@ -6,6 +7,7 @@ using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Responses;
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Rounds.Managing;
+using Mahjong.Lib.Game.Tiles;
 using System.Collections.Immutable;
 
 namespace Mahjong.Lib.Game.AutoPlay.Tracing;
@@ -86,6 +88,22 @@ public sealed class StatsTracer : IGameTracer
     }
 
     public void OnInvalidResponse(NotificationId notificationId, PlayerIndex senderIndex, PlayerResponse invalidResponse, CandidateList presentedCandidates)
+    {
+    }
+
+    public void OnTsumoDrawn(PlayerIndex turn, Tile drawnTile, bool isRinshan)
+    {
+    }
+
+    public void OnDoraRevealed(Tile newIndicator)
+    {
+    }
+
+    public void OnRiichiDeclared(PlayerIndex player, int step)
+    {
+    }
+
+    public void OnCallExecuted(PlayerIndex caller, Call call)
     {
     }
 

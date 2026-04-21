@@ -23,10 +23,10 @@ public class Round_SettleRyuukyokuTests
         var result = round.SettleRyuukyoku(RyuukyokuType.KouhaiHeikyoku, [tenpai], []);
 
         // Assert
-        Assert.Equal(25000 + 3000, result.PointArray[tenpai].Value);
-        Assert.Equal(25000 - 1000, result.PointArray[new PlayerIndex(1)].Value);
-        Assert.Equal(25000 - 1000, result.PointArray[new PlayerIndex(2)].Value);
-        Assert.Equal(25000 - 1000, result.PointArray[new PlayerIndex(3)].Value);
+        Assert.Equal(25000 + 3000, result.Settled.PointArray[tenpai].Value);
+        Assert.Equal(25000 - 1000, result.Settled.PointArray[new PlayerIndex(1)].Value);
+        Assert.Equal(25000 - 1000, result.Settled.PointArray[new PlayerIndex(2)].Value);
+        Assert.Equal(25000 - 1000, result.Settled.PointArray[new PlayerIndex(3)].Value);
     }
 
     [Fact]
@@ -41,10 +41,10 @@ public class Round_SettleRyuukyokuTests
             [new PlayerIndex(0), new PlayerIndex(2)], []);
 
         // Assert
-        Assert.Equal(25000 + 1500, result.PointArray[new PlayerIndex(0)].Value);
-        Assert.Equal(25000 - 1500, result.PointArray[new PlayerIndex(1)].Value);
-        Assert.Equal(25000 + 1500, result.PointArray[new PlayerIndex(2)].Value);
-        Assert.Equal(25000 - 1500, result.PointArray[new PlayerIndex(3)].Value);
+        Assert.Equal(25000 + 1500, result.Settled.PointArray[new PlayerIndex(0)].Value);
+        Assert.Equal(25000 - 1500, result.Settled.PointArray[new PlayerIndex(1)].Value);
+        Assert.Equal(25000 + 1500, result.Settled.PointArray[new PlayerIndex(2)].Value);
+        Assert.Equal(25000 - 1500, result.Settled.PointArray[new PlayerIndex(3)].Value);
     }
 
     [Fact]
@@ -59,10 +59,10 @@ public class Round_SettleRyuukyokuTests
             [new PlayerIndex(0), new PlayerIndex(1), new PlayerIndex(2)], []);
 
         // Assert
-        Assert.Equal(25000 + 1000, result.PointArray[new PlayerIndex(0)].Value);
-        Assert.Equal(25000 + 1000, result.PointArray[new PlayerIndex(1)].Value);
-        Assert.Equal(25000 + 1000, result.PointArray[new PlayerIndex(2)].Value);
-        Assert.Equal(25000 - 3000, result.PointArray[new PlayerIndex(3)].Value);
+        Assert.Equal(25000 + 1000, result.Settled.PointArray[new PlayerIndex(0)].Value);
+        Assert.Equal(25000 + 1000, result.Settled.PointArray[new PlayerIndex(1)].Value);
+        Assert.Equal(25000 + 1000, result.Settled.PointArray[new PlayerIndex(2)].Value);
+        Assert.Equal(25000 - 3000, result.Settled.PointArray[new PlayerIndex(3)].Value);
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public class Round_SettleRyuukyokuTests
         // Assert
         for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
         {
-            Assert.Equal(25000, result.PointArray[new PlayerIndex(i)].Value);
+            Assert.Equal(25000, result.Settled.PointArray[new PlayerIndex(i)].Value);
         }
     }
 
@@ -95,7 +95,7 @@ public class Round_SettleRyuukyokuTests
         // Assert
         for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
         {
-            Assert.Equal(25000, result.PointArray[new PlayerIndex(i)].Value);
+            Assert.Equal(25000, result.Settled.PointArray[new PlayerIndex(i)].Value);
         }
     }
 
@@ -139,10 +139,10 @@ public class Round_SettleRyuukyokuTests
         var result = round.SettleRyuukyoku(RyuukyokuType.KouhaiHeikyoku, [], [new PlayerIndex(0)]);
 
         // Assert
-        Assert.Equal(25000 + 12000, result.PointArray[new PlayerIndex(0)].Value);
-        Assert.Equal(25000 - 4000, result.PointArray[new PlayerIndex(1)].Value);
-        Assert.Equal(25000 - 4000, result.PointArray[new PlayerIndex(2)].Value);
-        Assert.Equal(25000 - 4000, result.PointArray[new PlayerIndex(3)].Value);
+        Assert.Equal(25000 + 12000, result.Settled.PointArray[new PlayerIndex(0)].Value);
+        Assert.Equal(25000 - 4000, result.Settled.PointArray[new PlayerIndex(1)].Value);
+        Assert.Equal(25000 - 4000, result.Settled.PointArray[new PlayerIndex(2)].Value);
+        Assert.Equal(25000 - 4000, result.Settled.PointArray[new PlayerIndex(3)].Value);
     }
 
     [Fact]
@@ -155,10 +155,10 @@ public class Round_SettleRyuukyokuTests
         var result = round.SettleRyuukyoku(RyuukyokuType.KouhaiHeikyoku, [], [new PlayerIndex(1)]);
 
         // Assert
-        Assert.Equal(25000 - 4000, result.PointArray[new PlayerIndex(0)].Value);
-        Assert.Equal(25000 + 8000, result.PointArray[new PlayerIndex(1)].Value);
-        Assert.Equal(25000 - 2000, result.PointArray[new PlayerIndex(2)].Value);
-        Assert.Equal(25000 - 2000, result.PointArray[new PlayerIndex(3)].Value);
+        Assert.Equal(25000 - 4000, result.Settled.PointArray[new PlayerIndex(0)].Value);
+        Assert.Equal(25000 + 8000, result.Settled.PointArray[new PlayerIndex(1)].Value);
+        Assert.Equal(25000 - 2000, result.Settled.PointArray[new PlayerIndex(2)].Value);
+        Assert.Equal(25000 - 2000, result.Settled.PointArray[new PlayerIndex(3)].Value);
     }
 
     [Fact]
@@ -174,10 +174,10 @@ public class Round_SettleRyuukyokuTests
             [new PlayerIndex(1)]);
 
         // Assert
-        Assert.Equal(25000 - 4000, result.PointArray[new PlayerIndex(0)].Value);
-        Assert.Equal(25000 + 8000, result.PointArray[new PlayerIndex(1)].Value);
-        Assert.Equal(25000 - 2000, result.PointArray[new PlayerIndex(2)].Value);
-        Assert.Equal(25000 - 2000, result.PointArray[new PlayerIndex(3)].Value);
+        Assert.Equal(25000 - 4000, result.Settled.PointArray[new PlayerIndex(0)].Value);
+        Assert.Equal(25000 + 8000, result.Settled.PointArray[new PlayerIndex(1)].Value);
+        Assert.Equal(25000 - 2000, result.Settled.PointArray[new PlayerIndex(2)].Value);
+        Assert.Equal(25000 - 2000, result.Settled.PointArray[new PlayerIndex(3)].Value);
     }
 
     [Theory]
@@ -197,7 +197,61 @@ public class Round_SettleRyuukyokuTests
         // Assert
         for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
         {
-            Assert.Equal(25000, result.PointArray[new PlayerIndex(i)].Value);
+            Assert.Equal(25000, result.Settled.PointArray[new PlayerIndex(i)].Value);
         }
+    }
+
+    [Theory]
+    [InlineData(RyuukyokuType.KyuushuKyuuhai)]
+    [InlineData(RyuukyokuType.Suufonrenda)]
+    [InlineData(RyuukyokuType.Suukaikan)]
+    [InlineData(RyuukyokuType.SuuchaRiichi)]
+    [InlineData(RyuukyokuType.SanchaHou)]
+    public void 途中流局_PointDeltasは全要素0(RyuukyokuType type)
+    {
+        // Arrange
+        var round = CreateBaseRound();
+
+        // Act
+        var (_, pointDeltas) = round.SettleRyuukyoku(type, [], []);
+
+        // Assert
+        for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
+        {
+            Assert.Equal(0, pointDeltas[new PlayerIndex(i)].Value);
+        }
+    }
+
+    [Fact]
+    public void 荒牌平局_PointDeltasはテンパイ料の差分を返す()
+    {
+        // Arrange
+        var round = CreateBaseRound();
+        var tenpai = new PlayerIndex(0);
+
+        // Act
+        var (_, pointDeltas) = round.SettleRyuukyoku(RyuukyokuType.KouhaiHeikyoku, [tenpai], []);
+
+        // Assert
+        Assert.Equal(3000, pointDeltas[tenpai].Value);
+        Assert.Equal(-1000, pointDeltas[new PlayerIndex(1)].Value);
+        Assert.Equal(-1000, pointDeltas[new PlayerIndex(2)].Value);
+        Assert.Equal(-1000, pointDeltas[new PlayerIndex(3)].Value);
+    }
+
+    [Fact]
+    public void 親流し満貫_PointDeltasは4000オールの差分を返す()
+    {
+        // Arrange
+        var round = CreateBaseRound();
+
+        // Act
+        var (_, pointDeltas) = round.SettleRyuukyoku(RyuukyokuType.KouhaiHeikyoku, [], [new PlayerIndex(0)]);
+
+        // Assert
+        Assert.Equal(12000, pointDeltas[new PlayerIndex(0)].Value);
+        Assert.Equal(-4000, pointDeltas[new PlayerIndex(1)].Value);
+        Assert.Equal(-4000, pointDeltas[new PlayerIndex(2)].Value);
+        Assert.Equal(-4000, pointDeltas[new PlayerIndex(3)].Value);
     }
 }

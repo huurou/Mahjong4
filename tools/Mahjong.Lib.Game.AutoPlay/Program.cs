@@ -1,11 +1,9 @@
 ﻿using Mahjong.Lib.Game.AutoPlay;
-using Mahjong.Lib.Game.AutoPlay.Paifu;
 using Mahjong.Lib.Game.AutoPlay.Tracing;
 using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Players.Impl;
 using Mahjong.Lib.Game.Rounds.Managing;
-using Mahjong.Lib.Game.Walls;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -16,7 +14,7 @@ var services = new ServiceCollection();
 services.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Information));
 var rules = new GameRules();
 services.AddSingleton(rules);
-services.AddSingleton<IWallGenerator>(_ => new ShuffledWallGenerator(options.Seed));
+services.AddSingleton(options);
 services.AddSingleton<IRoundViewProjector, RoundViewProjector>();
 services.AddSingleton<IResponseCandidateEnumerator>(_ => new ResponseCandidateEnumerator(rules));
 services.AddSingleton<IResponsePriorityPolicy, TenhouResponsePriorityPolicy>();
@@ -37,21 +35,6 @@ services.AddSingleton<IPlayerFactory>(_ =>
 });
 
 services.AddSingleton<StatsTracer>();
-
-if (options.WritePaifu)
-{
-    var paifuPath = Path.Combine(options.OutputDirectory, $"paifu_{options.Seed}.jsonl");
-    services.AddSingleton(_ => new JsonlPaifuWriter(paifuPath));
-    services.AddSingleton<PaifuRecorder>();
-    services.AddSingleton<IGameTracer>(sp => new CompositeGameTracer(
-        [sp.GetRequiredService<StatsTracer>(), sp.GetRequiredService<PaifuRecorder>()],
-        sp.GetService<ILogger<CompositeGameTracer>>()));
-}
-else
-{
-    services.AddSingleton<IGameTracer>(sp => sp.GetRequiredService<StatsTracer>());
-}
-
 services.AddTransient<AutoPlayRunner>();
 
 await using var provider = services.BuildServiceProvider();

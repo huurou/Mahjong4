@@ -29,15 +29,16 @@ public partial class MeldParseService(ILogger<MeldParseService> logger)
             LogChiDetected(logger, meldCode & 0x0004);
             result = ParseChi(meldCode);
         }
+        else if ((meldCode & 0x0010) != 0)
+        {
+            // 加槓は bit3=1 かつ bit4=1。ポン判定より先に判定する必要がある
+            LogKakanDetected(logger, meldCode & 0x0010);
+            result = ParseKakan(meldCode);
+        }
         else if ((meldCode & 0x0008) != 0)
         {
             LogPonDetected(logger, meldCode & 0x0008);
             result = ParsePon(meldCode);
-        }
-        else if ((meldCode & 0x0010) != 0)
-        {
-            LogKakanDetected(logger, meldCode & 0x0010);
-            result = ParseKakan(meldCode);
         }
         else if ((meldCode & 0x0003) != 0)
         {

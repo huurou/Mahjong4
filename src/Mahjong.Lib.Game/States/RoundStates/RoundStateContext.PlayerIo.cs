@@ -138,6 +138,7 @@ public partial class RoundStateContext
         for (var n = fromExclusive; n < toInclusive; n++)
         {
             var newIndicator = Round.Wall.GetDoraIndicator(n);
+            tracer.OnDoraRevealed(newIndicator);
             var tasks = new Task[PlayerIndex.PLAYER_COUNT];
             for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
             {
@@ -353,7 +354,15 @@ public partial class RoundStateContext
                     .Where(x => x.Response is RonResponse)
                     .Select(x => x.PlayerIndex)
                     .ToImmutableArray();
-                await ResponseWinAsync(winners, loserIndex, WinType.Ron);
+                if (winners.Length >= 3)
+                {
+                    // 三家和了 (SanchaHou): 3 人以上のロンは流局扱い
+                    await ResponseRyuukyokuAsync(RyuukyokuType.SanchaHou, []);
+                }
+                else
+                {
+                    await ResponseWinAsync(winners, loserIndex, WinType.Ron);
+                }
                 break;
 
             case ChiResponse chi:
@@ -390,7 +399,15 @@ public partial class RoundStateContext
                     .Where(x => x.Response is ChankanRonResponse)
                     .Select(x => x.PlayerIndex)
                     .ToImmutableArray();
-                await ResponseWinAsync(winners, loserIndex, WinType.Chankan);
+                if (winners.Length >= 3)
+                {
+                    // 三家和了 (SanchaHou): 3 人以上の槍槓ロンは流局扱い
+                    await ResponseRyuukyokuAsync(RyuukyokuType.SanchaHou, []);
+                }
+                else
+                {
+                    await ResponseWinAsync(winners, loserIndex, WinType.Chankan);
+                }
                 break;
 
             case OkResponse:

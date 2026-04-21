@@ -20,6 +20,10 @@ public record RoundStateAfterKanTsumo : RoundState
     public override void ResponseDahai(RoundStateContext context, RoundEventResponseDahai evt)
     {
         base.ResponseDahai(context, evt);
+        if (evt.IsRiichi)
+        {
+            context.Tracer.OnRiichiDeclared(context.Round.Turn, step: 1);
+        }
         Transit(context, () => new RoundStateDahai(), round =>
         {
             // PendRiichi と Dahai を単一関数で適用することで、Dahai 例外時に Round が部分更新されないことを保証する
@@ -40,6 +44,7 @@ public record RoundStateAfterKanTsumo : RoundState
             CallType.Kakan => context.Round.ResolveKakanTiles(evt.Tile),
             _ => throw new InvalidOperationException($"槓応答の副露種別は Ankan / Kakan のいずれかである必要があります。実際:{evt.CallType}")
         };
+        var caller = context.Round.Turn;
         Transit(
             context,
             () => new RoundStateKan(evt.CallType, kanTiles),
@@ -50,6 +55,7 @@ public record RoundStateAfterKanTsumo : RoundState
                 _ => throw new InvalidOperationException($"槓応答の副露種別は Ankan / Kakan のいずれかである必要があります。実際:{evt.CallType}")
             }
         );
+        context.Tracer.OnCallExecuted(caller, GetExecutedKanCall(context.Round, caller, evt.CallType, evt.Tile));
     }
 
     public override RoundInquirySpec CreateInquirySpec(Round round, IResponseCandidateEnumerator enumerator)

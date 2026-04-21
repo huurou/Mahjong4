@@ -111,6 +111,7 @@ public class GameNotificationExtensions_ToWireTests
             RyuukyokuType.KouhaiHeikyoku,
             [],
             [],
+            new PointArray(new Point(0)),
             false
         );
     }

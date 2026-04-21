@@ -84,16 +84,16 @@ internal static class GamesTestHelper
     }
 
     /// <summary>
-    /// 既定のサービス群で <see cref="GameManager"/> を生成する
+    /// 既定のサービス群で <see cref="GameStateContext"/> を生成する
     /// </summary>
-    internal static GameManager CreateManager(
+    internal static GameStateContext CreateContext(
         PlayerList? playerList = null,
         GameRules? rules = null,
         IWallGenerator? wallGenerator = null
     )
     {
         var effectiveRules = rules ?? new GameRules();
-        return new GameManager(
+        return new GameStateContext(
             playerList ?? CreatePlayerList(),
             effectiveRules,
             wallGenerator ?? CreateWallGenerator(),
@@ -110,7 +110,7 @@ internal static class GamesTestHelper
     /// <summary>
     /// 対局レベル終了状態 (<see cref="Game.States.GameStates.Impl.GameStateEnd"/>) への遷移を待機する
     /// </summary>
-    internal static async Task WaitForGameEndAsync(GameManager manager, TimeSpan? timeout = null)
+    internal static async Task WaitForGameEndAsync(GameStateContext ctx, TimeSpan? timeout = null)
     {
         timeout ??= TimeSpan.FromSeconds(10);
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -122,10 +122,10 @@ internal static class GamesTestHelper
             }
         }
 
-        manager.Context.GameStateChanged += Handler;
+        ctx.GameStateChanged += Handler;
         try
         {
-            if (manager.Context.State is Game.States.GameStates.Impl.GameStateEnd)
+            if (ctx.State is Game.States.GameStates.Impl.GameStateEnd)
             {
                 return;
             }
@@ -133,29 +133,7 @@ internal static class GamesTestHelper
         }
         finally
         {
-            manager.Context.GameStateChanged -= Handler;
+            ctx.GameStateChanged -= Handler;
         }
-    }
-
-    /// <summary>
-    /// 既定のサービス群で <see cref="GameStateContext"/> を生成する
-    /// </summary>
-    internal static GameStateContext CreateContext(
-        IWallGenerator? wallGenerator = null,
-        PlayerList? playerList = null,
-        GameRules? rules = null
-    )
-    {
-        return new GameStateContext(
-            wallGenerator ?? CreateWallGenerator(),
-            playerList ?? CreatePlayerList(),
-            CreateProjector(),
-            CreateEnumerator(rules),
-            CreatePriorityPolicy(),
-            CreateDefaultFactory(),
-            CreateTracer(),
-            NullLogger<GameStateContext>.Instance,
-            NullLogger<RoundStateContext>.Instance
-        );
     }
 }

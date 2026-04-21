@@ -10,7 +10,7 @@ namespace Mahjong.Lib.Scoring.Yakus.Impl;
 public record RoundWindEast : Yaku
 {
     public override int Number => 14;
-    public override string Name => "場風牌・東";
+    public override string Name => "場風 東";
     public override int HanOpen => 1;
     public override int HanClosed => 1;
     public override bool IsYakuman => false;

@@ -1,4 +1,5 @@
-﻿using Mahjong.Lib.Game.Games;
+﻿using Mahjong.Lib.Game.Calls;
+using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Inquiries;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
@@ -100,5 +101,23 @@ public abstract record RoundState
     )
     {
         return [.. winnerIndices.Select(x => ScoringHelper.Calculate(new ScoreRequest(round, x, loserIndex, winType, winTile), context.Rules))];
+    }
+
+    /// <summary>
+    /// 槓を実行した直後の <see cref="Call"/> を <paramref name="round"/> から取り出します。
+    /// 加槓は元ポン位置を <see cref="CallListArray.ReplaceCall"/> で差し替えるため
+    /// 末尾ではなく宣言対象の牌種 (<paramref name="kanTile"/>) で検索する必要があります。
+    /// 暗槓・大明槓は副露末尾が直前の槓となるため末尾で取得します。
+    /// Tsumo / Dahai / AfterKanTsumo の ResponseKan で共通利用する
+    /// </summary>
+    /// <param name="round">槓実行後の Round</param>
+    /// <param name="caller">槓宣言者</param>
+    /// <param name="callType">槓種別 (Ankan / Daiminkan / Kakan)</param>
+    /// <param name="kanTile">加槓で追加した牌 (加槓時のみ参照、暗槓/大明槓時は未使用)</param>
+    protected static Call GetExecutedKanCall(Round round, PlayerIndex caller, CallType callType, Tile kanTile)
+    {
+        return callType == CallType.Kakan
+            ? round.CallListArray[caller].First(x => x.Type == CallType.Kakan && x.Tiles[0].Kind == kanTile.Kind)
+            : round.CallListArray[caller].Last();
     }
 }

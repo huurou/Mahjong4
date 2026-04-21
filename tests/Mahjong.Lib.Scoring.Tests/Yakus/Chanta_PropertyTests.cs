@@ -18,7 +18,7 @@ public class Chanta_PropertyTests
     }
 
     [Fact]
-    public void Name_混全帯么九を返す()
+    public void Name_混全帯幺九を返す()
     {
         // Arrange
         var yaku = Yaku.Chanta;
@@ -27,7 +27,7 @@ public class Chanta_PropertyTests
         var result = yaku.Name;
 
         // Assert
-        Assert.Equal("混全帯么九", result);
+        Assert.Equal("混全帯幺九", result);
     }
 
     [Fact]

@@ -14,10 +14,18 @@ public record RoundStateKanTsumo : RoundState
 {
     public override string Name => "槓ツモ";
 
+    public override void Entry(RoundStateContext context)
+    {
+        base.Entry(context);
+        var turn = context.Round.Turn;
+        var drawnTile = context.Round.HandArray[turn].Last();
+        context.Tracer.OnTsumoDrawn(turn, drawnTile, isRinshan: true);
+    }
+
     public override void ResponseOk(RoundStateContext context, RoundEventResponseOk evt)
     {
         base.ResponseOk(context, evt);
-        // TODO: 四槓流れ判定 (4人目の槓で流局)
+        // 四槓流れは <see cref="RoundStateKan.ResponseOk"/> (嶺上ツモ前) で判定済み。本状態到達時は流局無し
         Transit(context, () => new RoundStateAfterKanTsumo());
     }
 
@@ -35,7 +43,15 @@ public record RoundStateKanTsumo : RoundState
         var winTile = context.Round.HandArray[context.Round.Turn].Last();
         var scoreResults = CalculateScoreResults(context, context.Round, evt.WinnerIndices, loserIndex, evt.WinType, winTile);
         var (settledRound, details) = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, winTile, scoreResults);
-        var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType, details.Winners, details.Honba, details.KyoutakuRiichiAward);
+        var eventArgs = new RoundEndedByWinEventArgs(
+            evt.WinnerIndices,
+            loserIndex,
+            evt.WinType,
+            details.Winners,
+            details.Honba,
+            details.KyoutakuRiichiAward,
+            details.UraDoraIndicators
+        );
         Transit(context, () => new RoundStateWin(eventArgs), _ => settledRound);
     }
 

@@ -236,6 +236,7 @@ public class RoundNotificationExtensions_ToWireTests
             WinType.Tsumo,
             new KyoutakuRiichiAward(new PlayerIndex(0), 0),
             new Honba(0),
+            [],
             false
         );
     }
@@ -246,6 +247,7 @@ public class RoundNotificationExtensions_ToWireTests
             RyuukyokuType.KouhaiHeikyoku,
             [],
             [],
+            new PointArray(new Point(0)),
             false
         );
     }

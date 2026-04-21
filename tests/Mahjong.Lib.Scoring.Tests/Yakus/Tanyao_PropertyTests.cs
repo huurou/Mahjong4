@@ -18,7 +18,7 @@ public class Tanyao_PropertyTests
     }
 
     [Fact]
-    public void Name_断么九を返す()
+    public void Name_断幺九を返す()
     {
         // Arrange
         var yaku = Yaku.Tanyao;
@@ -27,7 +27,7 @@ public class Tanyao_PropertyTests
         var result = yaku.Name;
 
         // Assert
-        Assert.Equal("断么九", result);
+        Assert.Equal("断幺九", result);
     }
 
     [Fact]

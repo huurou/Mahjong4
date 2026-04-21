@@ -14,15 +14,15 @@ public class AutoPlayRunner_SmokeTests
         // Arrange
         var rules = new GameRules();
         var statsTracer = new StatsTracer();
+        var options = new AutoPlayOptions(GameCount: 3, Seed: 42, OutputDirectory: "./tmp-paifu-smoke", WritePaifu: false);
         var runner = new AutoPlayRunner(
-            new ShuffledWallGenerator(42),
             new RoundViewProjector(),
             new ResponseCandidateEnumerator(rules),
             new TenhouResponsePriorityPolicy(),
             new DefaultResponseFactory(),
-            statsTracer,
             new AI_v0_1_0_ランダムFactory(42),
             rules,
+            options,
             NullLoggerFactory.Instance
         );
 

@@ -20,12 +20,14 @@ internal static class AdoptedRoundActionBuilder
                 winType: win.WinType,
                 kyoutakuRiichiAward: win.KyoutakuRiichiAward,
                 honba: win.Honba,
+                uraDoraIndicators: win.UraDoraIndicators,
                 dealerContinues: false
             ),
             RoundEndedByRyuukyokuEventArgs ryu => new AdoptedRyuukyokuAction(
                 Type: ryu.Type,
                 TenpaiPlayerIndices: [.. ryu.TenpaiPlayerIndices],
                 NagashiManganPlayerIndices: [.. ryu.NagashiManganPlayerIndices],
+                PointDeltas: ryu.PointDeltas,
                 DealerContinues: false
             ),
             _ => throw new NotSupportedException($"未対応の局終了引数: {args?.GetType().Name}"),

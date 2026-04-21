@@ -18,7 +18,7 @@ public class Kokushimusou13menmachi_PropertyTests
     }
 
     [Fact]
-    public void Name_国士無双十三面待ちを返す()
+    public void Name_国士無双１３面を返す()
     {
         // Arrange
         var yaku = Yaku.Kokushimusou13menmachi;
@@ -27,7 +27,7 @@ public class Kokushimusou13menmachi_PropertyTests
         var result = yaku.Name;
 
         // Assert
-        Assert.Equal("国士無双十三面待ち", result);
+        Assert.Equal("国士無双１３面", result);
     }
 
     [Fact]

@@ -2,12 +2,12 @@
 using Mahjong.Lib.Game.Notifications;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Responses;
+using Mahjong.Lib.Game.Tests.Games;
 using Mahjong.Lib.Game.Tests.Players;
-using Mahjong.Lib.Game.Tests.States.GameStates;
 
-namespace Mahjong.Lib.Game.Tests.Games;
+namespace Mahjong.Lib.Game.Tests.States.GameStates;
 
-public class GameManager_IntegrationTests
+public class GameStateContext_IntegrationTests
 {
     private static TimeSpan TestTimeout { get; } = TimeSpan.FromSeconds(30);
 
@@ -116,14 +116,14 @@ public class GameManager_IntegrationTests
             Format = GameFormat.SingleRound,
             RenchanCondition = RenchanCondition.None,
         };
-        using var manager = GamesTestHelper.CreateManager(
+        using var ctx = GamesTestHelper.CreateContext(
             new PlayerList(players),
             rules,
             wallGenerator: GamesTestHelper.CreateWallGenerator([.. tileIds]));
 
         // Act
-        await manager.StartAsync(TestContext.Current.CancellationToken);
-        await GamesTestHelper.WaitForGameEndAsync(manager, TestTimeout);
+        await ctx.StartAsync(TestContext.Current.CancellationToken);
+        await GamesTestHelper.WaitForGameEndAsync(ctx, TestTimeout);
 
         // Assert
         Assert.Contains(players[1].ReceivedNotifications, x => x is WinNotification);
@@ -147,13 +147,13 @@ public class GameManager_IntegrationTests
             Format = GameFormat.Tonpuu,
             RenchanCondition = RenchanCondition.AgariOrTenpai,
         };
-        using var manager = GamesTestHelper.CreateManager(
+        using var ctx = GamesTestHelper.CreateContext(
             new PlayerList(players),
             rules,
             wallGenerator: GamesTestHelper.CreateWallGenerator([.. tileIds]));
 
         // Act
-        await manager.StartAsync(TestContext.Current.CancellationToken);
+        await ctx.StartAsync(TestContext.Current.CancellationToken);
         var nextRoundStart = await tcs.Task.WaitAsync(TestTimeout, TestContext.Current.CancellationToken);
 
         // Assert
@@ -179,13 +179,13 @@ public class GameManager_IntegrationTests
             Format = GameFormat.Tonpuu,
             RenchanCondition = RenchanCondition.None,
         };
-        using var manager = GamesTestHelper.CreateManager(
+        using var ctx = GamesTestHelper.CreateContext(
             new PlayerList(players),
             rules,
             wallGenerator: GamesTestHelper.CreateWallGenerator([.. tileIds]));
 
         // Act
-        await manager.StartAsync(TestContext.Current.CancellationToken);
+        await ctx.StartAsync(TestContext.Current.CancellationToken);
         var nextRoundStart = await tcs.Task.WaitAsync(TestTimeout, TestContext.Current.CancellationToken);
 
         // Assert
@@ -204,11 +204,11 @@ public class GameManager_IntegrationTests
             Format = GameFormat.Tonpuu,
             RenchanCondition = RenchanCondition.None,
         };
-        using var manager = GamesTestHelper.CreateManager(new PlayerList(players), rules);
+        using var ctx = GamesTestHelper.CreateContext(new PlayerList(players), rules);
 
         // Act
-        await manager.StartAsync(TestContext.Current.CancellationToken);
-        await GamesTestHelper.WaitForGameEndAsync(manager, TestTimeout);
+        await ctx.StartAsync(TestContext.Current.CancellationToken);
+        await GamesTestHelper.WaitForGameEndAsync(ctx, TestTimeout);
 
         // Assert
         var ryuukyokuCount = players[0].ReceivedNotifications.OfType<RyuukyokuNotification>().Count();
@@ -252,13 +252,13 @@ public class GameManager_IntegrationTests
             OnRoundStart = roundStartHandler,
         };
         var rules = new GameRules { Format = GameFormat.Tonpuu };
-        using var manager = GamesTestHelper.CreateManager(
+        using var ctx = GamesTestHelper.CreateContext(
             new PlayerList(players),
             rules,
             wallGenerator: GamesTestHelper.CreateWallGenerator([.. tileIds]));
 
         // Act
-        await manager.StartAsync(TestContext.Current.CancellationToken);
+        await ctx.StartAsync(TestContext.Current.CancellationToken);
         var nextRoundStart = await tcs.Task.WaitAsync(TestTimeout, TestContext.Current.CancellationToken);
 
         // Assert

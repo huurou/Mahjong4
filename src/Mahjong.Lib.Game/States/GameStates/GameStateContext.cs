@@ -13,11 +13,16 @@ namespace Mahjong.Lib.Game.States.GameStates;
 
 /// <summary>
 /// 対局状態遷移コンテキスト
-/// 通知・応答集約経路で動作する (<see cref="StartRound"/> で <see cref="RoundStateContext"/> を生成する)
+/// 対局開始・局間引き継ぎ・対局終了判定を統括し、各局の <see cref="RoundStateContext"/> を
+/// 生成・破棄する。状態機械 (<c>eventChannel_</c> + <see cref="TransitAsync"/>) と
+/// Game レベル通知送信ループ (<see cref="StartAsync"/>) を 1 クラスに統合する。
+/// 公開 API は <c>ctor</c> と <see cref="StartAsync(CancellationToken)"/> の 2 つのみ。
+/// State / Game / RoundStateContext の直接書換は同アセンブリ (GameState 実装と tests assembly) からのみ可能
 /// </summary>
 public class GameStateContext(
-    IWallGenerator wallGenerator,
     PlayerList players,
+    Games.GameRules rules,
+    IWallGenerator wallGenerator,
     IRoundViewProjector projector,
     IResponseCandidateEnumerator enumerator,
     IResponsePriorityPolicy priorityPolicy,
@@ -37,13 +42,13 @@ public class GameStateContext(
 
     public GameState State
     {
-        get => field ?? throw new InvalidOperationException("InitAsync() が呼び出されていません。");
+        get => field ?? throw new InvalidOperationException("StartAsync() が呼び出されていません。");
         private set;
     }
 
     public Games.Game Game
     {
-        get => field ?? throw new InvalidOperationException("InitAsync() が呼び出されていません。");
+        get => field ?? throw new InvalidOperationException("StartAsync() が呼び出されていません。");
         internal set;
     }
 
@@ -65,19 +70,23 @@ public class GameStateContext(
     protected virtual TimeSpan NotificationTimeout => TimeSpan.FromSeconds(10);
 
     /// <summary>
-    /// 指定された対局で状態遷移を開始します
-    /// 対局開始通知 → 局開始通知 → StartRound までを await で完了させる
+    /// 対局を開始します。
+    /// 内部で <see cref="Games.Game.Create(PlayerList, GameRules)"/> により新しい Game を生成した後、
+    /// GameStartNotification → RoundStartNotification → <see cref="StartRound"/> までを await で完了させる。
+    /// 2 回目以降の呼び出しは <see cref="InvalidOperationException"/> を投げる。
     /// </summary>
-    public async Task InitAsync(Games.Game game, CancellationToken ct = default)
+    /// <param name="ct">対局キャンセル用トークン。event loop 起動後は内部 CancellationTokenSource で管理されるため、
+    /// このトークンは StartAsync 内部の通知送信経路でのみ使用される</param>
+    public async Task StartAsync(CancellationToken ct = default)
     {
         ObjectDisposedException.ThrowIf(disposed_, this);
         if (eventProcessingTask_ is not null)
         {
-            throw new InvalidOperationException("InitAsync() は既に呼び出されています。");
+            throw new InvalidOperationException("StartAsync() は既に呼び出されています。");
         }
 
         State = new GameStateInit();
-        Game = game;
+        Game = Games.Game.Create(players, rules);
 
         eventProcessingTask_ = Task.Run(ProcessEventAsync, ct);
 
@@ -184,7 +193,7 @@ public class GameStateContext(
         ObjectDisposedException.ThrowIf(disposed_, this);
         if (eventProcessingTask_ is null)
         {
-            throw new InvalidOperationException("InitAsync() が呼び出されていません。");
+            throw new InvalidOperationException("StartAsync() が呼び出されていません。");
         }
 
         await eventChannel_.Writer.WriteAsync(evt);
@@ -284,8 +293,8 @@ public class GameStateContext(
     {
         GameEvent evt = args switch
         {
-            RoundEndedByWinEventArgs win => new GameEventRoundEndedByWin(win.WinnerIndices, win.LoserIndex, win.WinType, win.Winners, win.Honba, win.KyoutakuRiichiAward),
-            RoundEndedByRyuukyokuEventArgs ryuukyoku => new GameEventRoundEndedByRyuukyoku(ryuukyoku.Type, ryuukyoku.TenpaiPlayerIndices, ryuukyoku.NagashiManganPlayerIndices),
+            RoundEndedByWinEventArgs win => new GameEventRoundEndedByWin(win.WinnerIndices, win.LoserIndex, win.WinType, win.Winners, win.Honba, win.KyoutakuRiichiAward, win.UraDoraIndicators),
+            RoundEndedByRyuukyokuEventArgs ryuukyoku => new GameEventRoundEndedByRyuukyoku(ryuukyoku.Type, ryuukyoku.TenpaiPlayerIndices, ryuukyoku.NagashiManganPlayerIndices, ryuukyoku.PointDeltas),
             _ => throw new NotSupportedException($"未対応の局終了引数: {args?.GetType().Name}"),
         };
         var written = eventChannel_.Writer.TryWrite(evt);

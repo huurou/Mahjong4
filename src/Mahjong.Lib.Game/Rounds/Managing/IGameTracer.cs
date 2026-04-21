@@ -1,9 +1,11 @@
-﻿using Mahjong.Lib.Game.Candidates;
+﻿using Mahjong.Lib.Game.Calls;
+using Mahjong.Lib.Game.Candidates;
 using Mahjong.Lib.Game.Inquiries;
 using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Notifications;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Responses;
+using Mahjong.Lib.Game.Tiles;
 
 namespace Mahjong.Lib.Game.Rounds.Managing;
 
@@ -32,4 +34,31 @@ public interface IGameTracer
     void OnAdoptedAction(RoundInquiryPhase phase, AdoptedPlayerResponse adopted);
     void OnRoundStarted(Round round);
     void OnRoundEnded(AdoptedRoundAction action);
+
+    /// <summary>
+    /// ツモ牌が確定したタイミングで発火する (通常ツモ / 嶺上ツモ 双方)。
+    /// 天鳳牌譜の <c>&lt;T{id}/&gt;〜&lt;W{id}/&gt;</c> タグ生成用
+    /// </summary>
+    void OnTsumoDrawn(PlayerIndex turn, Tile drawnTile, bool isRinshan);
+
+    /// <summary>
+    /// 新ドラ表示牌がめくられたタイミングで発火する (局開始の初期ドラ / 暗槓即乗り / 加槓・大明槓後のカンドラ)。
+    /// 天鳳牌譜の <c>&lt;DORA hai="..."/&gt;</c> タグ生成用
+    /// </summary>
+    void OnDoraRevealed(Tile newIndicator);
+
+    /// <summary>
+    /// 立直宣言・成立タイミングで発火する。
+    /// step=1: リーチ宣言 (打牌タグの直前に発火)、
+    /// step=2: ロンされず成立した時点 (打牌タグ・供託加算後に発火)
+    /// </summary>
+    void OnRiichiDeclared(PlayerIndex player, int step);
+
+    /// <summary>
+    /// 副露 (チー/ポン/大明槓/暗槓/加槓) が確定したタイミングで発火する。
+    /// 天鳳 JSON 牌譜の副露文字列生成用
+    /// </summary>
+    /// <param name="caller">副露したプレイヤー</param>
+    /// <param name="call">副露内容 (CallType / Tiles / From / CalledTile)</param>
+    void OnCallExecuted(PlayerIndex caller, Call call);
 }

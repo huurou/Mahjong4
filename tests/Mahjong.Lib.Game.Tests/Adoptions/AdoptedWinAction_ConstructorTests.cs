@@ -27,6 +27,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Ron,
             award,
             new Honba(1),
+            [],
             false
         );
 
@@ -38,6 +39,7 @@ public class AdoptedWinAction_ConstructorTests
         Assert.NotNull(action.KyoutakuRiichiAward);
         Assert.Equal(2, action.KyoutakuRiichiAward.Count);
         Assert.Equal(1, action.Honba.Value);
+        Assert.Empty(action.UraDoraIndicators);
         Assert.False(action.DealerContinues);
     }
 
@@ -58,6 +60,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Tsumo,
             new KyoutakuRiichiAward(new PlayerIndex(0), 0),
             new Honba(0),
+            [],
             true
         );
 
@@ -85,6 +88,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Ron,
             new KyoutakuRiichiAward(new PlayerIndex(1), 1),
             new Honba(0),
+            [],
             false
         );
 
@@ -109,6 +113,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Tsumo,
             new KyoutakuRiichiAward(new PlayerIndex(0), 0),
             new Honba(0),
+            [],
             true
         );
 
@@ -126,6 +131,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Ron,
             new KyoutakuRiichiAward(new PlayerIndex(0), 0),
             new Honba(0),
+            [],
             false
         ));
 
@@ -150,6 +156,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Chankan,
             new KyoutakuRiichiAward(new PlayerIndex(1), 0),
             new Honba(0),
+            [],
             false
         );
 
@@ -175,6 +182,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Rinshan,
             new KyoutakuRiichiAward(new PlayerIndex(0), 0),
             new Honba(0),
+            [],
             true
         );
 
@@ -200,6 +208,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Tsumo,
             new KyoutakuRiichiAward(new PlayerIndex(0), 0),
             new Honba(0),
+            [],
             false
         ));
 
@@ -224,6 +233,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Rinshan,
             new KyoutakuRiichiAward(new PlayerIndex(2), 0),
             new Honba(0),
+            [],
             false
         ));
 
@@ -248,6 +258,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Ron,
             new KyoutakuRiichiAward(new PlayerIndex(0), 0),
             new Honba(0),
+            [],
             false
         ));
 
@@ -272,6 +283,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Chankan,
             new KyoutakuRiichiAward(new PlayerIndex(1), 0),
             new Honba(0),
+            [],
             false
         ));
 

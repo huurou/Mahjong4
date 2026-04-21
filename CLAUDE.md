@@ -52,7 +52,7 @@ pwsh scripts/TestCoverage.ps1
 - **Mahjong.Lib.Scoring.SampleApp** — `samples/`配下のコンソールアプリ。`HandCalculator.Calc`の代表的な入力例を実行して結果を表示する動作確認用サンプル
 - **Mahjong.Lib.Scoring.TenhouPaifuValidation**（`tools/`配下）— 天鳳牌譜をダウンロード・解析し、`HandCalculator`の点数計算結果を実データと突き合わせる検証コンソールアプリ
 - **Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests** — 上記ツールのテスト
-- **Mahjong.Lib.Game.AutoPlay**（`tools/`配下）— 4人AI自動対局を指定回数繰り返し、順位統計(`StatsReport`) と JSONL 牌譜を出力する検証・評価コンソールアプリ。`AutoPlayRunner` が `GameManager` をループ駆動し、`StatsTracer` / `ProgressTracer` / `PaifuRecorder` を `CompositeGameTracer` で束ねて流し込む
+- **Mahjong.Lib.Game.AutoPlay**（`tools/`配下）— 4人AI自動対局を指定回数繰り返し、順位統計(`StatsReport`) と JSONL 牌譜を出力する検証・評価コンソールアプリ。`AutoPlayRunner` が `GameStateContext` をループ駆動し、`StatsTracer` / `ProgressTracer` / `PaifuRecorder` を `CompositeGameTracer` で束ねて流し込む
 - **Mahjong.Lib.Game.AutoPlay.Tests** — 上記ツールのテスト（`AutoPlayRunner_SmokeTests` / `StatsTracer_BuildTests` / `MixedPlayerFactory_CreateTests`）
 
 ソリューションフォルダ構成は `Mahjong4.slnx` を参照。
@@ -131,7 +131,7 @@ pwsh scripts/TestCoverage.ps1
 - **プレイヤー**: [Mahjong.Lib.Game/Players/](src/Mahjong.Lib.Game/Players/) の `Player`（`PlayerId` + 表示名）と `PlayerList`（4人固定、index 0 が**起家**。並び替えは呼び出し側責務）
 - **対局ルール**: [Mahjong.Lib.Game/Games/GameRules.cs](src/Mahjong.Lib.Game/Games/GameRules.cs) に対局形式（`GameFormat`: SingleRound/Tonpuu/Tonnan）、赤ドラ集合、初期持ち点、トビ閾値、食いタン/後付け、連荘条件（`RenchanCondition`）を集約
 - **対局終了判定**: [Mahjong.Lib.Game/Games/GameEndPolicy.cs](src/Mahjong.Lib.Game/Games/GameEndPolicy.cs) `ShouldEndAfterRound(game, event, dealerContinues)` で判定。呼び出し順は **ApplyRoundResult → ShouldEndAfterRound → (false なら AdvanceToNextRound)**
-- **対局の外部入口**: [Mahjong.Lib.Game/Games/GameManager.cs](src/Mahjong.Lib.Game/Games/GameManager.cs) が `StartAsync(ct)` で `GameStateContext` を生成・初期化し `IDisposable` で管理。コンストラクタで `PlayerList` / `GameRules` / `IWallGenerator` / `IRoundViewProjector` / `IResponseCandidateEnumerator` / `IResponsePriorityPolicy` / `IDefaultResponseFactory` / `IGameTracer` / `ILogger<GameStateContext>` / `ILogger<RoundStateContext>` の 10 引数を受け取り、`RoundStateContext` が必要とする依存を `GameStateContext` 経由で各局に供給する
+- **対局の外部入口**: [Mahjong.Lib.Game/States/GameStates/GameStateContext.cs](src/Mahjong.Lib.Game/States/GameStates/GameStateContext.cs) が `StartAsync(ct)` で対局を開始し `IDisposable` で管理。公開 API は `ctor` と `StartAsync(CancellationToken)` の 2 つのみ (RoundStateContext と対称)。コンストラクタで `PlayerList` / `GameRules` / `IWallGenerator` / `IRoundViewProjector` / `IResponseCandidateEnumerator` / `IResponsePriorityPolicy` / `IDefaultResponseFactory` / `IGameTracer` / `ILogger<GameStateContext>` / `ILogger<RoundStateContext>` の 10 引数を受け取り、`RoundStateContext` が必要とする依存を各局生成時に供給する
 - **対局レベル状態機械** ([Mahjong.Lib.Game/States/GameStates/](src/Mahjong.Lib.Game/States/GameStates/)): Round層と同じ Channel ベースのイベント駆動。`GameState`（Init/RoundRunning/End）と `GameEvent`（ResponseOk/RoundEndedByWin/RoundEndedByRyuukyoku）
   - `GameStateContext` は `RoundStateContext` をホストし、`RoundEnded` イベントを購読して `RoundEndedEventArgs` を `GameEventRoundEndedByWin` / `GameEventRoundEndedByRyuukyoku` に変換・内部発行して対局レベル遷移に昇格させる（多重発火抑止付き）
   - `GameStateRoundRunning` の `RoundEndedByWin` / `RoundEndedByRyuukyoku` ハンドラ内で `Game.ApplyRoundResult` → `GameEndPolicy.ShouldEndAfterRound` → （続行なら `Game.AdvanceToNextRound` + 次局 `RoundStateContext` 生成、終了なら `GameStateEnd` 遷移）の順で処理する
@@ -148,10 +148,10 @@ pwsh scripts/TestCoverage.ps1
 
 ### 自動対局ツール（tools/Mahjong.Lib.Game.AutoPlay/）
 
-AI同士の4人対局を一括実行して統計を取るコンソールアプリ。`Microsoft.Extensions.DependencyInjection` で `GameManager` に必要な抽象を組み立てる。
+AI同士の4人対局を一括実行して統計を取るコンソールアプリ。`Microsoft.Extensions.DependencyInjection` で `GameStateContext` に必要な抽象を組み立てる。
 
 - **実行時オプション** (`AutoPlayOptions`): `--games` 回数 / `--seed` 乱数シード / `--output` 出力先 / `--write-paifu` JSONL 牌譜出力フラグ
-- **対局ランナー** (`AutoPlayRunner`): 1対局ごとに `PlayerList` を生成し `GameManager` を `using` で起動、`GameStateEnd` を監視して次対局へ進む。対局単位の 5 分タイムアウトと例外時のスキップ＋次局継続を担う
+- **対局ランナー** (`AutoPlayRunner`): 1対局ごとに `PlayerList` を生成し `GameStateContext` を `using` で起動、`GameStateEnd` を監視して次対局へ進む。対局単位の 5 分タイムアウトと例外時のスキップ＋次局継続を担う
 - **プレイヤー構成**: [MixedPlayerFactory](tools/Mahjong.Lib.Game.AutoPlay/MixedPlayerFactory.cs) が `IPlayerFactory[]` を受け取り、各対局開始時に席配置をシャッフル。`Program.cs` で AI を組み替えると混在対局の統計が取れる
 - **トレーサー合成**: [CompositeGameTracer](src/Mahjong.Lib.Game/Rounds/Managing/CompositeGameTracer.cs) に `StatsTracer`（順位・和了率・流局率集計）、`ProgressTracer`（局進行のログ出力）、必要に応じて `PaifuRecorder`（JSONL 牌譜書き出し）を束ねて `IGameTracer` として渡す
 - **山牌生成**: [ShuffledWallGenerator](tools/Mahjong.Lib.Game.AutoPlay/ShuffledWallGenerator.cs) は seed 指定の再現可能な Fisher–Yates シャッフル実装（天鳳互換 MT19937 ではないため検証用途では `WallGeneratorTenhou` を使うこと）

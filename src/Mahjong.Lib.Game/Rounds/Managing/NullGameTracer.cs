@@ -1,9 +1,11 @@
-﻿using Mahjong.Lib.Game.Candidates;
+﻿using Mahjong.Lib.Game.Calls;
+using Mahjong.Lib.Game.Candidates;
 using Mahjong.Lib.Game.Inquiries;
 using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Notifications;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Responses;
+using Mahjong.Lib.Game.Tiles;
 
 namespace Mahjong.Lib.Game.Rounds.Managing;
 
@@ -23,4 +25,8 @@ public sealed class NullGameTracer : IGameTracer
     public void OnAdoptedAction(RoundInquiryPhase phase, AdoptedPlayerResponse adopted) { }
     public void OnRoundStarted(Round round) { }
     public void OnRoundEnded(AdoptedRoundAction action) { }
+    public void OnTsumoDrawn(PlayerIndex turn, Tile drawnTile, bool isRinshan) { }
+    public void OnDoraRevealed(Tile newIndicator) { }
+    public void OnRiichiDeclared(PlayerIndex player, int step) { }
+    public void OnCallExecuted(PlayerIndex caller, Call call) { }
 }

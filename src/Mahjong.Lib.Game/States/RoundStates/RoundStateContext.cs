@@ -37,6 +37,12 @@ public partial class RoundStateContext(
     /// </summary>
     public GameRules Rules { get; } = rules;
 
+    /// <summary>
+    /// 観測用トレーサー (RoundState 実装が Entry 等で状態遷移を通知するために参照する)。
+    /// 同 assembly 内部からのみアクセス可能
+    /// </summary>
+    internal IGameTracer Tracer => tracer;
+
     public event EventHandler<RoundStateChangedEventArgs>? RoundStateChanged;
 
     /// <summary>

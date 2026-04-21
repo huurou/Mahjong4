@@ -9,7 +9,7 @@ namespace Mahjong.Lib.Scoring.Yakus.Impl;
 public record DoubleRiichi : Yaku
 {
     public override int Number => 21;
-    public override string Name => "ダブル立直";
+    public override string Name => "両立直";
     public override int HanOpen => 0;
     public override int HanClosed => 2;
     public override bool IsYakuman => false;

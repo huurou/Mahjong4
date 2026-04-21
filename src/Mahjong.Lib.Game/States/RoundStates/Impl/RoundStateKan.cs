@@ -28,7 +28,27 @@ public record RoundStateKan(CallType KanType, ImmutableArray<Tile> KanTiles) : R
     public override void ResponseOk(RoundStateContext context, RoundEventResponseOk evt)
     {
         base.ResponseOk(context, evt);
+        // 四槓流れは嶺上ツモ**前**に判定する (Design.md 準拠)。
+        // 嶺上牌を引いた後に判定すると嶺上開花候補が誤って提示され、嶺上牌・壁が無駄に1枚消費される
+        if (context.Round.IsSuukaikan())
+        {
+            var (settledRound, pointDeltas) = context.Round.SettleRyuukyoku(RyuukyokuType.Suukaikan, [], []);
+            var eventArgs = new RoundEndedByRyuukyokuEventArgs(RyuukyokuType.Suukaikan, [], [], pointDeltas);
+            Transit(context, () => new RoundStateRyuukyoku(eventArgs), _ => settledRound);
+            return;
+        }
         Transit(context, () => new RoundStateKanTsumo(), round => round.RinshanTsumo());
+    }
+
+    public override void ResponseRyuukyoku(RoundStateContext context, RoundEventResponseRyuukyoku evt)
+    {
+        base.ResponseRyuukyoku(context, evt);
+        // 槍槓フェーズで三家和了 (3人チャンカンロン) が成立した場合の流局処理。
+        // 加槓は Round に既に反映済。立直保留はこのフェーズで通常発生しないが CancelRiichi は保留無しなら無害
+        var round = context.Round.CancelRiichi();
+        var (settledRound, pointDeltas) = round.SettleRyuukyoku(evt.Type, evt.TenpaiPlayers, []);
+        var eventArgs = new RoundEndedByRyuukyokuEventArgs(evt.Type, evt.TenpaiPlayers, [], pointDeltas);
+        Transit(context, () => new RoundStateRyuukyoku(eventArgs), _ => settledRound);
     }
 
     public override void ResponseWin(RoundStateContext context, RoundEventResponseWin evt)
@@ -47,7 +67,15 @@ public record RoundStateKan(CallType KanType, ImmutableArray<Tile> KanTiles) : R
         var winTile = KanTiles[^1];
         var scoreResults = CalculateScoreResults(context, context.Round, evt.WinnerIndices, loserIndex, evt.WinType, winTile);
         var (settledRound, details) = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, winTile, scoreResults);
-        var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType, details.Winners, details.Honba, details.KyoutakuRiichiAward);
+        var eventArgs = new RoundEndedByWinEventArgs(
+            evt.WinnerIndices,
+            loserIndex,
+            evt.WinType,
+            details.Winners,
+            details.Honba,
+            details.KyoutakuRiichiAward,
+            details.UraDoraIndicators
+        );
         Transit(context, () => new RoundStateWin(eventArgs), _ => settledRound);
     }
 

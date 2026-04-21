@@ -1,13 +1,14 @@
-﻿using Mahjong.Lib.Game.Games;
-using Mahjong.Lib.Game.Notifications;
+﻿using Mahjong.Lib.Game.Notifications;
 using Mahjong.Lib.Game.Players;
+using Mahjong.Lib.Game.States.GameStates;
+using Mahjong.Lib.Game.Tests.Games;
 using Mahjong.Lib.Game.Tests.Players;
 
-namespace Mahjong.Lib.Game.Tests.Games;
+namespace Mahjong.Lib.Game.Tests.States.GameStates;
 
-public class GameManager_GameLevelNotificationTests
+public class GameStateContext_GameLevelNotificationTests
 {
-    private static (GameManager Manager, FakePlayer[] Players) CreateManagerAndPlayers()
+    private static (GameStateContext Context, FakePlayer[] Players) CreateContextAndPlayers()
     {
         var players = new[]
         {
@@ -17,19 +18,19 @@ public class GameManager_GameLevelNotificationTests
             FakePlayer.Create(3),
         };
         var playerList = new PlayerList(players);
-        var manager = GamesTestHelper.CreateManager(playerList);
-        return (manager, players);
+        var ctx = GamesTestHelper.CreateContext(playerList);
+        return (ctx, players);
     }
 
     [Fact]
     public async Task StartAsync_GameStartNotificationが全員に送信される()
     {
         // Arrange
-        var (manager, players) = CreateManagerAndPlayers();
-        using var _ = manager;
+        var (ctx, players) = CreateContextAndPlayers();
+        using var _ = ctx;
 
         // Act
-        await manager.StartAsync(TestContext.Current.CancellationToken);
+        await ctx.StartAsync(TestContext.Current.CancellationToken);
 
         // Assert
         foreach (var player in players)
@@ -42,11 +43,11 @@ public class GameManager_GameLevelNotificationTests
     public async Task StartAsync_RoundStartNotificationが全員に送信される()
     {
         // Arrange
-        var (manager, players) = CreateManagerAndPlayers();
-        using var _ = manager;
+        var (ctx, players) = CreateContextAndPlayers();
+        using var _ = ctx;
 
         // Act
-        await manager.StartAsync(TestContext.Current.CancellationToken);
+        await ctx.StartAsync(TestContext.Current.CancellationToken);
 
         // Assert
         foreach (var player in players)
@@ -59,11 +60,11 @@ public class GameManager_GameLevelNotificationTests
     public async Task StartAsync_GameStartNotificationの受信者インデックスは各プレイヤーと一致()
     {
         // Arrange
-        var (manager, players) = CreateManagerAndPlayers();
-        using var _ = manager;
+        var (ctx, players) = CreateContextAndPlayers();
+        using var _ = ctx;
 
         // Act
-        await manager.StartAsync(TestContext.Current.CancellationToken);
+        await ctx.StartAsync(TestContext.Current.CancellationToken);
 
         // Assert
         for (var i = 0; i < 4; i++)
