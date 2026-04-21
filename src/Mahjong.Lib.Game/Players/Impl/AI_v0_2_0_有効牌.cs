@@ -198,24 +198,13 @@ public sealed class AI_v0_2_0_有効牌(
 
 /// <summary>
 /// <see cref="AI_v0_2_0_有効牌"/> を席順ごとに生成する <see cref="IPlayerFactory"/>。
-/// 各席には seed と index を Fibonacci hashing (Knuth multiplicative) で決定的に合成した値で Random を初期化し、
-/// 同一 seed に対する再現性を保ちつつ席間の内部状態が近接しないようにする。
-/// <see cref="HashCode.Combine{T1, T2}(T1, T2)"/> はプロセス起動時のランダム salt を含むため再現性を壊すので使わない
+/// 共通ロジック (Fibonacci hashing による決定的シード派生) は <see cref="AiPlayerFactoryBase{TPlayer}"/> に委譲する
 /// </summary>
-public sealed class AI_v0_2_0_有効牌Factory(int seed) : IPlayerFactory
+public sealed class AI_v0_2_0_有効牌Factory(int seed)
+    : AiPlayerFactoryBase<AI_v0_2_0_有効牌>(seed, AI_v0_2_0_有効牌.DISPLAY_NAME)
 {
-    public string DisplayName => AI_v0_2_0_有効牌.DISPLAY_NAME;
-
-    public Player Create(PlayerIndex index, PlayerId id)
+    protected override AI_v0_2_0_有効牌 CreatePlayer(PlayerId id, PlayerIndex index, Random rng)
     {
-        return new AI_v0_2_0_有効牌(id, index, new Random(DeriveSeed(seed, index.Value)));
-    }
-
-    private static int DeriveSeed(int seed, int index)
-    {
-        unchecked
-        {
-            return (int)((uint)seed * 0x9E3779B9u ^ (uint)index);
-        }
+        return new(id, index, rng);
     }
 }

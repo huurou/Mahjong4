@@ -14,6 +14,7 @@ namespace Mahjong.Lib.Game.AutoPlay.Tracing;
 /// <param name="RiichiCount">立直回数 (局×席単位、1局1席につき1回まで)</param>
 /// <param name="CallCount">副露局数 (局×席単位、1局1席につき1回まで)</param>
 /// <param name="WinPointSum">和了点数合計 (全席合計)</param>
+/// <param name="YakuCounts">この AI が和了した際の役出現回数。同一和了で複数役が成立した場合は役ごとに 1 カウント</param>
 public record PlayerStats(
     string DisplayName,
     ImmutableArray<int> RankCounts,
@@ -23,7 +24,8 @@ public record PlayerStats(
     int HoujuuCount,
     int RiichiCount,
     int CallCount,
-    long WinPointSum
+    long WinPointSum,
+    ImmutableDictionary<string, int> YakuCounts
 )
 {
     public double AverageRank

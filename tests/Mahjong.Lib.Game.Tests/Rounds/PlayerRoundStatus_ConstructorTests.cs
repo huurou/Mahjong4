@@ -1,4 +1,6 @@
 ﻿using Mahjong.Lib.Game.Rounds;
+using Mahjong.Lib.Scoring.Tiles;
+using System.Collections.Immutable;
 
 namespace Mahjong.Lib.Game.Tests.Rounds;
 
@@ -23,6 +25,16 @@ public class PlayerRoundStatus_ConstructorTests
     }
 
     [Fact]
+    public void 既定値_SafeKindsAgainstRiichiはnull()
+    {
+        // Act
+        var status = new PlayerRoundStatus();
+
+        // Assert
+        Assert.Null(status.SafeKindsAgainstRiichi);
+    }
+
+    [Fact]
     public void 立直宣言後の状態_指定値が保持される()
     {
         // Act
@@ -33,5 +45,18 @@ public class PlayerRoundStatus_ConstructorTests
         Assert.True(status.IsIppatsu);
         Assert.False(status.IsFirstTurnBeforeDiscard);
         Assert.True(status.IsMenzen);
+    }
+
+    [Fact]
+    public void SafeKindsAgainstRiichi指定_保持される()
+    {
+        // Arrange
+        var safeKinds = ImmutableHashSet.Create(TileKind.Man1, TileKind.Pin5);
+
+        // Act
+        var status = new PlayerRoundStatus(IsRiichi: true, SafeKindsAgainstRiichi: safeKinds);
+
+        // Assert
+        Assert.Equal(safeKinds, status.SafeKindsAgainstRiichi);
     }
 }

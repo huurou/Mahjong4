@@ -417,6 +417,3 @@ FodyWeavers.xsd
 *.msm
 *.msp
 .claude/prompts/
-
-# AutoPlay ツールの実行成果物 (牌譜 JSONL)
-tmp-paifu/

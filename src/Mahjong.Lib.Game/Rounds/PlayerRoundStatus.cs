@@ -1,4 +1,5 @@
 ﻿using Mahjong.Lib.Game.Tiles;
+using Mahjong.Lib.Scoring.Tiles;
 using System.Collections.Immutable;
 
 namespace Mahjong.Lib.Game.Rounds;
@@ -19,6 +20,7 @@ namespace Mahjong.Lib.Game.Rounds;
 /// <param name="IsPendingRiichi">立直宣言を保留中 (打牌〜ロン応答待ちの間に true。全員が和了応答でなければ確定、ロン応答が来れば不成立)</param>
 /// <param name="IsPendingRiichiDouble">保留中の立直がダブル立直として確定するか (打牌時点のスナップショット。打牌後は IsFirstTurnBeforeDiscard が落ちるため、ダブリー判定は保留時に確定させる)</param>
 /// <param name="TilesCalledFromRiver">自分の打牌のうち鳴かれた牌。フリテン判定で河と合わせて見る</param>
+/// <param name="SafeKindsAgainstRiichi">自分が立直宣言者のとき、「他家視点で自分のアタリにならない牌種集合」。立直前は null、<see cref="Round.ConfirmRiichi"/> で自分の河全体の牌種で初期化し、以後 <see cref="Round.Dahai"/> で他家打牌の牌種を追加していく。副露で河から消えた牌も保持される (守備型 AI の現物判定に使用)</param>
 public record PlayerRoundStatus(
     bool IsMenzen = true,
     bool IsRiichi = false,
@@ -31,7 +33,8 @@ public record PlayerRoundStatus(
     bool IsFuriten = false,
     bool IsPendingRiichi = false,
     bool IsPendingRiichiDouble = false,
-    ImmutableList<Tile>? TilesCalledFromRiver = null
+    ImmutableList<Tile>? TilesCalledFromRiver = null,
+    ImmutableHashSet<TileKind>? SafeKindsAgainstRiichi = null
 )
 {
     /// <summary>

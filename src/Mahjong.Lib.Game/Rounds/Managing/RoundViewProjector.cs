@@ -20,7 +20,8 @@ public sealed class RoundViewProjector : IRoundViewProjector
             IsMenzen: ownPlayerStatus.IsMenzen,
             IsFuriten: ownPlayerStatus.IsFuriten,
             IsTemporaryFuriten: ownPlayerStatus.IsTemporaryFuriten,
-            IsNagashiMangan: ownPlayerStatus.IsNagashiMangan
+            IsNagashiMangan: ownPlayerStatus.IsNagashiMangan,
+            SafeKindsAgainstRiichi: ownPlayerStatus.SafeKindsAgainstRiichi
         );
 
         var otherStatuses = ImmutableArray.CreateBuilder<VisiblePlayerRoundStatus>();
@@ -33,7 +34,8 @@ public sealed class RoundViewProjector : IRoundViewProjector
                 PlayerIndex: playerIndex,
                 IsRiichi: status.IsRiichi,
                 IsDoubleRiichi: status.IsDoubleRiichi,
-                IsMenzen: status.IsMenzen
+                IsMenzen: status.IsMenzen,
+                SafeKindsAgainstRiichi: status.SafeKindsAgainstRiichi
             ));
         }
 

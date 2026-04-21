@@ -196,6 +196,49 @@ public class TenhouJsonPaifuRecorder_BuildResultTests
     }
 
     [Fact]
+    public void 裏ドラが複数枚_1エントリに畳まれて翻数が合算される()
+    {
+        // Arrange
+        var rules = new GameRules();
+        var (recorder, writer) = CreateRecorder(rules);
+        var round = RoundTestHelper.CreateRound().Haipai();
+        var winner = new AdoptedWinner(
+            new PlayerIndex(0),
+            new Tile(0),
+            new ScoreResult(
+                6, 25,
+                new PointArray(new Point(0))
+                    .AddPoint(new PlayerIndex(0), 12000)
+                    .SubtractPoint(new PlayerIndex(1), 12000),
+                [Yaku.Riichi, Yaku.Ippatsu, Yaku.Chiitoitsu, Yaku.Uradora, Yaku.Uradora],
+                IsMenzen: true
+            )
+        );
+        var action = new AdoptedWinAction(
+            [winner],
+            new PlayerIndex(1),
+            WinType.Ron,
+            new KyoutakuRiichiAward(new PlayerIndex(0), 0),
+            new Honba(0),
+            [],
+            false
+        );
+
+        // Act
+        var resultArr = Emit(recorder, writer, round, action);
+
+        // Assert: detail[4..] が役エントリ。裏ドラは 1 エントリに畳まれて 2 飜扱いになる
+        var detail = resultArr[2];
+        var yakuEntries = Enumerable.Range(4, detail.GetArrayLength() - 4)
+            .Select(x => detail[x].GetString() ?? "")
+            .ToArray();
+        Assert.Equal<string>(
+            ["立直(1飜)", "一発(1飜)", "七対子(2飜)", "裏ドラ(2飜)"],
+            yakuEntries
+        );
+    }
+
+    [Fact]
     public void 流局_PointDeltasが出力される()
     {
         // Arrange

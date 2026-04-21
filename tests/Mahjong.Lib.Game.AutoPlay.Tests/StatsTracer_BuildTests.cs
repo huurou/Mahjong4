@@ -17,7 +17,6 @@ public class StatsTracer_BuildTests
         Assert.Equal(0, report.GameCount);
         Assert.Equal(0, report.RoundCount);
         Assert.Empty(report.PlayerStats);
-        Assert.Empty(report.YakuCounts);
         Assert.Empty(report.RyuukyokuCounts);
         Assert.Equal(0, report.FailedGameCount);
     }

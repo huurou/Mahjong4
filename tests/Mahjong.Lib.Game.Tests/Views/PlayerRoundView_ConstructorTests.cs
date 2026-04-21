@@ -17,11 +17,11 @@ public class PlayerRoundView_ConstructorTests
         // Arrange
         var selfIndex = new PlayerIndex(0);
         var ownHand = new Hand();
-        var ownStatus = new OwnRoundStatus(true, false, true, true, false, false, false);
+        var ownStatus = new OwnRoundStatus(true, false, true, true, false, false, false, null);
         var otherStatuses = ImmutableArray.Create(
-            new VisiblePlayerRoundStatus(new PlayerIndex(1), false, false, true),
-            new VisiblePlayerRoundStatus(new PlayerIndex(2), false, false, true),
-            new VisiblePlayerRoundStatus(new PlayerIndex(3), false, false, true)
+            new VisiblePlayerRoundStatus(new PlayerIndex(1), false, false, true, null),
+            new VisiblePlayerRoundStatus(new PlayerIndex(2), false, false, true, null),
+            new VisiblePlayerRoundStatus(new PlayerIndex(3), false, false, true, null)
         );
         var doraIndicators = ImmutableList.Create(new Tile(5));
 

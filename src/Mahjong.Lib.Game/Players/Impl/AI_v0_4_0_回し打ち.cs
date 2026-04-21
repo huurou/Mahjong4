@@ -3,6 +3,7 @@ using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Notifications;
 using Mahjong.Lib.Game.Responses;
 using Mahjong.Lib.Game.Tenpai;
+using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Tiles;
 using Mahjong.Lib.Game.Views;
 using Mahjong.Lib.Scoring.Tiles;
@@ -11,20 +12,29 @@ using System.Collections.Immutable;
 namespace Mahjong.Lib.Game.Players.Impl;
 
 /// <summary>
-/// ver.0.3.0 評価値 — 有効牌枚数同点時のタイブレーカーとして、対象牌を孤立牌と見立てた面子完成ポテンシャル (評価値) が低い牌を優先して切る AI プレイヤー。
-/// v0.2.0 と同じシャンテン・有効牌ロジックに加え、評価値最小の候補群に絞った上でランダム選択する。
-/// 評価値 = Σ (くっつき候補の「使える枚数」×くっつき先表ドラ倍率) × (対象牌自身の表ドラ倍率×赤ドラ倍率×役牌倍率)
+/// ver.0.4.0 回し打ち — v0.3.0 評価値ロジックに加えて、他家リーチ時のみ「シャンテン数と切りたい牌の危険度」で
+/// 押し引きを判定する書籍AI 0102アルゴリズム準拠の守備型 AI プレイヤー。
+/// リーチ者 0 人時は v0.3.0 と同一挙動。リーチ者がいる場合:
+///   テンパイ → 押し (リーチ可能ならリーチ)
+///   1 シャンテン → 攻撃打牌の危険度 ≤ 5 なら回し打ち、そうでなければベタオリ
+///   2 シャンテン以上 → ベタオリ
 /// </summary>
-public sealed class AI_v0_3_0_評価値(
+public sealed class AI_v0_4_0_回し打ち(
     PlayerId playerId,
     PlayerIndex playerIndex,
     Random rng
 ) : Player(playerId, DISPLAY_NAME, playerIndex)
 {
     /// <summary>
-    /// 表示名 (ファイル内の定数として定義し、<see cref="AI_v0_3_0_評価値Factory"/> から参照する)
+    /// 表示名 (ファイル内の定数として定義し、<see cref="AI_v0_4_0_回し打ちFactory"/> から参照する)
     /// </summary>
-    public const string DISPLAY_NAME = "ver.0.3.0 評価値";
+    public const string DISPLAY_NAME = "ver.0.4.0 回し打ち";
+
+    /// <summary>
+    /// 1 シャンテン時に回し打ちするかベタオリするかの閾値。
+    /// 攻撃打牌の危険度がこの値以下なら回し打ち、超えるならベタオリ
+    /// </summary>
+    private const int MAWASHI_DANGER_THRESHOLD = 5;
 
     private readonly Random rng_ = rng;
     private GameRules? rules_;
@@ -95,7 +105,7 @@ public sealed class AI_v0_3_0_評価値(
 
         var dahai = candidates.GetCandidates<DahaiCandidate>().FirstOrDefault()
             ?? throw new InvalidOperationException("ツモフェーズに DahaiCandidate が提示されませんでした。");
-        var chosen = SelectBestDahai(notification.View, dahai.DahaiOptionList);
+        var chosen = SelectDahai(notification.View, dahai.DahaiOptionList);
         return Task.FromResult<AfterTsumoResponse>(new DahaiResponse(chosen.Tile, chosen.RiichiAvailable));
     }
 
@@ -129,17 +139,83 @@ public sealed class AI_v0_3_0_評価値(
 
         var dahai = candidates.GetCandidates<DahaiCandidate>().FirstOrDefault()
             ?? throw new InvalidOperationException("嶺上ツモフェーズに DahaiCandidate が提示されませんでした。");
-        var chosen = SelectBestDahai(notification.View, dahai.DahaiOptionList);
+        var chosen = SelectDahai(notification.View, dahai.DahaiOptionList);
         return Task.FromResult<AfterKanTsumoResponse>(new KanTsumoDahaiResponse(chosen.Tile, chosen.RiichiAvailable));
     }
 
-    private DahaiOption SelectBestDahai(PlayerRoundView view, DahaiOptionList options)
+    /// <summary>
+    /// 回し打ちアルゴリズムで打牌を決定する。
+    /// リーチ者がいない局面や自分がテンパイの場合は攻撃打牌 (v0.3.0 相当)、
+    /// 1シャンテンで切りたい牌の危険度5なら回し打ち、それ以外はベタオリ。
+    /// </summary>
+    private DahaiOption SelectDahai(PlayerRoundView view, DahaiOptionList options)
     {
         if (options.Count == 0)
         {
             throw new InvalidOperationException("DahaiCandidate の選択肢が空です。");
         }
 
+        var hasActiveRiichi = false;
+        foreach (var status in view.OtherPlayerStatuses)
+        {
+            if (status.IsRiichi && status.SafeKindsAgainstRiichi is not null)
+            {
+                hasActiveRiichi = true;
+                break;
+            }
+        }
+
+        if (!hasActiveRiichi)
+        {
+            return SelectAttackDahai(view, options);
+        }
+
+        var shanten = ShantenHelper.CalcShanten(view.OwnHand);
+        if (shanten <= 0)
+        {
+            // テンパイ (和了候補は呼び出し側で事前処理済) → 押し
+            return SelectAttackDahai(view, options);
+        }
+
+        if (shanten == 1)
+        {
+            var attackDahai = SelectAttackDahai(view, options);
+            var attackDanger = DangerEvaluator.CalcDanger(attackDahai.Tile, view);
+            if (attackDanger <= MAWASHI_DANGER_THRESHOLD)
+            {
+                // 回し打ち (運よくテンパイすればリーチする)
+                return attackDahai;
+            }
+        }
+
+        // 2 シャンテン以上、または 1 シャンテンで切りたい牌が危険 → ベタオリ
+        return SelectSafestDahai(view, options);
+    }
+
+    /// <summary>
+    /// 全 DahaiOption から危険度最小の牌を選ぶ。同点はランダム。
+    /// ベタオリ時はリーチしないため <see cref="DahaiOption.RiichiAvailable"/> を false に固定した option を返す。
+    /// </summary>
+    private DahaiOption SelectSafestDahai(PlayerRoundView view, DahaiOptionList options)
+    {
+        var evaluated = options
+            .Select(x => (Option: x, Danger: DangerEvaluator.CalcDanger(x.Tile, view)))
+            .ToList();
+        var minDanger = evaluated.Min(x => x.Danger);
+        var safest = evaluated
+            .Where(x => x.Danger == minDanger)
+            .Select(x => x.Option)
+            .ToList();
+        var chosen = safest[rng_.Next(safest.Count)];
+        return chosen with { RiichiAvailable = false };
+    }
+
+    /// <summary>
+    /// v0.3.0 評価値 AI の打牌選択ロジックをそのまま利用して、攻撃時の最適打牌を決定する。
+    /// (将来の AI バージョンとの独立性のため継承ではなくコピー実装)
+    /// </summary>
+    private DahaiOption SelectAttackDahai(PlayerRoundView view, DahaiOptionList options)
+    {
         var hand14 = view.OwnHand;
 
         // Tile.Kind をキーに Shanten / 有効牌 / 未見枚数をメモ化する。
@@ -310,13 +386,72 @@ public sealed class AI_v0_3_0_評価値(
 }
 
 /// <summary>
-/// <see cref="AI_v0_3_0_評価値"/> を席順ごとに生成する <see cref="IPlayerFactory"/>。
+/// リーチ者に対する牌の危険度判定。
+/// テストから直接呼べるよう internal で公開する。
+/// </summary>
+internal static class DangerEvaluator
+{
+    /// <summary>
+    /// 全リーチ者に対する危険度の最大値を返す。リーチ者がいない場合は 0。
+    /// </summary>
+    public static int CalcDanger(Tile tile, PlayerRoundView view)
+    {
+        var max = 0;
+        foreach (var status in view.OtherPlayerStatuses)
+        {
+            if (!status.IsRiichi || status.SafeKindsAgainstRiichi is not { } safeKinds) { continue; }
+
+            var danger = CalcDangerAgainst(tile, safeKinds, view);
+            max = Math.Max(max, danger);
+        }
+        return max;
+    }
+
+    /// <summary>
+    /// 特定リーチ者視点での危険度を返す。<paramref name="safeKinds"/> はそのリーチ者の現物・スジ判定のベースになる牌種集合
+    /// (Round が <see cref="PlayerRoundStatus.SafeKindsAgainstRiichi"/> として管理する)。
+    /// </summary>
+    public static int CalcDangerAgainst(Tile tile, ImmutableHashSet<TileKind> safeKinds, PlayerRoundView view)
+    {
+        var k = tile.Kind;
+        if (safeKinds.Contains(k)) { return 0; }
+
+        if (k.IsHonor)
+        {
+            var unseen = VisibleTileCounter.CountUnseen(view, k);
+            return Math.Min(unseen, 3);
+        }
+
+        var n = k.Number;
+        var hasMinus3 = k.TryGetAtDistance(-3, out var minus3) && safeKinds.Contains(minus3);
+        var hasPlus3 = k.TryGetAtDistance(+3, out var plus3) && safeKinds.Contains(plus3);
+
+        return n switch
+        {
+            1 => hasPlus3 ? 3 : 6,
+            2 => hasPlus3 ? 4 : 8,
+            3 => hasPlus3 ? 5 : 8,
+            7 => hasMinus3 ? 5 : 8,
+            8 => hasMinus3 ? 4 : 8,
+            9 => hasMinus3 ? 3 : 6,
+            _ => (hasMinus3, hasPlus3) switch   // 4, 5, 6
+            {
+                (true, true) => 4,
+                (true, false) or (false, true) => 8,
+                _ => 12,
+            },
+        };
+    }
+}
+
+/// <summary>
+/// <see cref="AI_v0_4_0_回し打ち"/> を席順ごとに生成する <see cref="IPlayerFactory"/>。
 /// 共通ロジック (Fibonacci hashing による決定的シード派生) は <see cref="AiPlayerFactoryBase{TPlayer}"/> に委譲する
 /// </summary>
-public sealed class AI_v0_3_0_評価値Factory(int seed)
-    : AiPlayerFactoryBase<AI_v0_3_0_評価値>(seed, AI_v0_3_0_評価値.DISPLAY_NAME)
+public sealed class AI_v0_4_0_回し打ちFactory(int seed)
+    : AiPlayerFactoryBase<AI_v0_4_0_回し打ち>(seed, AI_v0_4_0_回し打ち.DISPLAY_NAME)
 {
-    protected override AI_v0_3_0_評価値 CreatePlayer(PlayerId id, PlayerIndex index, Random rng)
+    protected override AI_v0_4_0_回し打ち CreatePlayer(PlayerId id, PlayerIndex index, Random rng)
     {
         return new(id, index, rng);
     }

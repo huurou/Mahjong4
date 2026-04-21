@@ -6,7 +6,7 @@
 
 - **命名規則**: `AI_v{major}_{minor}_{patch}_{識別名}` (例: `AI_v0_1_0_ランダム` / `AI_v0_2_0_有効牌`)。識別名は日本語可 (クラス名・ファイル名・表示名すべて同じ日本語を使う)
 - **実装場所**: [src/Mahjong.Lib.Game/Players/Impl/](../src/Mahjong.Lib.Game/Players/Impl/)。1 バージョン = 1 ファイル、Factory クラスは同ファイル末尾に定義
-- **Factory ペア**: 各 AI は `{AI名}Factory : IPlayerFactory(int seed)` を必ず提供する。`Create(PlayerIndex, PlayerId)` で席ごとに異なる `Random` を `new Random(HashCode.Combine(seed, index.Value))` で注入し、同一 seed に対する再現性を保証する
+- **Factory ペア**: 各 AI は `{AI名}Factory : AiPlayerFactoryBase<{AI名}>(int seed, string displayName)` を必ず提供する。`Create(PlayerIndex, PlayerId)` での席別 `Random` 注入と Fibonacci hashing によるシード派生は [AiPlayerFactoryBase](../src/Mahjong.Lib.Game/Players/AiPlayerFactoryBase.cs) が共通実装する。派生 Factory は `CreatePlayer(PlayerId, PlayerIndex, Random)` の 1 メソッドだけを override する
 - **評価基盤**: [tools/Mahjong.Lib.Game.AutoPlay/](../tools/Mahjong.Lib.Game.AutoPlay/) で一括対局 + `StatsTracer` により順位分布・和了率・放銃率・立直率・副露率・平均打点・役出現率等を取得する
 - **混在対局**: [MixedPlayerFactory](../tools/Mahjong.Lib.Game.AutoPlay/MixedPlayerFactory.cs) に 4 つの `IPlayerFactory` を渡すと、対局ごとに席配置をシャッフルしながら異なる AI を同卓させる。新バージョンをベースライン (ひとつ前の版や `AI_v0_1_0_ランダム`) と対戦させて差分を見るのが標準の評価手順
 - **判断に使えるヘルパー** (すべて `Mahjong.Lib.Game` 内から直接参照可能):
@@ -17,7 +17,7 @@
 
 ## 今後のバージョンへ
 
-新バージョンを追加するときは、本文書の末尾に以下のテンプレートで章を追加する。
+新バージョンを追加するときは、本文書の末尾に以下のテンプレートで章を追加する。Factory は `AiPlayerFactoryBase<TPlayer>` を派生させて `CreatePlayer` のみ実装する。
 
 ```markdown
 ## vX.Y.Z AI_vX_Y_Z_識別名
@@ -30,6 +30,8 @@
 
 **クラス構成**:
 - [AI_vX_Y_Z_識別名.cs](../src/Mahjong.Lib.Game/Players/Impl/AI_vX_Y_Z_識別名.cs)
+  - `AI_vX_Y_Z_識別名(PlayerId, PlayerIndex, Random) : Player`
+  - `AI_vX_Y_Z_識別名Factory(int seed) : AiPlayerFactoryBase<AI_vX_Y_Z_識別名>(seed, AI_vX_Y_Z_識別名.DISPLAY_NAME)`
 
 **使用ヘルパー**: ShantenHelper / TenpaiHelper / ScoringHelper 等のどれを使うか
 
@@ -64,7 +66,7 @@
 
 - [AI_v0_1_0_ランダム.cs](../src/Mahjong.Lib.Game/Players/Impl/AI_v0_1_0_ランダム.cs)
   - `AI_v0_1_0_ランダム(PlayerId, PlayerIndex, Random) : Player`
-  - `AI_v0_1_0_ランダムFactory(int seed) : IPlayerFactory`
+  - `AI_v0_1_0_ランダムFactory(int seed) : AiPlayerFactoryBase<AI_v0_1_0_ランダム>(seed, AI_v0_1_0_ランダム.DISPLAY_NAME)`
 
 **使用ヘルパー**: なし (候補リストの中からランダムに選ぶだけ)
 
@@ -97,7 +99,7 @@
 
 - [AI_v0_2_0_有効牌.cs](../src/Mahjong.Lib.Game/Players/Impl/AI_v0_2_0_有効牌.cs)
   - `AI_v0_2_0_有効牌(PlayerId, PlayerIndex, Random) : Player`
-  - `AI_v0_2_0_有効牌Factory(int seed) : IPlayerFactory`
+  - `AI_v0_2_0_有効牌Factory(int seed) : AiPlayerFactoryBase<AI_v0_2_0_有効牌>(seed, AI_v0_2_0_有効牌.DISPLAY_NAME)`
 
 **使用ヘルパー**: `ShantenHelper.CalcShanten` / `ShantenHelper.EnumerateUsefulTileKinds` / `VisibleTileCounter.CountUnseen`
 
@@ -110,7 +112,7 @@
 
 ## v0.3.0 AI_v0_3_0_評価値
 
-**目的**: v0.2.0 の「有効牌同点時はランダム選択」というタイブレーカーを、「対象牌を孤立牌と見立てたときの面子完成ポテンシャル (評価値) が低い牌を優先して切る」書籍『麻雀 AI』由来のロジックに置き換える。将来ターツに発展しやすい牌 (特にドラ・役牌) を手元に残す指向に改善し、v0.2.0 比で平均順位・立直率・平均打点に差を出すことを狙う。
+**目的**: v0.2.0 の「有効牌同点時はランダム選択」というタイブレーカーを、「対象牌を孤立牌と見立てたときの面子完成ポテンシャル (評価値) が低い牌を優先して切る」書籍由来のロジックに置き換える。将来ターツに発展しやすい牌 (特にドラ・役牌) を手元に残す指向に改善し、v0.2.0 比で平均順位・立直率・平均打点に差を出すことを狙う。
 
 **アルゴリズム**:
 
@@ -125,7 +127,7 @@ v0.2.0 の [SelectBestDahai 内シャンテン→有効牌] 選抜後、`finalis
 ```
 
 - **くっつき範囲** `EnumerateAdjacents(kind)`: 数牌は同スート内で `kind-2〜kind+2` (`TileKind.TryGetAtDistance` で判定)、字牌は自身のみ
-- **使える枚数** `useful(x, kind)`: 書籍 5m 例で「3m:2, 4m:2, 5m:1, 6m:3, 7m:3」の `min` 構造に従う
+- **使える枚数** `useful(x, kind)`: 5m 例で「3m:2, 4m:2, 5m:1, 6m:3, 7m:3」の `min` 構造に従う
   - `x == kind` (対子形成): `unseen(kind)`
   - `x == kind ± 2` (嵌張): 順子中間牌の未見と min → `min(unseen(x), unseen(kind±1))`
   - `x == kind ± 1` (両面/辺張): 順子 3 枚目候補 2 種の max と min → `min(unseen(x), max(unseen(kind-2 or -1), unseen(kind+1 or +2)))`。端牌で片方のみ同スート内に収まる場合は 1 候補のみ
@@ -151,7 +153,7 @@ v0.2.0 の [SelectBestDahai 内シャンテン→有効牌] 選抜後、`finalis
 
 - [AI_v0_3_0_評価値.cs](../src/Mahjong.Lib.Game/Players/Impl/AI_v0_3_0_評価値.cs)
   - `AI_v0_3_0_評価値(PlayerId, PlayerIndex, Random) : Player`
-  - `AI_v0_3_0_評価値Factory(int seed) : IPlayerFactory`
+  - `AI_v0_3_0_評価値Factory(int seed) : AiPlayerFactoryBase<AI_v0_3_0_評価値>(seed, AI_v0_3_0_評価値.DISPLAY_NAME)`
 
 **統計結果** (AutoPlay で取得):
 
@@ -174,3 +176,77 @@ v0.2.0 の [SelectBestDahai 内シャンテン→有効牌] 選抜後、`finalis
 - 他家のリーチ / テンパイ気配に対する守備判断がないため放銃率は v0.2.0 比ほぼ同水準
 - **くっつき先の赤ドラは考慮していない**: 隣接牌種の未見に含まれる赤ドラ Tile の存在は評価値に反映しない (対象牌自身の赤ドラのみ反映)。改善余地あり
 - 終盤の受け入れ優先度・押し引き判断がないため、リーチ後のベタオリ / 現物選択などは行えない
+
+## v0.4.0 AI_v0_4_0_回し打ち
+
+**目的**: v0.3.0 までの AI は他家リーチに対して何も警戒しない (放銃率 16-17%)。書籍に準拠して、他家リーチ時のみ「シャンテン数と切りたい牌の危険度」で押し引きを判定する最小限の守備ロジックを追加する。v0.3.0 の「有効牌最大化 + 評価値タイブレーカー」攻撃ロジックはそのまま維持し、リーチ者検出時のみ危険度フィルタを被せる。
+
+**ドメイン拡張**:
+
+- [PlayerRoundStatus](../src/Mahjong.Lib.Game/Rounds/PlayerRoundStatus.cs) に `SafeKindsAgainstRiichi: ImmutableHashSet<TileKind>?` を追加 (立直前は null、立直宣言者のみ値を持つ)
+- [Round.ConfirmRiichi](../src/Mahjong.Lib.Game/Rounds/Round.cs) で立直者自身の河牌種 + 鳴かれて河から消えた自分の捨て牌 (`TilesCalledFromRiver`) の牌種で初期化する。フリテン判定 (`EvaluateFuriten`) と同じ現物集合
+- [Round.Dahai](../src/Mahjong.Lib.Game/Rounds/Round.cs) で全立直中プレイヤー (打牌者本人を含む) の `SafeKindsAgainstRiichi` に打牌牌種を追加する。立直者自身のツモ切りも振り聴ルールで現物扱いになるため本人を含める
+- [OwnRoundStatus](../src/Mahjong.Lib.Game/Views/OwnRoundStatus.cs) / [VisiblePlayerRoundStatus](../src/Mahjong.Lib.Game/Views/VisiblePlayerRoundStatus.cs) にも露出し、[RoundViewProjector](../src/Mahjong.Lib.Game/Rounds/Managing/RoundViewProjector.cs) が射影する
+- 集合方式のため副露で河から消えた牌も情報を失わず保持される (河長スナップショット方式と違い鳴かれた安全牌が復元可能)
+- 書籍の「リーチ宣言後は他家の捨て牌も現物扱い」を、AI 内部状態を持たずに View から読むだけで実現する設計
+
+**アルゴリズム**:
+
+- リーチ者がいない局面: v0.3.0 と同じ (有効牌最大化 + 評価値タイブレーカー)
+- リーチ者がいる局面: 自シャンテン数で分岐
+  - テンパイ (`s == 0`): 通常打牌 (リーチ可能ならリーチ = 押し)
+  - 1 シャンテン (`s == 1`): 攻撃打牌の危険度 ≤ 5 ならそれを切る (回し打ち、運よくテンパイすればリーチ)、> 5 ならベタオリ
+  - 2 シャンテン以上: ベタオリ (全打牌候補から危険度最小の牌)
+- ベタオリ時はリーチしない (`IsRiichi=false`)
+- 副露 / 暗槓 / 加槓 / 九種九牌は行わない (v0.3.0 同様)
+- 和了 (ツモ / ロン / 槍槓 / 嶺上ツモ) は必ず行う
+
+**危険度計算** (`DangerEvaluator`):
+
+- 対象リーチ者の現物 (`safeKinds` に含まれる牌種) → **0**
+  - `safeKinds` = リーチ者自身の河牌種 ∪ 鳴かれた自分の捨て牌牌種 ∪ リーチ宣言後に全プレイヤー (自分含む) が捨てた全牌種
+  - `view.OtherPlayerStatuses[i].SafeKindsAgainstRiichi` から直接取得 (AI 内部状態なし)
+- 字牌 → `min(unseen, 3)` (ラス牌=0 / 3 枚見え=1 / 2 枚見え=2 / 生牌=3)
+- 数牌 → `safeKinds` にスジ牌 (`k±3` 同スート内) が含まれるかで判定 (書籍の `_dapai[l]` と同じ集合)
+- 複数リーチ者がいる場合は各リーチ者に対する危険度の **最大値**
+
+**危険度表**:
+
+| 牌の種類 | 無スジ | 片スジ | スジ | 生牌 | 2枚見え | 3枚見え | ラス牌 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 字牌 | — | — | — | 3 | 2 | 1 | 0 |
+| 1・9 牌 | 6 | — | 3 | — | — | — | — |
+| 2・8 牌 | 8 | — | 4 | — | — | — | — |
+| 3・7 牌 | 8 | — | 5 | — | — | — | — |
+| 4・5・6 牌 | 12 | 8 | 4 | — | — | — | — |
+
+**クラス構成**:
+
+- [AI_v0_4_0_回し打ち.cs](../src/Mahjong.Lib.Game/Players/Impl/AI_v0_4_0_回し打ち.cs)
+  - `AI_v0_4_0_回し打ち(PlayerId, PlayerIndex, Random) : Player`
+  - `AI_v0_4_0_回し打ちFactory(int seed) : AiPlayerFactoryBase<AI_v0_4_0_回し打ち>(seed, AI_v0_4_0_回し打ち.DISPLAY_NAME)`
+  - `internal static class DangerEvaluator` — 危険度計算 (テストから直接呼べるよう internal)
+
+**使用ヘルパー**: v0.3.0 と同じ一式 + `TileKind.TryGetAtDistance(±3)` / `TileKind.IsHonor` / `TileKind.Number` / `VisibleTileCounter.CountUnseen`
+
+**統計結果** (AutoPlay で取得):
+
+- ベースライン: `AI_v0_3_0_評価値 ×2 + AI_v0_4_0_回し打ち ×2` の混在卓、`MixedPlayerFactory` で席シャッフル
+- 対局数: **1000 局 × 2 シード** (`--seed 1` / `--seed 2`)、`--parallel 4` で実行 (seed 1: 約 50 分 / seed 2: 約 65 分)
+
+| シード | AI | 平均順位 | 和了率 | 放銃率 | 立直率 | 副露率 | 平均打点 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | v0.3.0 評価値 | 2.614 | 21.9% | 19.2% | 48.4% | 0.0% | 6901 |
+| 1 | v0.4.0 回し打ち | **2.386** | 19.3% | **7.4%** | 36.3% | 0.0% | 6812 |
+| 2 | v0.3.0 評価値 | 2.583 | 22.2% | 19.0% | 48.2% | 0.0% | 6865 |
+| 2 | v0.4.0 回し打ち | **2.417** | 18.8% | **7.5%** | 35.4% | 0.0% | 6856 |
+
+両シードで **v0.4.0 が平均順位 -0.20 (2.60 → 2.40)**、**放銃率 -11.7pt (19.1% → 7.45%、v0.3.0 比およそ 4 割弱)** を一貫して示し、守備ロジックが明確に効いている。和了率は -3.0pt、立直率は -12.5pt で、ベタオリ時にリーチしない分が差となって現れる一方、平均打点はほぼ同等 (-25) で「押し時の打点は維持されている」ことを裏付ける。参考書籍の同等アルゴリズム同士 4 人対戦 (放銃率 7.0% / 立直率 36.7%) と放銃率・立直率とも極めて近い水準で、書籍 0102 にほぼ忠実に再現できている。
+
+**既知の限界** (次バージョンへの課題):
+
+- リーチ者以外の聴牌気配 (染め手・役牌対子の鳴き / ドラ切り / テンパイ気配等) に対する警戒がない
+- 回し打ち時の危険度 5 / 6 の閾値は書籍通りでチューニング未検証
+- テンパイ時の押しは無条件 (安牌があるテンパイでも必ず押す)
+- 副露しないため、相手の鳴きに対する押し引きは発生しない (自分の鳴き判断がそもそも無い)
+- 壁・ワンチャンスなど、河以外からの安牌推定は行っていない (参考書籍の同等アルゴリズムも同様)

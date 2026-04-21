@@ -9,15 +9,13 @@ namespace Mahjong.Lib.Game.AutoPlay.Tracing;
 /// </summary>
 /// <param name="GameCount">対局数</param>
 /// <param name="RoundCount">局数 (全対局合計)</param>
-/// <param name="PlayerStats">AI 種別ごとの統計 (DisplayName キー)</param>
-/// <param name="YakuCounts">役出現回数 (全席合計)</param>
+/// <param name="PlayerStats">AI 種別ごとの統計 (DisplayName キー)。役出現回数は <see cref="PlayerStats.YakuCounts"/> 参照</param>
 /// <param name="RyuukyokuCounts">流局種別別回数</param>
 /// <param name="FailedGameCount">例外で完走できなかった対局数 (AutoPlayRunner が catch して加算)</param>
 public record StatsReport(
     int GameCount,
     int RoundCount,
     ImmutableArray<PlayerStats> PlayerStats,
-    ImmutableDictionary<string, int> YakuCounts,
     ImmutableDictionary<RyuukyokuType, int> RyuukyokuCounts,
     int FailedGameCount = 0
 );

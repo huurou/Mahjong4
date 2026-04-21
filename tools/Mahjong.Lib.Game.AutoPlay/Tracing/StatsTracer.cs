@@ -30,11 +30,11 @@ public sealed class StatsTracer : IGameTracer
         public int RiichiCount;
         public int CallCount;
         public long WinPointSum;
+        public Dictionary<string, int> YakuCounts { get; } = [];
     }
 
     private readonly Dictionary<string, Accumulator> byName_ = [];
     private readonly Dictionary<RyuukyokuType, int> ryuukyokuCounts_ = [];
-    private readonly Dictionary<string, int> yakuCounts_ = [];
 
     private readonly string[] currentNames_ = new string[PLAYER_COUNT];
     private readonly bool[] riichiDeclaredThisRound_ = new bool[PLAYER_COUNT];
@@ -163,7 +163,7 @@ public sealed class StatsTracer : IGameTracer
                     acc.WinPointSum += winner.ScoreResult.PointDeltas[winner.PlayerIndex].Value;
                     foreach (var yaku in winner.ScoreResult.YakuList)
                     {
-                        yakuCounts_[yaku.Name] = yakuCounts_.GetValueOrDefault(yaku.Name) + 1;
+                        acc.YakuCounts[yaku.Name] = acc.YakuCounts.GetValueOrDefault(yaku.Name) + 1;
                     }
                 }
                 if (win.WinType is WinType.Ron or WinType.Chankan)
@@ -226,7 +226,8 @@ public sealed class StatsTracer : IGameTracer
                     a.HoujuuCount,
                     a.RiichiCount,
                     a.CallCount,
-                    a.WinPointSum
+                    a.WinPointSum,
+                    a.YakuCounts.ToImmutableDictionary()
                 )
             );
         }
@@ -235,7 +236,6 @@ public sealed class StatsTracer : IGameTracer
             gameCount_,
             roundCount_,
             playerStatsBuilder.ToImmutable(),
-            yakuCounts_.ToImmutableDictionary(),
             ryuukyokuCounts_.ToImmutableDictionary(),
             failedGameCount_
         );
@@ -266,10 +266,10 @@ public sealed class StatsTracer : IGameTracer
                 target.RiichiCount += srcAcc.RiichiCount;
                 target.CallCount += srcAcc.CallCount;
                 target.WinPointSum += srcAcc.WinPointSum;
-            }
-            foreach (var (yaku, count) in src.yakuCounts_)
-            {
-                merged.yakuCounts_[yaku] = merged.yakuCounts_.GetValueOrDefault(yaku) + count;
+                foreach (var (yaku, count) in srcAcc.YakuCounts)
+                {
+                    target.YakuCounts[yaku] = target.YakuCounts.GetValueOrDefault(yaku) + count;
+                }
             }
             foreach (var (type, count) in src.ryuukyokuCounts_)
             {

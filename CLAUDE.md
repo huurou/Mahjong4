@@ -27,7 +27,8 @@ dotnet run --project samples/Mahjong.Lib.Scoring.SampleApp/Mahjong.Lib.Scoring.S
 dotnet run --project tools/Mahjong.Lib.Scoring.TenhouPaifuValidation/Mahjong.Lib.Scoring.TenhouPaifuValidation.csproj
 
 # 自動対局ツール実行（4人AI対局を指定回数繰り返し、順位統計を出力）
-dotnet run --project tools/Mahjong.Lib.Game.AutoPlay/Mahjong.Lib.Game.AutoPlay.csproj -- --games 100 --seed 1 --write-paifu --parallel 4
+# 牌譜出力は既定で有効。統計計測時は --no-paifu で無効化するとディスク I/O 分だけ速くなる
+dotnet run --project tools/Mahjong.Lib.Game.AutoPlay/Mahjong.Lib.Game.AutoPlay.csproj -- --games 100 --seed 1 --no-paifu --parallel 4
 
 # コードカバレッジ計測（PowerShell）
 pwsh scripts/TestCoverage.ps1
@@ -96,7 +97,7 @@ pwsh scripts/TestCoverage.ps1
 #### 局(Round)レベル
 
 - **局の集約**: [Mahjong.Lib.Game/Rounds/Round.cs](src/Mahjong.Lib.Game/Rounds/Round.cs) が局の全状態を保持するイミュータブルrecord。`Haipai` / `Tsumo` / `Dahai` / `NextTurn` / `Chi` / `Pon` / `Daiminkan` / `Ankan` / `Kakan` / `RinshanTsumo` / `RevealDora` / `SetPoints` / `AddKyoutakuRiichi` / `ClearKyoutaku` / `PendRiichi` / `ConfirmRiichi` / `CancelRiichi` / `EvaluateFuriten` / `SettleWin` / `SettleRyuukyoku` の各メソッドで進行。すべて新しい `Round` を返す
-- **局内プレイヤー状態**: `Round` は `PlayerRoundStatusArray` を保持し、各プレイヤーの立直保留/確定/取消、一発、門前、流し満貫資格、同巡/永久フリテン、嶺上中、第一打前(天和/地和判定用)などを進行メソッド内で更新する
+- **局内プレイヤー状態**: `Round` は `PlayerRoundStatusArray` を保持し、各プレイヤーの立直保留/確定/取消、一発、門前、流し満貫資格、同巡/永久フリテン、嶺上中、第一打前(天和/地和判定用)、`SafeKindsAgainstRiichi`（立直宣言者から見た現物牌種集合 — `ConfirmRiichi` で自河を初期投入し、以後 `Dahai` で他家打牌の牌種を追加。副露で河から消えた牌も保持）などを進行メソッド内で更新する。`SafeKindsAgainstRiichi` は守備型 AI の安全牌判定の元情報として `OwnRoundStatus` / `VisiblePlayerRoundStatus` 経由でビュー層にも露出する
 - **点数精算**: 和了時は呼び出し側 (`RoundStateDahai` / `RoundStateTsumo` / `RoundStateKan` / `RoundStateKanTsumo`) が `ScoringHelper.Calculate` で各和了者の `ScoreResult` を算出し、`Round.SettleWin` に `ImmutableArray<ScoreResult>` を渡して点数移動を適用する。流局時は `Round.SettleRyuukyoku` が天鳳ルール準拠でノーテン罰符・テンパイ料を計算する。いずれも終端状態への遷移アクション内で呼ばれる
 - **カンドラ表示のタイミング**: 暗槓は即時 `RevealDora`、加槓・大明槓は `PendingDoraReveal=true` で保留し、次の `RinshanTsumo` 直前にめくる
 - **副露種類の扱い**: `CallType` は Chi/Pon/Ankan/Daiminkan/Kakan。Lib.Scoring側と違い大明槓と加槓を区別する（表示上の差があるため — 詳細は [docs/Design.md](docs/Design.md)）
@@ -123,7 +124,8 @@ pwsh scripts/TestCoverage.ps1
 - **点数結果型** ([Mahjong.Lib.Game/Games/ScoreResult.cs](src/Mahjong.Lib.Game/Games/ScoreResult.cs)) — `ScoreResult(Han, Fu, PointDeltas, YakuList)` は `ScoringHelper.Calculate` の戻り値。成立役は `Mahjong.Lib.Scoring.Yakus.YakuList` (= `Yaku` 具象型の集合) をそのまま保持する。包 (責任払い) 判定は [YakuPaoExtensions.HasPaoEligibleYaku](src/Mahjong.Lib.Game/Games/YakuPaoExtensions.cs) で `Daisangen` / `Daisuushii` / `DaisuushiiDouble` / `Suukantsu` を pattern match する
 - **プレイヤー抽象** ([Mahjong.Lib.Game/Players/Player.cs](src/Mahjong.Lib.Game/Players/Player.cs)) — `Player` は abstract **class**（record ではない: 可変状態を持つ AI/人間実装での record + mutable property の相互作用リスク回避）。`PlayerId` + `DisplayName` ベースのカスタム `Equals` / `GetHashCode` / `==` / `!=` を実装し `PlayerList` / `Game` の value equality を維持。通知メソッド 15 種 (`OnGameStartAsync` / `OnRoundStartAsync` / `OnHaipaiAsync` / `OnTsumoAsync` / `OnOtherPlayerTsumoAsync` / `OnDahaiAsync` / `OnCallAsync` / `OnKanAsync` / `OnKanTsumoAsync` / `OnOtherPlayerKanTsumoAsync` / `OnDoraRevealAsync` / `OnWinAsync` / `OnRyuukyokuAsync` / `OnRoundEndAsync` / `OnGameEndAsync`) を `public abstract` で定義し、戻り値は通知ごとに異なる応答型。全メソッドに `CancellationToken ct = default` を付与 (`RoundStateContext` の通知・応答集約ループのタイムアウト制御用)
 - **テスト用疑似プレイヤー** ([tests/Mahjong.Lib.Game.Tests/Players/FakePlayer.cs](tests/Mahjong.Lib.Game.Tests/Players/FakePlayer.cs)) — `Func<TNotification, CancellationToken, TResponse>` デリゲート群を init プロパティで受け取る `Player` 実装。未設定時は安全な既定応答（OK / 先頭 `DahaiCandidate` を打牌 / `PassResponse` / `KanPassResponse` 等）を返し、受信通知を `ReceivedNotifications` に記録する
-- **AI プレイヤー実装** ([src/Mahjong.Lib.Game/Players/Impl/](src/Mahjong.Lib.Game/Players/Impl/)) — 命名は `AI_v{major}_{minor}_{patch}_{識別名}` 形式。v0.1.0 ランダム打牌、v0.2.0 有効牌（`ShantenHelper` で向聴数を下げる候補を選ぶ）、v0.3.0 評価値（有効牌枚数同点時のタイブレーカーとして、対象牌を孤立牌と見立てた面子完成ポテンシャル評価値が低い牌を優先）。AI の設計思想・評価式は [docs/AiDesign.md](docs/AiDesign.md) を参照。各 AI はクラスと対になる `{AI名}Factory` を提供し、自動対局ツール側が `IPlayerFactory` 抽象経由で注入する
+- **AI プレイヤー実装** ([src/Mahjong.Lib.Game/Players/Impl/](src/Mahjong.Lib.Game/Players/Impl/)) — 命名は `AI_v{major}_{minor}_{patch}_{識別名}` 形式。v0.1.0 ランダム打牌、v0.2.0 有効牌（`ShantenHelper` で向聴数を下げる候補を選ぶ）、v0.3.0 評価値（有効牌枚数同点時のタイブレーカーとして、対象牌を孤立牌と見立てた面子完成ポテンシャル評価値が低い牌を優先）、v0.4.0 回し打ち（v0.3.0 の打牌選択に加え、他家リーチ時のみ自分のシャンテンと攻撃打牌の危険度で押し/回し/ベタオリを切り替える守備層。危険度は内部の `DangerEvaluator` が `SafeKindsAgainstRiichi` を元に現物・スジ・字牌見え枚数で算出）。AI の設計思想・評価式は [docs/AiDesign.md](docs/AiDesign.md) を参照
+- **AI Factory 共通基底** ([src/Mahjong.Lib.Game/Players/AiPlayerFactoryBase.cs](src/Mahjong.Lib.Game/Players/AiPlayerFactoryBase.cs)) — 各 AI バージョンの `{AI名}Factory` は `AiPlayerFactoryBase<TPlayer>(int seed, string displayName)` を派生して `CreatePlayer(PlayerId, PlayerIndex, Random)` のみを実装する。基底側で seed と席 index を Fibonacci hashing (Knuth multiplicative `0x9E3779B9u`) で合成し、席ごとに独立かつ決定的な `Random` を生成する。`HashCode.Combine` はプロセス起動時のランダム salt を含み再現性を壊すため使わない
 
 #### 対局(Game)レベル
 
@@ -150,7 +152,7 @@ pwsh scripts/TestCoverage.ps1
 
 AI同士の4人対局を一括実行して統計を取るコンソールアプリ。`Microsoft.Extensions.DependencyInjection` で `GameStateContext` に必要な抽象を組み立てる。
 
-- **実行時オプション** (`AutoPlayOptions`): `--games` 回数 / `--seed` 乱数シード / `--output` 出力先 / `--write-paifu` JSONL 牌譜出力フラグ / `--parallel` 並列 worker 数（0 以下で `Environment.ProcessorCount`、既定値は 4。ベンチマーク結果で wall-clock 最小だった設定）
+- **実行時オプション** (`AutoPlayOptions`): `--games` 回数 / `--seed` 乱数シード / `--output` 出力先 / `--no-paifu` JSONL 牌譜出力の無効化フラグ (既定は出力あり。統計だけ取りたい時は指定して I/O を省く) / `--parallel` 並列 worker 数（0 以下で `Environment.ProcessorCount`、既定値は 4。ベンチマーク結果で wall-clock 最小だった設定）
 - **対局ランナー** (`AutoPlayRunner`): 並列 worker 数に対局を均等分配し、各 worker が独立 `StatsTracer` で集計した結果を最後に `StatsTracer.Merge` で統合する（`Parallel.ForEachAsync` ベース）。1 対局ごとに `PlayerList` を生成し `GameStateContext` を `using` で起動、`GameStateEnd` を監視して次対局へ進む。対局単位の 5 分タイムアウトと例外時のスキップ＋次局継続を担う
 - **プレイヤー構成**: [MixedPlayerFactory](tools/Mahjong.Lib.Game.AutoPlay/MixedPlayerFactory.cs) が `IPlayerFactory[]` を受け取り、各対局開始時に席配置をシャッフル。`Program.cs` で AI を組み替えると混在対局の統計が取れる
 - **トレーサー合成**: [CompositeGameTracer](src/Mahjong.Lib.Game/Rounds/Managing/CompositeGameTracer.cs) に `StatsTracer`（順位・和了率・流局率集計）、`ProgressTracer`（局進行のログ出力）、必要に応じて `PaifuRecorder`（JSONL 牌譜書き出し）を束ねて `IGameTracer` として渡す

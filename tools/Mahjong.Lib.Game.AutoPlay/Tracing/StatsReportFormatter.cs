@@ -40,12 +40,16 @@ public static class StatsReportFormatter
         }
 
         sb.AppendLine();
-        var totalWins = report.PlayerStats.Sum(x => x.WinCount);
-        sb.AppendLine($"役出現回数 (上位 20、和了回数 {totalWins} 回に対する出現率):");
-        foreach (var kv in report.YakuCounts.OrderByDescending(x => x.Value).ThenBy(x => x.Key, StringComparer.Ordinal).Take(20))
+        sb.AppendLine("役出現回数 (AI 別 上位 20、各 AI の和了回数に対する出現率):");
+        foreach (var stats in report.PlayerStats)
         {
-            var rate = totalWins == 0 ? 0.0 : (double)kv.Value / totalWins;
-            sb.AppendLine($"  {kv.Key,-20} {kv.Value,5} ({rate,6:P1})");
+            if (stats.WinCount == 0) { continue; }
+            sb.AppendLine($"[{stats.DisplayName}] (和了 {stats.WinCount} 回)");
+            foreach (var kv in stats.YakuCounts.OrderByDescending(x => x.Value).ThenBy(x => x.Key, StringComparer.Ordinal).Take(20))
+            {
+                var rate = (double)kv.Value / stats.WinCount;
+                sb.AppendLine($"  {kv.Key,-20} {kv.Value,5} ({rate,6:P1})");
+            }
         }
 
         sb.AppendLine();

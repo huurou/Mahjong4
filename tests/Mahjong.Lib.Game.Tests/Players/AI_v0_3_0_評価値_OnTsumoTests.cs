@@ -478,7 +478,7 @@ public class AI_v0_3_0_評価値_OnTsumoTests
     {
         var visible = Enumerable.Range(0, PlayerIndex.PLAYER_COUNT)
             .Where(x => x != seat.Value)
-            .Select(x => new VisiblePlayerRoundStatus(new PlayerIndex(x), false, false, true));
+            .Select(x => new VisiblePlayerRoundStatus(new PlayerIndex(x), false, false, true, null));
         return new PlayerRoundView(
             seat,
             RoundWind.East,
@@ -491,7 +491,7 @@ public class AI_v0_3_0_評価値_OnTsumoTests
             new CallListArray(),
             new RiverArray(),
             [],
-            new OwnRoundStatus(false, false, false, true, false, false, false),
+            new OwnRoundStatus(false, false, false, true, false, false, false, null),
             [.. visible],
             70
         );
@@ -511,11 +511,11 @@ public class AI_v0_3_0_評価値_OnTsumoTests
             new CallListArray(),
             new RiverArray(),
             [],
-            new OwnRoundStatus(false, false, false, true, false, false, false),
+            new OwnRoundStatus(false, false, false, true, false, false, false, null),
             [
-                new VisiblePlayerRoundStatus(new PlayerIndex(1), false, false, true),
-                new VisiblePlayerRoundStatus(new PlayerIndex(2), false, false, true),
-                new VisiblePlayerRoundStatus(new PlayerIndex(3), false, false, true),
+                new VisiblePlayerRoundStatus(new PlayerIndex(1), false, false, true, null),
+                new VisiblePlayerRoundStatus(new PlayerIndex(2), false, false, true, null),
+                new VisiblePlayerRoundStatus(new PlayerIndex(3), false, false, true, null),
             ],
             70
         );

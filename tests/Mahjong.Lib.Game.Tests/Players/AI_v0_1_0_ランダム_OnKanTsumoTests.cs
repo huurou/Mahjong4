@@ -75,11 +75,11 @@ public class AI_v0_1_0_ランダム_OnKanTsumoTests
             new CallListArray(),
             new RiverArray(),
             [],
-            new OwnRoundStatus(false, false, false, true, false, false, false),
+            new OwnRoundStatus(false, false, false, true, false, false, false, null),
             [
-                new VisiblePlayerRoundStatus(new PlayerIndex(1), false, false, true),
-                new VisiblePlayerRoundStatus(new PlayerIndex(2), false, false, true),
-                new VisiblePlayerRoundStatus(new PlayerIndex(3), false, false, true),
+                new VisiblePlayerRoundStatus(new PlayerIndex(1), false, false, true, null),
+                new VisiblePlayerRoundStatus(new PlayerIndex(2), false, false, true, null),
+                new VisiblePlayerRoundStatus(new PlayerIndex(3), false, false, true, null),
             ],
             70
         );

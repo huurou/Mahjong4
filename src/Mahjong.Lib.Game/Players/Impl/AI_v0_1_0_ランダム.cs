@@ -130,24 +130,13 @@ public sealed class AI_v0_1_0_ランダム(PlayerId playerId, PlayerIndex player
 
 /// <summary>
 /// <see cref="AI_v0_1_0_ランダム"/> を席順ごとに生成する <see cref="IPlayerFactory"/>。
-/// 各席には seed と index を Fibonacci hashing (Knuth multiplicative) で決定的に合成した値で Random を初期化し、
-/// 同一 seed に対する再現性を保ちつつ席間の内部状態が近接しないようにする。
-/// <see cref="HashCode.Combine{T1, T2}(T1, T2)"/> はプロセス起動時のランダム salt を含むため再現性を壊すので使わない
+/// 共通ロジック (Fibonacci hashing による決定的シード派生) は <see cref="AiPlayerFactoryBase{TPlayer}"/> に委譲する
 /// </summary>
-public sealed class AI_v0_1_0_ランダムFactory(int seed) : IPlayerFactory
+public sealed class AI_v0_1_0_ランダムFactory(int seed)
+    : AiPlayerFactoryBase<AI_v0_1_0_ランダム>(seed, AI_v0_1_0_ランダム.DISPLAY_NAME)
 {
-    public string DisplayName => AI_v0_1_0_ランダム.DISPLAY_NAME;
-
-    public Player Create(PlayerIndex index, PlayerId id)
+    protected override AI_v0_1_0_ランダム CreatePlayer(PlayerId id, PlayerIndex index, Random rng)
     {
-        return new AI_v0_1_0_ランダム(id, index, new Random(DeriveSeed(seed, index.Value)));
-    }
-
-    private static int DeriveSeed(int seed, int index)
-    {
-        unchecked
-        {
-            return (int)((uint)seed * 0x9E3779B9u ^ (uint)index);
-        }
+        return new(id, index, rng);
     }
 }

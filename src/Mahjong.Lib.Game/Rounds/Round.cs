@@ -191,6 +191,21 @@ public record Round(
             IsNagashiMangan = currentStatus.IsNagashiMangan && tile.Kind.IsYaochu,
         };
         var statusArray = PlayerRoundStatusArray.SetStatus(Turn, status);
+        // 立直中プレイヤー全員 (打牌者本人を含む) の「自分のアタリにならない牌種集合」に打牌牌種を追加。
+        // 立直者自身のツモ切りも自分の河に残り振り聴ルールで現物 (= 自分のアタリにはならない) 扱いとなるため本人も対象にする。
+        // リーチ者に対してロンされずに見送られた牌は、その後鳴かれて河から消えても安全牌として保持する
+        for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
+        {
+            var riichiIndex = new PlayerIndex(i);
+            var riichiStatus = statusArray[riichiIndex];
+            if (!riichiStatus.IsRiichi || riichiStatus.SafeKindsAgainstRiichi is not { } safeKinds) { continue; }
+
+            var updated = riichiStatus with
+            {
+                SafeKindsAgainstRiichi = safeKinds.Add(tile.Kind),
+            };
+            statusArray = statusArray.SetStatus(riichiIndex, updated);
+        }
         var round = this with
         {
             HandArray = handArray,
@@ -248,6 +263,20 @@ public record Round(
         }
 
         var currentStatus = PlayerRoundStatusArray[player];
+        // 立直確定時点の「自分のアタリにならない牌種集合」を自分の河 + 鳴かれて河から消えた自分の捨て牌で初期化する。
+        // 振り聴ルールにより、自分の河および鳴かれた自分の捨て牌の牌種はすべて安全 (= 当たらない)。
+        // フリテン判定 (<see cref="EvaluateFuriten"/>) と同じく <see cref="PlayerRoundStatus.TilesCalledFromRiver"/> も対象にする。
+        // 以後 <see cref="Dahai"/> で打牌牌種を追加していき、副露で河から消えた牌も保持される
+        var safeKindsBuilder = ImmutableHashSet.CreateBuilder<Scoring.Tiles.TileKind>();
+        foreach (var tile in RiverArray[player])
+        {
+            safeKindsBuilder.Add(tile.Kind);
+        }
+        foreach (var tile in currentStatus.TilesCalledFromRiver)
+        {
+            safeKindsBuilder.Add(tile.Kind);
+        }
+        var selfSafeKinds = safeKindsBuilder.ToImmutable();
         var status = currentStatus with
         {
             IsRiichi = true,
@@ -255,6 +284,7 @@ public record Round(
             IsIppatsu = true,
             IsPendingRiichi = false,
             IsPendingRiichiDouble = false,
+            SafeKindsAgainstRiichi = selfSafeKinds,
         };
         var statusArray = PlayerRoundStatusArray.SetStatus(player, status);
         return this with

@@ -187,10 +187,19 @@ public sealed class TenhouJsonPaifuRecorder(TextWriter writer, PlayerList player
                 paoWho.Value,
                 scoreText,
             };
-            foreach (var yaku in winner.ScoreResult.YakuList)
+            // ドラ/裏ドラ/赤ドラは YakuList に枚数分の重複要素として積まれるため、天鳳 JSON では同一役を 1 エントリに畳んで翻数を合算する
+            // (重複のまま出力すると天鳳公式ビューワーで和了結果が "不明" 扱いになる)
+            foreach (var group in winner.ScoreResult.YakuList.GroupBy(x => x))
             {
-                var han = winner.ScoreResult.IsMenzen ? yaku.HanClosed : yaku.HanOpen;
-                detail.Add(yaku.IsYakuman ? $"{yaku.Name}(役満)" : $"{yaku.Name}({han}飜)");
+                var yaku = group.Key;
+                if (yaku.IsYakuman)
+                {
+                    detail.Add($"{yaku.Name}(役満)");
+                    continue;
+                }
+                var perYakuHan = winner.ScoreResult.IsMenzen ? yaku.HanClosed : yaku.HanOpen;
+                var han = perYakuHan * group.Count();
+                detail.Add($"{yaku.Name}({han}飜)");
             }
             result.Add(delta);
             result.Add(detail.ToArray());
