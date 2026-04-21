@@ -18,7 +18,7 @@ public class DoubleRiichi_PropertyTests
     }
 
     [Fact]
-    public void Name_ダブル立直を返す()
+    public void Name_両立直を返す()
     {
         // Arrange
         var yaku = Yaku.DoubleRiichi;
@@ -27,7 +27,7 @@ public class DoubleRiichi_PropertyTests
         var result = yaku.Name;
 
         // Assert
-        Assert.Equal("ダブル立直", result);
+        Assert.Equal("両立直", result);
     }
 
     [Fact]

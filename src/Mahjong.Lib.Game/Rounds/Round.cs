@@ -1,7 +1,6 @@
-﻿using Mahjong.Lib.Game.Calls;
-using Mahjong.Lib.Game.Inquiries;
-using Mahjong.Lib.Game.Adoptions;
-using Mahjong.Lib.Game.Games.Scoring;
+﻿using Mahjong.Lib.Game.Adoptions;
+using Mahjong.Lib.Game.Calls;
+using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Hands;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rivers;
@@ -77,7 +76,10 @@ public record Round(
             for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
             {
                 var playerIndex = new PlayerIndex(i);
-                if (PlayerRoundStatusArray[playerIndex].IsPendingRiichi) { return playerIndex; }
+                if (PlayerRoundStatusArray[playerIndex].IsPendingRiichi)
+                {
+                    return playerIndex;
+                }
             }
             return null;
         }
@@ -176,7 +178,7 @@ public record Round(
     /// 一発フラグはツモ時点では維持し、打牌 (= ツモ和了しなかった) で消します。
     /// 打牌後に打牌者のフリテン状態を再評価します。
     /// </summary>
-    internal Round Dahai(Tile tile, ITenpaiChecker tenpaiChecker)
+    internal Round Dahai(Tile tile)
     {
         var handArray = HandArray.RemoveTile(Turn, tile);
         var riverArray = RiverArray.AddTile(Turn, tile);
@@ -186,7 +188,7 @@ public record Round(
             IsFirstTurnBeforeDiscard = false,
             IsIppatsu = false,
             IsRinshan = false,
-            IsNagashiMangan = currentStatus.IsNagashiMangan && tile.IsYaochuu,
+            IsNagashiMangan = currentStatus.IsNagashiMangan && tile.Kind.IsYaochu,
         };
         var statusArray = PlayerRoundStatusArray.SetStatus(Turn, status);
         var round = this with
@@ -195,7 +197,7 @@ public record Round(
             RiverArray = riverArray,
             PlayerRoundStatusArray = statusArray,
         };
-        return round.EvaluateFuriten(Turn, tenpaiChecker);
+        return round.EvaluateFuriten(Turn);
     }
 
     /// <summary>
@@ -290,10 +292,10 @@ public record Round(
     /// 打牌後に呼ぶことで、河が変わった打牌者のフリテンのみ更新します。
     /// (Phase 5 のロン見逃しによる同巡フリテンは <see cref="PlayerRoundStatus.IsTemporaryFuriten"/> で別途管理)
     /// </summary>
-    internal Round EvaluateFuriten(PlayerIndex playerIndex, ITenpaiChecker tenpaiChecker)
+    internal Round EvaluateFuriten(PlayerIndex playerIndex)
     {
         var currentStatus = PlayerRoundStatusArray[playerIndex];
-        var waitKinds = tenpaiChecker.EnumerateWaitTileKinds(HandArray[playerIndex], CallListArray[playerIndex]);
+        var waitKinds = TenpaiHelper.EnumerateWaitTileKinds(HandArray[playerIndex]);
         var isFuriten = waitKinds.Count > 0 &&
             (RiverArray[playerIndex].Any(x => waitKinds.Contains(x.Kind)) ||
                 currentStatus.TilesCalledFromRiver.Any(x => waitKinds.Contains(x.Kind)));
@@ -602,34 +604,40 @@ public record Round(
     /// <param name="loserIndex">放銃者のインデックス ロン/槍槓では打牌者/加槓宣言者、ツモ/嶺上では和了者自身</param>
     /// <param name="winType">和了種別</param>
     /// <param name="winTile">和了牌 (Ron=放銃牌 / Chankan=加槓追加牌 / Tsumo・Rinshan=ツモ牌)</param>
-    /// <param name="scoreCalculator">点数計算機</param>
+    /// <param name="scoreResults">各和了者の点数計算結果 (<paramref name="winners"/> と同順)</param>
     internal (Round Settled, WinSettlementDetails Details) SettleWin(
         ImmutableArray<PlayerIndex> winners,
         PlayerIndex loserIndex,
         WinType winType,
         Tile winTile,
-        IScoreCalculator scoreCalculator
+        ImmutableArray<ScoreResult> scoreResults
     )
     {
         if (winners.IsDefaultOrEmpty)
         {
             throw new InvalidOperationException("和了者が指定されていません。");
         }
+
         if (winners.Length != winners.Distinct().Count())
         {
             throw new InvalidOperationException("和了者に重複があります。");
         }
 
+        if (scoreResults.IsDefaultOrEmpty || scoreResults.Length != winners.Length)
+        {
+            throw new InvalidOperationException("scoreResults は winners と同じ個数が必要です。");
+        }
+
         var pointArray = PointArray;
         var winnersBuilder = ImmutableArray.CreateBuilder<AdoptedWinner>(winners.Length);
 
-        foreach (var winner in winners)
+        for (var wi = 0; wi < winners.Length; wi++)
         {
-            var request = new ScoreRequest(this, winner, loserIndex, winType, winTile);
-            var rawResult = scoreCalculator.Calculate(request);
+            var winner = winners[wi];
+            var rawResult = scoreResults[wi];
             var responsibleIndex = PaoResponsibleArray[winner];
             var isPaoApplicable = responsibleIndex is not null &&
-                rawResult.YakuInfos.Any(x => x.IsPaoEligible);
+                rawResult.YakuList.HasPaoEligibleYaku();
             var result = isPaoApplicable
                 ? rawResult with { PointDeltas = AdjustPointDeltasForPao(rawResult.PointDeltas, winner, responsibleIndex!, loserIndex, winType) }
                 : rawResult;
@@ -638,7 +646,8 @@ public record Round(
                 var playerIndex = new PlayerIndex(i);
                 pointArray = pointArray.AddPoint(playerIndex, result.PointDeltas[playerIndex].Value);
             }
-            winnersBuilder.Add(new AdoptedWinner(winner, winTile, result));
+            var paoPlayerIndex = isPaoApplicable ? responsibleIndex : null;
+            winnersBuilder.Add(new AdoptedWinner(winner, winTile, result, paoPlayerIndex));
         }
 
         var honbaValue = Honba.Value;
@@ -676,17 +685,40 @@ public record Round(
         }
         var kyoutakuAward = new KyoutakuRiichiAward(winners[0], kyoutaku);
 
-        var details = new WinSettlementDetails(winnersBuilder.ToImmutable(), Honba, kyoutakuAward);
+        // 和了者の誰かが立直成立しているなら裏ドラ表示牌を公開 (天鳳 JSON 牌譜の log[3] に入る)
+        var anyRiichi = winners.Any(x =>
+            PlayerRoundStatusArray[x].IsRiichi ||
+            PlayerRoundStatusArray[x].IsDoubleRiichi);
+        var uraDoraIndicators = anyRiichi
+            ? CollectUraDoraIndicators()
+            : ImmutableArray<Tile>.Empty;
+
+        var details = new WinSettlementDetails(winnersBuilder.ToImmutable(), Honba, kyoutakuAward, uraDoraIndicators);
         var settled = this with { PointArray = pointArray, KyoutakuRiichiCount = KyoutakuRiichiCount.Clear() };
         return (settled, details);
     }
 
     /// <summary>
-    /// 流局時の点数精算を行います。
-    /// 荒牌平局: 流し満貫者がいれば満貫清算 (テンパイ料は代替)、いなければテンパイ料精算
-    /// 途中流局: 点数移動なし
+    /// 現時点で表示されているドラと同じ枚数分の裏ドラ表示牌を収集する。
+    /// 立直者が和了に含まれる場合のみ呼び出すこと (牌譜記録・点数計算で使用)
     /// </summary>
-    internal Round SettleRyuukyoku(
+    private ImmutableArray<Tile> CollectUraDoraIndicators()
+    {
+        var builder = ImmutableArray.CreateBuilder<Tile>(Wall.DoraRevealedCount);
+        for (var n = 0; n < Wall.DoraRevealedCount; n++)
+        {
+            builder.Add(Wall.GetUradoraIndicator(n));
+        }
+        return builder.ToImmutable();
+    }
+
+    /// <summary>
+    /// 流局時の点数精算を行います。戻り値の <c>PointDeltas</c> は精算による各プレイヤーの点数差分
+    /// (精算後 − 精算前) で、通知・牌譜記録で使用します。
+    /// 荒牌平局: 流し満貫者がいれば満貫清算 (テンパイ料は代替)、いなければテンパイ料精算
+    /// 途中流局: 点数移動なし (全要素 0 の PointDeltas を返す)
+    /// </summary>
+    internal (Round Settled, PointArray PointDeltas) SettleRyuukyoku(
         RyuukyokuType type,
         ImmutableArray<PlayerIndex> tenpaiPlayers,
         ImmutableArray<PlayerIndex> nagashiManganPlayers
@@ -696,14 +728,16 @@ public record Round(
         {
             throw new InvalidOperationException("テンパイ者に重複があります。");
         }
+
         if (!nagashiManganPlayers.IsDefaultOrEmpty && nagashiManganPlayers.Length != nagashiManganPlayers.Distinct().Count())
         {
             throw new InvalidOperationException("流し満貫者に重複があります。");
         }
 
+        var zeroDeltas = new PointArray(new Point(0));
         if (type != RyuukyokuType.KouhaiHeikyoku)
         {
-            return this;
+            return (this, zeroDeltas);
         }
 
         var pointArray = PointArray;
@@ -742,6 +776,90 @@ public record Round(
                 pointArray = pointArray.ApplyNagashiMangan(winner, dealerIndex);
             }
         }
-        return this with { PointArray = pointArray };
+
+        var deltas = zeroDeltas;
+        for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
+        {
+            var playerIndex = new PlayerIndex(i);
+            deltas = deltas.AddPoint(playerIndex, pointArray[playerIndex].Value - PointArray[playerIndex].Value);
+        }
+        return (this with { PointArray = pointArray }, deltas);
+    }
+
+    /// <summary>
+    /// 四家立直: 全プレイヤーが立直確定状態にある場合に true。
+    /// ConfirmRiichi 後に呼び出すこと (ロン応答経路では CancelRiichi が走るため本条件は立たない)。
+    /// </summary>
+    internal bool IsSuuchaRiichi()
+    {
+        for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
+        {
+            if (!PlayerRoundStatusArray[new PlayerIndex(i)].IsRiichi)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// 四風連打: 第1巡 (全員の河が1枚のみ) かつ副露なし、全員が同一の風牌を捨てた場合に true。
+    /// 4人目の打牌直後の ResponseOk で呼び出す想定。立直宣言 (ダブリー含む) があっても成立する (天鳳は四風連打優先)。
+    /// </summary>
+    internal bool IsSuufonrenda()
+    {
+        for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
+        {
+            if (CallListArray[new PlayerIndex(i)].Any())
+            {
+                return false;
+            }
+        }
+
+        Scoring.Tiles.TileKind? firstKind = null;
+        for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
+        {
+            var river = RiverArray[new PlayerIndex(i)];
+            if (river.Count() != 1)
+            {
+                return false;
+            }
+
+            var kind = river.First().Kind;
+            if (!kind.IsWind)
+            {
+                return false;
+            }
+
+            // TileKind はシングルトンなので == で同値判定可
+            if (firstKind is null)
+            {
+                firstKind = kind;
+            }
+            else if (firstKind != kind)
+            {
+                return false;
+            }
+        }
+        return firstKind is not null;
+    }
+
+    /// <summary>
+    /// 四槓流れ: 総槓数が4以上かつ槓宣言者が2人以上の場合に true。
+    /// 同一プレイヤーによる4槓 (四槓子) は不成立 (和了待ち権利を保護)。
+    /// 嶺上ツモ後 (槓子が副露に反映済) の ResponseOk 時点で呼び出す。
+    /// </summary>
+    internal bool IsSuukaikan()
+    {
+        var total = 0;
+        var declarers = 0;
+        for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
+        {
+            var kanCount = CallListArray[new PlayerIndex(i)]
+                .Count(x => x.Type is CallType.Ankan or CallType.Daiminkan or CallType.Kakan);
+            if (kanCount > 0) { declarers++; }
+            total += kanCount;
+        }
+        return total >= 4 && declarers >= 2;
     }
 }

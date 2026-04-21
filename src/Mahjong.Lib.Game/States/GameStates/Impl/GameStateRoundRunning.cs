@@ -108,7 +108,7 @@ public record GameStateRoundRunning : GameState
                 {
                     await context.BroadcastGameNotificationAsync(_ => new RoundEndNotification(resolvedAction), ct);
                     context.DisposeRoundContext();
-                    await context.BroadcastGameNotificationAsync(_ => 
+                    await context.BroadcastGameNotificationAsync(_ =>
                         new RoundStartNotification(
                             context.Game.RoundWind,
                             context.Game.RoundNumber,
@@ -134,12 +134,14 @@ public record GameStateRoundRunning : GameState
                 winType: win.WinType,
                 kyoutakuRiichiAward: win.KyoutakuRiichiAward,
                 honba: win.Honba,
+                uraDoraIndicators: win.UraDoraIndicators,
                 dealerContinues: dealerContinues
             ),
             GameEventRoundEndedByRyuukyoku ryu => new AdoptedRyuukyokuAction(
                 Type: ryu.Type,
                 TenpaiPlayerIndices: [.. ryu.TenpaiPlayers],
                 NagashiManganPlayerIndices: [.. ryu.NagashiManganPlayers],
+                PointDeltas: ryu.PointDeltas,
                 DealerContinues: dealerContinues
             ),
             _ => throw new NotSupportedException($"未対応のイベント: {evt?.GetType().Name}"),

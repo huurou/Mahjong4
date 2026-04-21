@@ -10,7 +10,7 @@ namespace Mahjong.Lib.Scoring.Yakus.Impl;
 public record SuuankouTankiDouble : Yaku
 {
     public override int Number => 41;
-    public override string Name => "四暗刻単騎待ち";
+    public override string Name => "四暗刻単騎";
     public override int HanOpen => 0;
     public override int HanClosed => 26;
     public override bool IsYakuman => true;

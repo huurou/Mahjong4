@@ -2,7 +2,7 @@
 
 /// <summary>
 /// 対局開始
-/// 通知・応答集約経路では <see cref="GameStateContext.InitAsync"/> 自身が初期通知送信と次状態遷移を担う
+/// 通知・応答集約経路では <see cref="GameStateContext.StartAsync"/> 自身が初期通知送信と次状態遷移を担う
 /// (同期経路の場合のみ <see cref="ResponseOkAsync"/> で <see cref="GameStateRoundRunning"/> へ遷移する)
 /// </summary>
 public record GameStateInit : GameState

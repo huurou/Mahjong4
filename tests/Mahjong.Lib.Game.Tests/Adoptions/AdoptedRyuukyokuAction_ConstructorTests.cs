@@ -1,5 +1,4 @@
-﻿using Mahjong.Lib.Game.Inquiries;
-using Mahjong.Lib.Game.Adoptions;
+﻿using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
 using System.Collections.Immutable;
@@ -14,12 +13,18 @@ public class AdoptedRyuukyokuAction_ConstructorTests
         // Arrange
         var tenpaiPlayers = ImmutableList.Create(new PlayerIndex(0), new PlayerIndex(2));
         var nagashiPlayers = ImmutableList<PlayerIndex>.Empty;
+        var pointDeltas = new PointArray(new Point(0))
+            .AddPoint(new PlayerIndex(0), 1500)
+            .AddPoint(new PlayerIndex(2), 1500)
+            .SubtractPoint(new PlayerIndex(1), 1500)
+            .SubtractPoint(new PlayerIndex(3), 1500);
 
         // Act
         var action = new AdoptedRyuukyokuAction(
             RyuukyokuType.KouhaiHeikyoku,
             tenpaiPlayers,
             nagashiPlayers,
+            pointDeltas,
             true
         );
 
@@ -27,6 +32,7 @@ public class AdoptedRyuukyokuAction_ConstructorTests
         Assert.Equal(RyuukyokuType.KouhaiHeikyoku, action.Type);
         Assert.Equal(2, action.TenpaiPlayerIndices.Count);
         Assert.Empty(action.NagashiManganPlayerIndices);
+        Assert.Equal(pointDeltas, action.PointDeltas);
         Assert.True(action.DealerContinues);
     }
 
@@ -38,6 +44,7 @@ public class AdoptedRyuukyokuAction_ConstructorTests
             RyuukyokuType.SuuchaRiichi,
             [],
             [],
+            new PointArray(new Point(0)),
             true
         );
 

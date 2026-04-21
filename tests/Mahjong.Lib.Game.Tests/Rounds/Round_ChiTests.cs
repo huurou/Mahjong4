@@ -14,7 +14,7 @@ public class Round_ChiTests
         // P0 が Tile(83) (kind 20 = 3索) を打牌 → P1 が手牌 Tile(84),Tile(88) と合わせて 3-4-5索 の順子を作る
         var round = RoundTestHelper.CreateRound(0).Haipai().Tsumo();
         var discarded = new Tile(83);
-        round = round.Dahai(discarded, RoundTestHelper.NoOpTenpaiChecker);
+        round = round.Dahai(discarded);
         var caller = new PlayerIndex(1);
         round = RoundTestHelper.InjectHand(round, caller,
         [
@@ -42,7 +42,7 @@ public class Round_ChiTests
     {
         // Arrange
         var round = RoundTestHelper.CreateRound(0).Haipai().Tsumo();
-        round = round.Dahai(new Tile(83), RoundTestHelper.NoOpTenpaiChecker);
+        round = round.Dahai(new Tile(83));
         var caller = new PlayerIndex(1);
         // P1 の手牌には Tile(84) も Tile(88) も含めない
         round = RoundTestHelper.InjectHand(round, caller,
@@ -67,7 +67,7 @@ public class Round_ChiTests
         // Arrange
         // 手牌には Tile(84) が1枚しか無いが、handTiles に Tile(84) を2枚指定するケース
         var round = RoundTestHelper.CreateRound(0).Haipai().Tsumo();
-        round = round.Dahai(new Tile(83), RoundTestHelper.NoOpTenpaiChecker);
+        round = round.Dahai(new Tile(83));
         var caller = new PlayerIndex(1);
         round = RoundTestHelper.InjectHand(round, caller,
         [

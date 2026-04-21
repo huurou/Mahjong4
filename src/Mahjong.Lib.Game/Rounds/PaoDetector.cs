@@ -15,12 +15,6 @@ namespace Mahjong.Lib.Game.Rounds;
 /// </summary>
 public static class PaoDetector
 {
-    // 字牌の牌種ID: 27=東, 28=南, 29=西, 30=北 (風牌)、31=白, 32=發, 33=中 (三元牌)
-    private const int WIND_KIND_MIN = 27;
-    private const int WIND_KIND_MAX = 30;
-    private const int SANGEN_KIND_MIN = 31;
-    private const int SANGEN_KIND_MAX = 33;
-
     /// <summary>
     /// 指定の副露追加が包役満の確定トリガになるかを判定します。
     /// 戻り値が <see cref="PaoYakuman.None"/> 以外 (<see cref="PaoYakumanExtensions.IsPao"/> で判定可) なら包成立。
@@ -44,12 +38,12 @@ public static class PaoDetector
         // Kakan を再トリガとするとポンの from で責任者を上書きしてしまう設計バグになる。
         if (justAddedCall.Type is CallType.Pon or CallType.Daiminkan)
         {
-            if (kind is >= SANGEN_KIND_MIN and <= SANGEN_KIND_MAX)
+            if (kind.IsDragon)
             {
                 var sangenKinds = callListAfter
                     .Where(x => x.Type is CallType.Pon or CallType.Daiminkan or CallType.Kakan)
                     .Select(x => x.Tiles[0].Kind)
-                    .Where(x => x is >= SANGEN_KIND_MIN and <= SANGEN_KIND_MAX)
+                    .Where(x => x.IsDragon)
                     .Distinct()
                     .Count();
                 if (sangenKinds == 3)
@@ -58,12 +52,12 @@ public static class PaoDetector
                 }
             }
 
-            if (kind is >= WIND_KIND_MIN and <= WIND_KIND_MAX)
+            if (kind.IsWind)
             {
                 var windKinds = callListAfter
                     .Where(x => x.Type is CallType.Pon or CallType.Daiminkan or CallType.Kakan)
                     .Select(x => x.Tiles[0].Kind)
-                    .Where(x => x is >= WIND_KIND_MIN and <= WIND_KIND_MAX)
+                    .Where(x => x.IsWind)
                     .Distinct()
                     .Count();
                 if (windKinds == 4)

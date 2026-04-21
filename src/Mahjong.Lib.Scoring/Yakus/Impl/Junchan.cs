@@ -9,7 +9,7 @@ namespace Mahjong.Lib.Scoring.Yakus.Impl;
 public record Junchan : Yaku
 {
     public override int Number => 33;
-    public override string Name => "純全帯么九";
+    public override string Name => "純全帯幺九";
     public override int HanOpen => 2;
     public override int HanClosed => 3;
     public override bool IsYakuman => false;

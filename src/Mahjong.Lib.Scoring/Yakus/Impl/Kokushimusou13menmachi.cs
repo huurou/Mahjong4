@@ -8,7 +8,7 @@ namespace Mahjong.Lib.Scoring.Yakus.Impl;
 public record Kokushimusou13menmachi : Yaku
 {
     public override int Number => 48;
-    public override string Name => "国士無双十三面待ち";
+    public override string Name => "国士無双１３面";
     public override int HanOpen => 0;
     public override int HanClosed => 13;
     public override bool IsYakuman => true;

@@ -1,8 +1,8 @@
-﻿using Mahjong.Lib.Game.Games.Scoring;
+﻿using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Tiles;
-using Moq;
+using Mahjong.Lib.Scoring.Yakus;
 using System.Collections.Immutable;
 
 namespace Mahjong.Lib.Game.Tests.Rounds;
@@ -35,7 +35,8 @@ public class Round_SettleWinPaoTests
             0,
             0,
             array,
-            [new YakuInfo(52, "大三元", null, 1, IsPaoEligible: true)]
+            [Yaku.Daisangen],
+            IsMenzen: true
         );
     }
 
@@ -52,16 +53,14 @@ public class Round_SettleWinPaoTests
         // Arrange
         var winner = new PlayerIndex(0);
         var responsible = new PlayerIndex(2);
-        var mock = new Mock<IScoreCalculator>();
-        mock.Setup(x => x.Calculate(It.IsAny<ScoreRequest>()))
-            .Returns(YakumanResult(winner, 48000));
+        var scoreResults = ImmutableArray.Create(YakumanResult(winner, 48000));
         var round = CreateBaseRound() with
         {
             PaoResponsibleArray = new PlayerResponsibilityArray().SetResponsible(winner, responsible),
         };
 
         // Act
-        var (result, _) = round.SettleWin([winner], winner, WinType.Tsumo, DummyWinTile, mock.Object);
+        var (result, _) = round.SettleWin([winner], winner, WinType.Tsumo, DummyWinTile, scoreResults);
 
         // Assert
         Assert.Equal(25000 + 48000, result.PointArray[winner].Value);
@@ -77,16 +76,14 @@ public class Round_SettleWinPaoTests
         var winner = new PlayerIndex(0);
         var responsible = new PlayerIndex(2);
         var loser = new PlayerIndex(3);
-        var mock = new Mock<IScoreCalculator>();
-        mock.Setup(x => x.Calculate(It.IsAny<ScoreRequest>()))
-            .Returns(YakumanResult(winner, 32000, loser));
+        var scoreResults = ImmutableArray.Create(YakumanResult(winner, 32000, loser));
         var round = CreateBaseRound() with
         {
             PaoResponsibleArray = new PlayerResponsibilityArray().SetResponsible(winner, responsible),
         };
 
         // Act
-        var (result, _) = round.SettleWin([winner], loser, WinType.Ron, DummyWinTile, mock.Object);
+        var (result, _) = round.SettleWin([winner], loser, WinType.Ron, DummyWinTile, scoreResults);
 
         // Assert
         Assert.Equal(25000 + 32000, result.PointArray[winner].Value);
@@ -101,16 +98,14 @@ public class Round_SettleWinPaoTests
         // Arrange
         var winner = new PlayerIndex(0);
         var loserAndResponsible = new PlayerIndex(2);
-        var mock = new Mock<IScoreCalculator>();
-        mock.Setup(x => x.Calculate(It.IsAny<ScoreRequest>()))
-            .Returns(YakumanResult(winner, 32000, loserAndResponsible));
+        var scoreResults = ImmutableArray.Create(YakumanResult(winner, 32000, loserAndResponsible));
         var round = CreateBaseRound() with
         {
             PaoResponsibleArray = new PlayerResponsibilityArray().SetResponsible(winner, loserAndResponsible),
         };
 
         // Act
-        var (result, _) = round.SettleWin([winner], loserAndResponsible, WinType.Ron, DummyWinTile, mock.Object);
+        var (result, _) = round.SettleWin([winner], loserAndResponsible, WinType.Ron, DummyWinTile, scoreResults);
 
         // Assert
         Assert.Equal(25000 + 32000, result.PointArray[winner].Value);
@@ -125,22 +120,20 @@ public class Round_SettleWinPaoTests
         // Arrange
         var winner = new PlayerIndex(0);
         var responsible = new PlayerIndex(2);
-        var mock = new Mock<IScoreCalculator>();
-        // IsPaoEligible = false の役のみ
+        // 包対象外の役 (立直) のみ
         var deltas = new PointArray(new Point(0))
             .AddPoint(winner, 12000)
             .SubtractPoint(new PlayerIndex(1), 4000)
             .SubtractPoint(new PlayerIndex(2), 4000)
             .SubtractPoint(new PlayerIndex(3), 4000);
-        mock.Setup(x => x.Calculate(It.IsAny<ScoreRequest>()))
-            .Returns(new ScoreResult(0, 0, deltas, [new YakuInfo(1, "立直", 1)]));
+        var scoreResults = ImmutableArray.Create(new ScoreResult(0, 0, deltas, [Yaku.Riichi], IsMenzen: true));
         var round = CreateBaseRound() with
         {
             PaoResponsibleArray = new PlayerResponsibilityArray().SetResponsible(winner, responsible),
         };
 
         // Act
-        var (result, _) = round.SettleWin([winner], winner, WinType.Tsumo, DummyWinTile, mock.Object);
+        var (result, _) = round.SettleWin([winner], winner, WinType.Tsumo, DummyWinTile, scoreResults);
 
         // Assert: 包適用されず均等
         Assert.Equal(25000 + 12000, result.PointArray[winner].Value);
@@ -154,13 +147,11 @@ public class Round_SettleWinPaoTests
     {
         // Arrange
         var winner = new PlayerIndex(0);
-        var mock = new Mock<IScoreCalculator>();
-        mock.Setup(x => x.Calculate(It.IsAny<ScoreRequest>()))
-            .Returns(YakumanResult(winner, 48000));
+        var scoreResults = ImmutableArray.Create(YakumanResult(winner, 48000));
         var round = CreateBaseRound();
 
         // Act
-        var (result, _) = round.SettleWin([winner], winner, WinType.Tsumo, DummyWinTile, mock.Object);
+        var (result, _) = round.SettleWin([winner], winner, WinType.Tsumo, DummyWinTile, scoreResults);
 
         // Assert: 包適用されず通常均等分配
         Assert.Equal(25000 + 48000, result.PointArray[winner].Value);
@@ -175,16 +166,14 @@ public class Round_SettleWinPaoTests
         // Arrange: 通知用 ScoreResult.PointDeltas が調整後 (責任者1人負担) になっているか検証
         var winner = new PlayerIndex(0);
         var responsible = new PlayerIndex(2);
-        var mock = new Mock<IScoreCalculator>();
-        mock.Setup(x => x.Calculate(It.IsAny<ScoreRequest>()))
-            .Returns(YakumanResult(winner, 48000));
+        var scoreResults = ImmutableArray.Create(YakumanResult(winner, 48000));
         var round = CreateBaseRound() with
         {
             PaoResponsibleArray = new PlayerResponsibilityArray().SetResponsible(winner, responsible),
         };
 
         // Act
-        var (_, details) = round.SettleWin([winner], winner, WinType.Tsumo, DummyWinTile, mock.Object);
+        var (_, details) = round.SettleWin([winner], winner, WinType.Tsumo, DummyWinTile, scoreResults);
 
         // Assert
         var adjusted = details.Winners[0].ScoreResult.PointDeltas;
@@ -201,16 +190,14 @@ public class Round_SettleWinPaoTests
         var winner = new PlayerIndex(0);
         var responsible = new PlayerIndex(2);
         var loser = new PlayerIndex(3);
-        var mock = new Mock<IScoreCalculator>();
-        mock.Setup(x => x.Calculate(It.IsAny<ScoreRequest>()))
-            .Returns(YakumanResult(winner, 32000, loser));
+        var scoreResults = ImmutableArray.Create(YakumanResult(winner, 32000, loser));
         var round = CreateBaseRound() with
         {
             PaoResponsibleArray = new PlayerResponsibilityArray().SetResponsible(winner, responsible),
         };
 
         // Act
-        var (_, details) = round.SettleWin([winner], loser, WinType.Ron, DummyWinTile, mock.Object);
+        var (_, details) = round.SettleWin([winner], loser, WinType.Ron, DummyWinTile, scoreResults);
 
         // Assert
         var adjusted = details.Winners[0].ScoreResult.PointDeltas;
@@ -218,5 +205,63 @@ public class Round_SettleWinPaoTests
         Assert.Equal(-16000, adjusted[responsible].Value);
         Assert.Equal(-16000, adjusted[loser].Value);
         Assert.Equal(0, adjusted[new PlayerIndex(1)].Value);
+    }
+
+    [Fact]
+    public void 包適用時_AdoptedWinnerのPaoPlayerIndexに責任者が設定される()
+    {
+        // Arrange
+        var winner = new PlayerIndex(0);
+        var responsible = new PlayerIndex(2);
+        var scoreResults = ImmutableArray.Create(YakumanResult(winner, 48000));
+        var round = CreateBaseRound() with
+        {
+            PaoResponsibleArray = new PlayerResponsibilityArray().SetResponsible(winner, responsible),
+        };
+
+        // Act
+        var (_, details) = round.SettleWin([winner], winner, WinType.Tsumo, DummyWinTile, scoreResults);
+
+        // Assert
+        Assert.Equal(responsible, details.Winners[0].PaoPlayerIndex);
+    }
+
+    [Fact]
+    public void 包対象役がない和了_AdoptedWinnerのPaoPlayerIndexはnull()
+    {
+        // Arrange: 立直のみの和了で PaoResponsibleArray に責任者を入れても包対象役がなければ PaoPlayerIndex は null
+        var winner = new PlayerIndex(0);
+        var responsible = new PlayerIndex(2);
+        var deltas = new PointArray(new Point(0))
+            .AddPoint(winner, 12000)
+            .SubtractPoint(new PlayerIndex(1), 4000)
+            .SubtractPoint(new PlayerIndex(2), 4000)
+            .SubtractPoint(new PlayerIndex(3), 4000);
+        var scoreResults = ImmutableArray.Create(new ScoreResult(0, 0, deltas, [Yaku.Riichi], IsMenzen: true));
+        var round = CreateBaseRound() with
+        {
+            PaoResponsibleArray = new PlayerResponsibilityArray().SetResponsible(winner, responsible),
+        };
+
+        // Act
+        var (_, details) = round.SettleWin([winner], winner, WinType.Tsumo, DummyWinTile, scoreResults);
+
+        // Assert
+        Assert.Null(details.Winners[0].PaoPlayerIndex);
+    }
+
+    [Fact]
+    public void 責任者未設定の和了_AdoptedWinnerのPaoPlayerIndexはnull()
+    {
+        // Arrange
+        var winner = new PlayerIndex(0);
+        var scoreResults = ImmutableArray.Create(YakumanResult(winner, 48000));
+        var round = CreateBaseRound();
+
+        // Act
+        var (_, details) = round.SettleWin([winner], winner, WinType.Tsumo, DummyWinTile, scoreResults);
+
+        // Assert
+        Assert.Null(details.Winners[0].PaoPlayerIndex);
     }
 }

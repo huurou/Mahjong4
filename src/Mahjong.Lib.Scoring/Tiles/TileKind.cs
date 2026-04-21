@@ -267,6 +267,14 @@ public sealed record TileKind : IComparable<TileKind>
     public bool IsRoutou => Value is 0 or 8 or 9 or 17 or 18 or 26;
 
     /// <summary>
+    /// 指定の牌種と同じスート (萬子同士・筒子同士・索子同士・字牌同士) かを返します
+    /// </summary>
+    public bool IsSameSuit(TileKind other)
+    {
+        return Value / 9 == other.Value / 9;
+    }
+
+    /// <summary>
     /// 牌種別のコンストラクタ
     /// </summary>
     /// <param name="value">牌種別の値 (0-33の範囲)</param>

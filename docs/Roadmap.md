@@ -17,7 +17,7 @@
 **目的**: 対局全体を統括する「器」を用意する。点数精算ロジックと局内プレイヤー状態は Phase 2 に分離する。通知/応答の仕組みはこの時点では未着手で、テストは`GameStateContext`の直接駆動で行う。
 
 - ファイル配置 — `Mahjong.Lib.Game/Games/` フォルダ(既存の`Rounds/`と並列) / `Mahjong.Lib.Game/States/GameStates/`
-- `GameRules` — 対局前に決まるルール。対局形式(東風戦/東南戦、既定:東南戦) / 赤ドラ枚数(既定:赤五萬1/赤五筒1/赤五索1) / 初期持ち点(当面35000) / オーラス親あがり止め(1位単独確定のみ) / トビ終了点(天鳳準拠:0点未満) / 食いタン / 後付け / 連荘条件 / `IsRedDora(Tile)` 判定メソッド / 対局形式 `GameFormat.Tonpuu` / `Tonnan`(既定) / `SingleRound`
+- `GameRules` — 対局前に決まるルール。対局形式(東風戦/東南戦、既定:東南戦) / 赤ドラ枚数(既定:赤五萬1/赤五筒1/赤五索1) / 初期持ち点(既定25000 天鳳標準) / オーラス親あがり止め(1位単独確定のみ) / トビ終了点(天鳳準拠:0点未満) / 食いタン / 後付け / 連荘条件 / `IsRedDora(Tile)` 判定メソッド / 対局形式 `GameFormat.Tonpuu` / `Tonnan`(既定) / `SingleRound`
 - `Player` abstract record — プレイヤーの共通基底(`PlayerId` / `DisplayName`)。Phase 1 では識別情報のみ、Phase 4 で通知・応答メソッド(`OnHaipaiAsync` 等)を追加する。AI / 人間の実装は Phase 4 以降で `Player` を継承する
 - `PlayerList` record — `ImmutableArray<Player>` のラッパー かつ `IEnumerable<Player>` 実装、`PlayerIndex`でアクセス。**index 0 が起家**という仕様。並び替え・起家決定は呼び出し側の責務
 - `Game` record (immutable) — 対局全体の状態を直接フィールドで保持(`PlayerList` / `GameRules` / `RoundWind` / `RoundNumber` / `Honba` / `KyoutakuRiichiCount` / `PointArray`)。`GameConfig` のような中間コンテナは作らない(局順など対局中に変動する値と固定パラメータを同じrecordに混在させないため)
@@ -25,13 +25,13 @@
 - `GameState` 抽象 + 具象 (`GameStateInit` / `GameStateRoundRunning` / `GameStateEnd`)。既存 `RoundStateXxx` の命名規約に揃える。Phase 1 では「局終了」を表す独立状態は持たず、局終了後の Game 更新・終了判定・次局決定は `GameStateRoundRunning.RoundEndedBy*` ハンドラ内で行い 直接 `GameStateRoundRunning`(次局)または `GameStateEnd` へ Transit する。プレイヤー向けの局終了通知(Phase 5)の実装時に必要なら `GameStateRoundEnd` 状態を再導入する
 - `GameStateContext` — `Round*`系と同じ非同期イベント駆動。内部で`RoundStateContext`を生成・破棄。Phase 1時点のテストは既存`RoundStateContext`と同様に`ResponseXxxAsync`系の直接駆動
 - `GameStateContext` と `RoundStateContext` の協調 — `GameStateRoundRunning.Entry` で `GameStateContext.StartRound(round)` を呼ぶ。`StartRound` は内部で RoundStateContext を生成し RoundStateChanged を購読登録してから Init を実行し、Init 完了後に `CurrentRoundContext` プロパティへ公開する(テストが初期化前の State を観測しないようにする)。購読ハンドラが `RoundStateWin` / `RoundStateRyuukyoku` を検知したら `NotifyRoundEndedAsync` で一度だけ内部イベント発行(多重抑止フラグ `roundEnded_` 付き)。Phase 5 で `RoundManager` 経由に差し替え予定
-- `GameManager` — コンストラクタで`PlayerList` + `GameRules` + `IWallGenerator` を受け取る。対局開始処理・局間の引き継ぎ・対局終了判定を統括
+- `GameStateContext` — コンストラクタで`PlayerList` + `GameRules` + `IWallGenerator` を受け取る。対局開始処理・局間の引き継ぎ・対局終了判定を統括 (Phase 5 改修で `GameManager` は `GameStateContext` に統合済み)
 - `RoundManager` / 通信・集約レイヤーは Phase 5 で導入。Phase 1 では未着手
 
 **Phase 1 完了の定義**:
 
 - テストから直接駆動で `GameStateInit` → `GameStateRoundRunning` → (Round 既存駆動で進行) → 次局 `GameStateRoundRunning` → ... → `GameStateEnd` の遷移が回る
-- `GameRules` / `Game` / `PlayerList` / `GameState` / `GameStateContext` / `GameManager` が生成・破棄可能
+- `GameRules` / `Game` / `PlayerList` / `GameState` / `GameStateContext` が生成・破棄可能
 - 点数精算・流局精算・連荘/本場処理は **スタブ**(固定値返却や手計算固定値)で十分。統合テストは状態遷移の流れのみ検証
 - 対局終了条件(オーラス親あがり止め / トビ / 規定局数消化)の分岐が`GameEndPolicy.ShouldEndAfterRound`で評価される(実値判定ではなくフック点が存在するレベルで可)
 
@@ -42,8 +42,8 @@
 - `IScoreCalculator` 抽象 — 和了時の点数計算インタフェース。`Mahjong.Lib.Scoring`をラップする実装は上位層で用意(Lib.Game直接参照しない)。Phase 2では **仮実装**(固定値返却や手計算スタブ)で状態遷移テストを通す。本配線(Scoring 接続)は上位層の整備時に行う。具体IF(入出力型)は実装着手時に決める
 - `PlayerRoundStatusArray` (仮) — `Round` 集約にプレイヤー別局内状態を追加。立直 / ダブル立直 / 一発可否 / 同巡フリテン / 永久フリテン / 門前 / 流し満貫資格 / 第一打前 / リンシャン中 等。合法候補列挙・和了判定・流局精算で必要
 - `RoundState`の和了/流局時点数処理 — 和了時は`IScoreCalculator`経由で点数計算。流局時は天鳳ルール準拠でノーテン罰符・テンパイ料(荒牌平局:1人3000/2人1500・3000/3人1000・3000、途中流局は点数移動なし・本場+1)を計算。点数移動・供託処理・連荘/本場増加処理を行い`Round`を修正
-- 連荘・本場・供託の局跨ぎ処理を`GameManager`に実装
-- オーラス親あがり止め(1位単独確定のみ)の判定を`GameManager`に実装
+- 連荘・本場・供託の局跨ぎ処理を`GameStateContext`に実装
+- オーラス親あがり止め(1位単独確定のみ)の判定を`GameStateContext`に実装
 
 **Phase 2 完了の定義**:
 
@@ -104,7 +104,7 @@
 - **和了明細の伝搬**: `Round.SettleWin` が `WinSettlementDetails` (和了者毎の `ResolvedWinner` / 精算前本場 / 供託受取) を返却。`GameEventRoundEndedByWin` まで伝搬
 - **包 (責任払い)**: `PaoDetector` / `PlayerResponsibilityArray` 新規。大三元・大四喜は新規牌種を増やす `Pon` / `Daiminkan` のみトリガ、四槓子は `Daiminkan` / `Kakan` トリガ。役満素点のみ責任者負担 (天鳳準拠)
 - **同巡フリテン**: `RoundStateContext` の打牌フェーズでロン見逃しを検出し `Round.ApplyTemporaryFuriten` で反映。次ツモ時 `Round.Tsumo` で自動解除
-- **テスト**: `RoundStateContext_Runtime*Tests` / `ResponseCandidateEnumerator_*Tests` / `TenhouResponsePriorityPolicy_ResolveTests` / `ResponseValidator_*Tests` / `PaoDetector_*Tests` / `GameManager_GameLevelNotificationTests` を追加。state 単体テストは `Drive*` 同期駆動に移行
+- **テスト**: `RoundStateContext_Runtime*Tests` / `ResponseCandidateEnumerator_*Tests` / `TenhouResponsePriorityPolicy_ResolveTests` / `ResponseValidator_*Tests` / `PaoDetector_*Tests` / `GameStateContext_GameLevelNotificationTests` を追加。state 単体テストは `Drive*` 同期駆動に移行
 
 詳細は [CLAUDE.md](../CLAUDE.md) の対局ドメインセクション / [docs/RoundNotificationPipeline.md](RoundNotificationPipeline.md) を参照。
 
@@ -134,7 +134,7 @@ Phase 5 で持ち越された下記項目を本フェーズ冒頭で解消した
 - **補助通知の配線**: `DoraRevealNotification` を `RoundStateContext.Runtime` の差分監視 (`Wall.DoraRevealedCount` の増分) + `BroadcastDoraRevealAsync` で全員に配信。`OtherPlayerTsumoNotification` / `OtherPlayerKanTsumoNotification` は Phase 5 時点で既に配線済
 - **立直中暗槓精緻化**: `BuildAnkanCandidates` で送り槓禁止の 3 条件 ((1) 暗槓牌種 = 直前ツモ牌種 / (2) 4 枚除去後の待ち牌種集合不変 / (3) ツモ前手牌の全分解解釈で該当牌種が刻子) を満たす場合のみ候補提示。`ITenpaiChecker.IsKoutsuOnlyInAllInterpretations(Hand, CallList, int)` を追加 (Lib.Game 側は抽象のみ、実装は上位層)
 - **応答検証 2 段目**: `ResponseValidator.ValidateSemantic(response, round, playerIndex, phase, tenpaiChecker)` を追加し、`SemanticValidationResult` で手牌整合・立直条件・フリテン違反・幺九枚数等を再検証。問い合わせ対象プレイヤーのみ適用。失敗時はクライアント契約違反として `InvalidOperationException` を throw (3 段目 副作用防止は throw で Round 更新前に停止することで達成)
-- **対局統合テスト**: `GameManager_IntegrationTests.cs` に 5 シナリオ (ロン成立 / ツモ連荘 / RenchanNone 親流れ / 4 局連続流局 / 九種九牌本場加算) 追加。加えて `ResponseValidator_ValidateSemanticTests` を追加。オーラス親上がり止めは `NoOpScoreCalculator` で点数変動なしのため deterministic 化できず、`IScoreCalculator` 本実装 (Phase 6 後半) と合わせて再構築予定
+- **対局統合テスト**: `GameStateContext_IntegrationTests.cs` に 5 シナリオ (ロン成立 / ツモ連荘 / RenchanNone 親流れ / 4 局連続流局 / 九種九牌本場加算) 追加。加えて `ResponseValidator_ValidateSemanticTests` を追加。オーラス親上がり止めは `NoOpScoreCalculator` で点数変動なしのため deterministic 化できず、`IScoreCalculator` 本実装 (Phase 6 後半) と合わせて再構築予定
 
 ## Phase 6: AI実装と自動対局 (完了)
 
@@ -169,7 +169,7 @@ Phase 5 で持ち越された下記項目を本フェーズ冒頭で解消した
 - `ShuffledWallGenerator(int seed)` — Fisher-Yates で決定的に山をシャッフル
 - `StatsTracer` (IGameTracer 実装) — 順位率 / 和了率 / 放銃率 / 立直率 / 副露率 / 平均順位 / 平均打点 / 役出現率 / 流局理由別出現率を集計
 - `PaifuRecorder + JsonlPaifuWriter` — 独自 JSON Lines フォーマットで牌譜出力 (1 イベント 1 行、`PaifuEntry` 専用 DTO 経由)
-- `AutoPlayRunner` — 所定回数の対局を逐次実行、`GameManager` + `PlayerList` を毎局生成
+- `AutoPlayRunner` — 所定回数の対局を逐次実行、`GameStateContext` + `PlayerList` を毎局生成
 - `Program.cs` — `ServiceCollection` で DI 組み立て、CLI オプション `--games N --seed S --output DIR [--no-paifu]` をサポート
 - `GameStateContext.InvokeGameNotificationAsync` に `tracer.OnGameNotificationSent` 呼び出しを追加 (`GameEndNotification` の受信検知で統計集計を締める)
 
@@ -180,6 +180,64 @@ Phase 5 で持ち越された下記項目を本フェーズ冒頭で解消した
 - 同一シードで再実行すると統計が完全一致
 - 全テスト 2186 件合格 (Lib.Game / Lib.Game.Scoring / Lib.Game.AutoPlay / Lib.Scoring 等)
 
-## Phase 7 AIアルゴリズム強化
+## Phase 7: ブリッジ撤廃と AutoPlay 基盤の完成 (完了)
 
-- 書籍を参考にAIアルゴリズムを強化し、統計を取って確認しながら進める
+**目的**: Phase 6B で導入したブリッジプロジェクト `Mahjong.Lib.Game.Scoring` を撤廃し、`Lib.Game` が `Lib.Scoring` に直接依存する構造へ統合する。あわせて型安全性を上げ、以降の AI バージョンを継続追加するための AutoPlay 基盤 (混在対局 / 静的ヘルパー公開 / 評価統計) を整える。AI バージョンそのものの設計・アルゴリズムは [docs/AiDesign.md](AiDesign.md) に分離して管理する。
+
+### 実装済み
+
+**7A. ブリッジ撤廃と静的ヘルパー集約**
+
+- `Mahjong.Lib.Game.Scoring` プロジェクトおよび `Mahjong.Lib.Game.Scoring.Tests` を削除
+- `IScoreCalculator` / `ITenpaiChecker` / `IShantenEvaluator` の3抽象を撤廃 (元の実装が薄いラッパーで DI の価値が低かった、`ITenpaiChecker.IsTenpai/EnumerateWaitTileKinds` も実質 `CallList` を使っていなかった)
+- `Mahjong.Lib.Game` が `Mahjong.Lib.Scoring` に `ProjectReference` で直接依存
+- 静的ヘルパーへ集約 (いずれも `internal`):
+  - `ScoringHelper.Calculate(ScoreRequest, GameRules) : ScoreResult` — `HandCalculator.Calc` をラップ
+  - `TenpaiHelper.IsTenpai / EnumerateWaitTileKinds / IsKoutsuOnlyInAllInterpretations` — `ShantenCalculator.Calc` / `HandDivider.Divide` を呼ぶ
+  - `ShantenHelper.CalcShanten / EnumerateUsefulTileKinds` — `ShantenCalculator.Calc` を呼ぶ
+- いずれも副露を別途渡さない API。`ShantenCalculator.Calc` が `MentsuCount += (14 - tileKindList.Count) / 3` で副露・暗槓分を手牌枚数不足から自動補完するため、副露を引数として渡す必要がない
+- 型変換ヘルパー `ScoringConversions` (Hand → TileKindList、Call → Scoring.Call、GameRules → Scoring.GameRules、ScoreRequest → WinSituation) を `Mahjong.Lib.Game.Games` に集約
+
+**7B. 型安全性向上**
+
+- `Tile.Kind` を `int` → `Mahjong.Lib.Scoring.Tiles.TileKind` 型に昇格 (`TileKind.All[Id / 4]`)
+- `TileKind` に `IsSameSuit(other)` 追加 (`Value / 9` 同値判定)
+- `PaoDetector` / `Call` / `ResponseCandidateEnumerator` / `ResponseValidator` 等のマジックナンバー (27, 27/9 等) を `IsWind` / `IsDragon` / `IsNumber` / `IsYaochu` / `IsSameSuit` / `TryGetAtDistance` 呼び出しに置換
+
+**7C. Round.SettleWin の責任分離**
+
+- シグネチャを `IScoreCalculator scoreCalculator` → `ImmutableArray<ScoreResult> scoreResults` に変更
+- 各 `RoundState[Dahai/Tsumo/Kan/KanTsumo].ResponseWin` で事前に `RoundState.CalculateScoreResults` (基底 `protected static`) 経由で点数計算結果を構築し、`Round.SettleWin` に渡す
+- これにより `Round` 集約が点数計算器を知らない純粋な集約となる
+
+**7D. ScoreResult 設計の更新**
+
+- 旧 `YakuInfo` (独自の役情報型) を撤廃し、`ScoreResult.YakuList: Mahjong.Lib.Scoring.Yakus.YakuList` で `Yaku` 具象型集合を直接保持
+- 包 (責任払い) 判定は `YakuPaoExtensions.HasPaoEligibleYaku()` 拡張で `Daisangen / Daisuushii / DaisuushiiDouble / Suukantsu` を pattern match
+- `ScoreResult.IsMenzen` を追加 (副露なし or 暗槓のみ)。表示時に `Yaku.HanClosed` / `HanOpen` のどちらを参照するかの判定材料
+
+**7E. テスト整理**
+
+- 旧 Mock 依存テスト (`PermissiveTenpaiChecker` / `NoOpScoreCalculator`) を撤廃
+- `GameStateContext_IntegrationTests` のロン/ツモ/流局シナリオを実山牌配置 (`BuildOyaDahaiKoRonWall` / `BuildDealerTsumoAgariWall`) で deterministic に再構築
+
+**7F. AI 継続実装基盤**
+
+- `IShantenEvaluator` / `IScoreCalculator` / `ITenpaiChecker` 抽象を撤廃し、AI 実装から `ShantenHelper` / `TenpaiHelper` / `ScoringHelper` を直接呼べるように静的ヘルパーへ集約
+- [MixedPlayerFactory](../tools/Mahjong.Lib.Game.AutoPlay/MixedPlayerFactory.cs) で複数 AI を混ぜた対局統計を取得可能に。以降のバージョン比較はこの Factory にベースライン AI と新 AI を並べて AutoPlay に流す運用
+- AI プレイヤー本体のアルゴリズム詳細・クラス構成・統計結果は本 Roadmap から切り離し [docs/AiDesign.md](AiDesign.md) に一元化
+
+### Phase 7 完了の定義
+
+- `Mahjong.Lib.Game.Scoring` プロジェクト・テストが削除済
+- 全テスト合格 (Lib.Game / Lib.Game.AutoPlay / Lib.Scoring 等)
+- `dotnet run --project tools/Mahjong.Lib.Game.AutoPlay -- --games 100` が完走
+- AI v0.1.0 (`AI_v0_1_0_ランダム`) / v0.2.0 (`AI_v0_2_0_有効牌`) 実装済。AI 設計の一次情報は [docs/AiDesign.md](AiDesign.md)
+
+## AI 実装 (継続タスク)
+
+AI プレイヤーのバージョン系列は Roadmap のフェーズとは独立した継続タスクとして進める。命名規則は `AI_v{major}_{minor}_{patch}_{識別名}`、実装場所は [src/Mahjong.Lib.Game/Players/Impl/](../src/Mahjong.Lib.Game/Players/Impl/)、評価は [tools/Mahjong.Lib.Game.AutoPlay/](../tools/Mahjong.Lib.Game.AutoPlay/)。各バージョンの設計・アルゴリズム・統計結果は [docs/AiDesign.md](AiDesign.md) を参照。
+
+- v0.1.0 `AI_v0_1_0_ランダム` — 実装済 (ベースライン: 和了候補があれば必ず和了 / 打牌はランダム / 副露・立直なし)
+- v0.2.0 `AI_v0_2_0_有効牌` — 実装済 (シャンテン数最小化 + 未見有効牌枚数最大化 / リーチ可能なら必ずリーチ / 副露なし)
+- v0.3.0 以降 — 役選択 / 守備判断 / 押し引き等を順次追加予定

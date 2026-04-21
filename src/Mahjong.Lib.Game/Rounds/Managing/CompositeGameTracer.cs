@@ -1,9 +1,11 @@
 ﻿using Mahjong.Lib.Game.Adoptions;
+using Mahjong.Lib.Game.Calls;
 using Mahjong.Lib.Game.Candidates;
 using Mahjong.Lib.Game.Inquiries;
 using Mahjong.Lib.Game.Notifications;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Responses;
+using Mahjong.Lib.Game.Tiles;
 using Microsoft.Extensions.Logging;
 
 namespace Mahjong.Lib.Game.Rounds.Managing;
@@ -65,6 +67,26 @@ public sealed class CompositeGameTracer(
     public void OnRoundEnded(AdoptedRoundAction action)
     {
         Fanout(x => x.OnRoundEnded(action), nameof(OnRoundEnded));
+    }
+
+    public void OnTsumoDrawn(PlayerIndex turn, Tile drawnTile, bool isRinshan)
+    {
+        Fanout(x => x.OnTsumoDrawn(turn, drawnTile, isRinshan), nameof(OnTsumoDrawn));
+    }
+
+    public void OnDoraRevealed(Tile newIndicator)
+    {
+        Fanout(x => x.OnDoraRevealed(newIndicator), nameof(OnDoraRevealed));
+    }
+
+    public void OnRiichiDeclared(PlayerIndex player, int step)
+    {
+        Fanout(x => x.OnRiichiDeclared(player, step), nameof(OnRiichiDeclared));
+    }
+
+    public void OnCallExecuted(PlayerIndex caller, Call call)
+    {
+        Fanout(x => x.OnCallExecuted(caller, call), nameof(OnCallExecuted));
     }
 
     private void Fanout(Action<IGameTracer> action, string hook)

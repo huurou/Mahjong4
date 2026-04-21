@@ -18,7 +18,7 @@ public class Junchan_PropertyTests
     }
 
     [Fact]
-    public void Name_純全帯么九を返す()
+    public void Name_純全帯幺九を返す()
     {
         // Arrange
         var yaku = Yaku.Junchan;
@@ -27,7 +27,7 @@ public class Junchan_PropertyTests
         var result = yaku.Name;
 
         // Assert
-        Assert.Equal("純全帯么九", result);
+        Assert.Equal("純全帯幺九", result);
     }
 
     [Fact]

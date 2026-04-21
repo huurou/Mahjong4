@@ -19,6 +19,8 @@ public class RoundStateTsumo_ResponseWinTests : IDisposable
         // Arrange
         RoundStateContextTestHelper.InitDirect(context_, RoundStateContextTestHelper.CreateRound());
         RoundStateContextTestHelper.DriveResponseOk(context_);
+        // 親(Turn)の手牌を 14 枚の有効な和了形に差し替えて ScoringHelper がエラーにならないようにする
+        RoundStateContextTestHelper.ReplaceHandForTsumoAgari(context_, context_.Round.Turn);
 
         // Act
         RoundStateContextTestHelper.DriveTsumoWin(context_);

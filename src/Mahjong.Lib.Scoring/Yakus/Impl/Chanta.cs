@@ -9,7 +9,7 @@ namespace Mahjong.Lib.Scoring.Yakus.Impl;
 public record Chanta : Yaku
 {
     public override int Number => 23;
-    public override string Name => "混全帯么九";
+    public override string Name => "混全帯幺九";
     public override int HanOpen => 1;
     public override int HanClosed => 2;
     public override bool IsYakuman => false;

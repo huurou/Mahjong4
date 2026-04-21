@@ -74,7 +74,7 @@ public class Round_DoraRevealTimingTests
             new Tile(28), new Tile(29), new Tile(30), new Tile(31),
             new Tile(40),
         ]);
-        round = round.Dahai(new Tile(84), RoundTestHelper.NoOpTenpaiChecker);
+        round = round.Dahai(new Tile(84));
         var caller = new PlayerIndex(1);
         round = RoundTestHelper.InjectHand(round, caller,
         [

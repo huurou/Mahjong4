@@ -37,6 +37,9 @@
 
 - 役と点数は天鳳準拠
 - ルールは天鳳準拠だがローカルルールも多少込み
+- `Yaku.Name` (Lib.Scoring 公開モデル) の文字列は**天鳳表記で固定**する (例: 「両立直」「断幺九」「海底摸月」「国士無双１３面」「自風 東」など)。
+  非天鳳 UI で別表記 (例: 「ダブル立直」「断么九」) を出したい場合は、UI 側で独自のマッピング層を設けること
+- `GameRules.InitialPoints` の既定値は**25000 点** (天鳳互換)。別ルールで運用する場合は呼び出し側で `GameRules` を生成する際に上書きする
 
 ## 対局の状態遷移
 
@@ -182,13 +185,13 @@ stateDiagram-v2
 - `Player` (abstract record) — プレイヤーの共通基底。`PlayerId` / `DisplayName` を持つ。Phase 4 で通知・応答メソッドを追加し、AI / 人間の実装が継承する
 - `PlayerList` (record) — 4人分の `Player` を `ImmutableArray<Player>` で保持するラッパーで `IEnumerable<Player>` を実装。`PlayerIndex`でアクセス。**index 0 が起家**という仕様。起家決定・並び替えは呼び出し側の責務(既存 `RoundNumber.ToDealer()` が `PlayerIndex(Value)` を返す前提と整合)。`Player` 実体そのものが `PlayerList` の要素であり、識別情報と実体を二重管理しない
 - `GameState` / `GameStateContext` — `Round*`と同じ非同期イベント駆動ステートマシン。状態は`GameStateInit` / `GameStateRoundRunning` / `GameStateEnd` (既存 `RoundStateXxx` の命名規約に揃える)。局終了後の Game 更新・終了判定・次局決定は `GameStateRoundRunning.RoundEndedBy*` ハンドラ内で行い 直接 `GameStateRoundRunning`(次局)または `GameStateEnd` へ Transit する。プレイヤー向けの局終了通知(Phase 5)の実装時に必要なら `GameStateRoundEnd` 状態を再導入する
-- `GameManager` — 対局レベルの統括役。対局開始処理、局間の引き継ぎ、対局終了判定を統括し、各局の `RoundStateContext` を内部で生成・破棄する(親子関係)。コンストラクタで `PlayerList`(index 0 が起家になるよう並び替え済み)+ `GameRules` + `IWallGenerator` を受け取る
+- `GameStateContext` — 対局レベルの統括役。対局開始処理、局間の引き継ぎ、対局終了判定を統括し、各局の `RoundStateContext` を内部で生成・破棄する(親子関係)。コンストラクタで `PlayerList`(index 0 が起家になるよう並び替え済み)+ `GameRules` + `IWallGenerator` 他を受け取り、`StartAsync(CancellationToken)` 1 つのみを公開 API として持つ (`RoundStateContext` と対称な 2 層構造)
 - **局終了時の引き継ぎ**: `GameStateContext`は`RoundStateContext`を内部保持し、`GameStateRoundRunning.RoundEndedBy*` ハンドラ内で `RoundStateContext.Round` から持ち点・本場・供託等を読み取って`Game`に反映した上で破棄、続行なら次局用に新しい`RoundStateContext`を生成する
 - **局終了結果の保持場所**: 独立した `RoundResult` record は作らず、局終了イベント (`GameEventRoundEndedByWin` / `GameEventRoundEndedByRyuukyoku`) のフィールドとして結果情報を保持する(和了者 / 放銃者 / 和了種別 / 流局種別 / 連荘判定フラグ / 本場加算フラグ)。**`Round` record は変更しない**。Phase 2-3 でフィールドを拡張して役/符/翻/点数などを追加
 - **Gameレベルのプレイヤー通知**: 対局開始(`PlayerList`/持ち点/ルール)、局開始、局終了(結果)、対局終了を各プレイヤーへ通知する。`Player`メソッド名は`OnGameStartAsync` / `OnRoundStartAsync` / `OnRoundEndAsync` / `OnGameEndAsync`。局内の通知は`OnHaipaiAsync` / `OnTsumoAsync` / `OnDahaiAsync` / `OnCallAsync` / `OnKanAsync` / `OnKanTsumoAsync` / `OnWinAsync` / `OnRyuukyokuAsync` / `OnDoraRevealAsync`(カンドラ表示)
 - **応答型の設計**: 各`On***Async`の戻り値は通知ごとに異なる型(`Task<OkResponse>` / `Task<AfterTsumoResponse>` / `Task<PlayerResponse>` 等)にする。通知時に取りうる応答が型で制約され、不正応答の多くをコンパイル時に弾ける
 - **スルー (パス) 応答の統一**: 打牌/加槓通知に対するスルーは `OkResponse` を返す。これにより全通知でスルー応答の型が一貫し、Player 実装・Wire 変換 (`OkResponseBody`)・既定応答生成 (`DefaultResponseFactory`) が簡潔になる。`AfterDahaiResponse` / `AfterKanResponse` は**アクション応答のみ**の階層 (チー/ポン/大明槓/ロン / 槍槓ロン) とし、`Player.OnDahaiAsync` / `OnKanAsync` の戻り値型は `Task<PlayerResponse>` とする (スルー時は `OkResponse`、アクション時は `AfterDahaiResponse` / `AfterKanResponse` 派生を返す)
-- **`GameRules`の責務**: 対局前に決まっている**ルール**(対局形式 東風戦/東南戦(デフォルト東南)/ 赤ドラ枚数 / 初期持ち点(当面35000) / オーラス親あがり止め / トビ終了点 / 食いタン / 後付け / 連荘条件 等)。起家 / タイムアウト等の対局固有パラメータは `GameManager` コンストラクタ引数または `GameRules` 内で管理する
+- **`GameRules`の責務**: 対局前に決まっている**ルール**(対局形式 東風戦/東南戦(デフォルト東南)/ 赤ドラ枚数 / 初期持ち点(既定25000 天鳳標準準拠)/ オーラス親あがり止め / トビ終了点 / 食いタン / 後付け / 連荘条件 等)。起家 / タイムアウト等の対局固有パラメータは `GameStateContext` コンストラクタ引数または `GameRules` 内で管理する
 - **ルール設定**: `Mahjong.Lib.Game` 独自に仮の`GameRules`(仮称、名前要検討)を定義。当面は`Mahjong.Lib.Scoring.GameRules`を模した最小構成で良い。将来的に両者の変換/共通化を検討
 - **対局終了条件**: オーラス親あがり止め / トビ終了 / 西入 等は`GameRules`に持たせ、`GameEndPolicy.ShouldEndAfterRound`が`GameStateRoundRunning.RoundEndedBy*`から判定される(`AdvanceToNextRound` の**前**に評価することで、終了時の `Game` が「次局予定状態」ではなく「終了した局を保持した状態」となる)
 
@@ -203,7 +206,7 @@ stateDiagram-v2
 | `IResponsePriorityPolicy`  | 同時応答の優先順位決定(ロン > ポン/大明槓 > チー > OK、ダブロン/トリプルロン、席順優先 等)            |
 | `IRoundViewProjector`      | `Round`からプレイヤー別の公開情報ビュー(`PlayerRoundView`)を生成。情報非対称性をここに閉じ込める     |
 | `IDefaultResponseFactory`  | 通知種別ごとのタイムアウト既定応答(打牌タイムアウト→ツモ切り、副露可否タイムアウト→OK 等)。プレイヤー例外時のフォールバックにも使用 |
-| `Player` / `Player`   | プレイヤー抽象(interface) + 共通実装を持つ抽象基底クラス。通知メソッドは**種別ごと**(`OnHaipaiAsync`/`OnTsumoAsync`/`OnDahaiAsync`/`OnCallAsync`/`OnKanAsync`/...)に分割。`Player`は視点卓情報の更新など共通処理を持つ。`Player`自身は`PlayerIndex`を保持せず、`GameManager`が`ImmutableArray<Player>`として`PlayerIndex`→`Player`実体の対応表を保持する |
+| `Player` / `Player`   | プレイヤー抽象(interface) + 共通実装を持つ抽象基底クラス。通知メソッドは**種別ごと**(`OnHaipaiAsync`/`OnTsumoAsync`/`OnDahaiAsync`/`OnCallAsync`/`OnKanAsync`/...)に分割。`Player`は視点卓情報の更新など共通処理を持つ。`Player`自身は`PlayerIndex`を保持せず、`GameStateContext`が`ImmutableArray<Player>`として`PlayerIndex`→`Player`実体の対応表を保持する |
 | `IGameTracer`              | 構造化イベント記録。**全イベント**(対局/局/配牌/ツモ/打牌/副露/槓/カンドラ/和了/流局/通知送信/応答受信/採用結果等)をトレース可能にし、牌譜・リプレイが再生成できるレベルを目指す。スコープは複数対局を跨ぐグローバル。統計集計は実装側で必要イベントを抽出。差し替え可能(no-op/メモリ/ファイル/DB 等) |
 
 - State は「この局面で何を聞くか」の仕様(`RoundInquirySpec`)だけ返し、通信待ちは持たない。`Entry`/`Exit`は同期のまま保つ
@@ -313,7 +316,7 @@ AdoptedRoundAction (abstract)
 
 ### プロジェクト分離の方針
 
-- `Mahjong.Lib.Game` — ルール、状態遷移、通知/応答/プレイヤー抽象、`RoundStateContext` (局進行) / `GameManager` (対局統括)、各種Policy既定実装
+- `Mahjong.Lib.Game` — ルール、状態遷移、通知/応答/プレイヤー抽象、`RoundStateContext` (局進行) / `GameStateContext` (対局統括)、各種Policy既定実装
 - `Mahjong.Lib.Ai` (新設予定) — AI思考ルーチン、`Player` AI実装
 - `Mahjong.ApiService` / `Mahjong.Web` — 人間プレイヤー用transport adapter(WebSocket/SignalR等)
 - 最初期は tests や sample 側にランダム AI stub を置く程度で十分。本格 AI は別プロジェクトに切り出す
@@ -328,14 +331,14 @@ AdoptedRoundAction (abstract)
 - **嶺上ツモ後の槓/打牌**: 1通知に両候補を載せ、1応答で遷移
 - **ロギング**: `Microsoft.Extensions.Logging.ILogger<T>` (人向けテキスト)。`Mahjong.Lib.Game`に`Microsoft.Extensions.Logging.Abstractions`を追加
 - **構造化トレース**: `IGameTracer` を別途用意。**全イベント**をトレースし牌譜・リプレイが再生成できるレベルを目指す。スコープは複数対局を跨ぐグローバル。統計集計(順位率/和了率/放銃率/立直率/副露率/平均順位/平均打点/役出現率/流局理由別出現率 等)は Tracer 実装側で必要イベントを抽出する
-- **`IGameTracer`の購読方式**: `GameManager`には単一の`IGameTracer`を注入する。複数購読したい場合は利用側で`CompositeGameTracer`を構成
+- **`IGameTracer`の購読方式**: `GameStateContext`には単一の`IGameTracer`を注入する。複数購読したい場合は利用側で`CompositeGameTracer`を構成
 - **`Game`の局履歴**: `Game` record に過去局の履歴は持たない。履歴集計は`IGameTracer`実装側の責務
-- **対局開始パラメータ**: `GameManager`コンストラクタで外部から直接注入(`PlayerList` / `GameRules` / `ImmutableArray<Player>` / `IWallGenerator`)。初期持ち点は`GameRules`(対局前に決まる要素)。当面の初期持ち点は全員35000点。起家は`PlayerList`の並びで表現する(index 0 が起家、並び替えは呼び出し側責務)
-- **点数計算の接続**: `Mahjong.Lib.Game` に `IScoreCalculator` 抽象を定義し、`GameManager`に注入する。`Mahjong.Lib.Scoring` の `HandCalculator` をラップする実装は**上位層**(ApiService等)で作って注入する(`Lib.Game` は `Lib.Scoring` に直接依存しない方針を維持)。流局時のノーテン罰符・テンパイ料計算は点数計算器に含めず、`GameManager`/`RoundState`側で天鳳ルール準拠で処理
+- **対局開始パラメータ**: `GameStateContext`コンストラクタで外部から直接注入(`PlayerList` / `GameRules` / `ImmutableArray<Player>` / `IWallGenerator`)。初期持ち点は`GameRules`(対局前に決まる要素)。既定は全員25000点(天鳳標準)。起家は`PlayerList`の並びで表現する(index 0 が起家、並び替えは呼び出し側責務)
+- **点数計算の接続**: `Mahjong.Lib.Game` は `Mahjong.Lib.Scoring` に `ProjectReference` で**直接依存する**。和了時の点数計算・テンパイ判定・向聴計算は `ScoringHelper` / `TenpaiHelper` / `ShantenHelper` の静的ヘルパー (`internal`) 経由で `HandCalculator` / `ShantenCalculator` / `HandDivider` を呼び出す。流局時のノーテン罰符・テンパイ料計算はヘルパー側に含めず、`Round.SettleRyuukyoku` 内で天鳳ルール準拠で処理する。将来「特殊ルールで点数計算を差し替える」要件が発生した場合は静的ヘルパーを抽象化し直す
 - **連荘・本場**: 親和了 → 連荘+本場+1、親テンパイ流局 → 連荘+本場+1、子和了/親ノーテン流局 → 親流れ+本場リセット。途中流局(九種九牌/四風連打/四家立直/三家和/四槓散了)は点数移動なし・親流れなし・本場+1(天鳳ルール)。ダブロンなど複雑ケースの扱いはルール実装時に再検討
 - **オーラス親あがり止め**: 親がオーラス(南四局など対局形式の最終局)で和了し、その時点で**1位単独確定**の場合のみ止める。同点トップ/1位だが2位との点差で逆転余地がある場合は続行(連荘)。判定は`GameRules`に定義された原点/対局形式に基づき`GameEndPolicy.ShouldEndAfterRound`が局終了時に実施
 - **流局時点数移動**: 荒牌平局のテンパイ料(1人:3000 / 2人:1500・3000 / 3人:1000・3000)、ノーテン罰符。いずれも天鳳ルール準拠
-- **開始局の指定**: `GameManager` 引数では指定しない。テスト用に途中状態から始めたい場合は、任意の`Round`を注入する別経路で対応
+- **開始局の指定**: `GameStateContext` 引数では指定しない。テスト用に途中状態から始めたい場合は、任意の`Round`を注入する別経路で対応
 - **対局形式**: `GameFormat { Tonpuu, Tonnan, SingleRound }` の3種類。既定は`Tonnan`。`GameRules`に持たせる
 - **1局のみモード(`SingleRound`)**: 親は`PlayerList` index 0 固定、局名「東一局0本場」固定。和了/流局で即`GameStateEnd`遷移(連荘せず、本場も増やさない)。テスト・デバッグ用途
 - **赤ドラ判定の配置**: `GameRules.IsRedDora(Tile)` で判定する(設計的に自然)。ドラ表示/点数計算/ログ等の複数箇所からこの関数経由で参照
@@ -345,8 +348,8 @@ AdoptedRoundAction (abstract)
 - **赤ドラ規約**: 各スート(萬/筒/索)について、該当牌種のうち**下位`Tile.Id`から順に、`GameRules`で指定された枚数分**を赤ドラ扱いとする(天鳳準拠)。例: 赤五萬1枚指定 → `Tile.Id=16`(5m 1枚目)が赤
 - **トビ終了点**: 天鳳ルール準拠(0点未満で即終了)
 - **`PlayerList`の席順**: 対局開始時に確定し、対局中は固定。局進行における親の移動は`Round`側で管理
-- **タイムアウト値**: 当面は構成で固定値とする(ルール由来ではなく`GameManager`引数または`GameRules`の実装時に詳細化)
-- **山生成器**: `IWallGenerator`を`GameManager`に注入し、各局で共有利用。乱数シード指定も注入側で制御
+- **タイムアウト値**: 当面は構成で固定値とする(ルール由来ではなく`GameStateContext`引数または`GameRules`の実装時に詳細化)
+- **山生成器**: `IWallGenerator`を`GameStateContext`に注入し、各局で共有利用。乱数シード指定も注入側で制御
 - **プレイヤー抽象**: `Player` interface + `Player` 抽象基底クラス。AI/人間は`Player`継承
 - **プレイヤー例外時の挙動**: 接続断/タイムアウト超過/不正応答など`Player`から例外が上がった場合、`IDefaultResponseFactory`の既定応答へフォールバックして進行継続。対局中断はしない(天鳳のCPU代打相当)
 - **同順位衝突時の決定**: `PlayerIndex` が小さいものを優先。採用したものだけ処理し、それ以外は破棄した上でエラーログを残す
@@ -356,7 +359,7 @@ AdoptedRoundAction (abstract)
 - **`RoundStateContext.Response*Async`**: `private` 化済み。外部公開 API は `ctor` と `StartAsync` の 2 つのみ。state 単体テストは `InternalsVisibleTo` 経由で `State` / `Round` を直接代入し `State.Response*` を直接呼び出す同期駆動 (`Drive*` ヘルパ) を使用
 - **3人麻雀対応**: 当面考慮しない。4人麻雀前提で実装する
 - **テスト方針**: state 単体テストは `Drive*` 同期駆動 (`Mahjong.Lib.Game.Tests` の `RoundStateContextTestHelper`)、通知・応答集約ループの統合テストは `StartAsync` 経路 (`RoundStateContextRuntimeTestHelper`) を使う。前者は event queue を介さない同期駆動なので race フリー
-- **ルール準拠の線引き**: 点数計算 / 流局処理 / 連荘 / 本場 / トビ / オーラス親あがり止め / 赤ドラ規約等は**天鳳ルール準拠**とする。ただし**初期持ち点は独自に全員35000点**(天鳳の25000点とは異なる意図的ローカル仕様)
+- **ルール準拠の線引き**: 点数計算 / 流局処理 / 連荘 / 本場 / トビ / オーラス親あがり止め / 赤ドラ規約 / 初期持ち点(全員25000点)等は**天鳳ルール準拠**とする
 - **起家決定**: `PlayerList` の index 0 を起家とする仕様。並び替え(乱数による起家決定を含む)は`Mahjong.Lib.Game`の責務外とし、上位層(ApiService / テストハーネス等)で決定してから渡す
 - **嶺上ツモ後の応答単位**: 1通知に「ツモ和了 / 暗槓 / 加槓 / 打牌(リーチ付加可)」をまとめて提示し、1応答で遷移する(状態二段階に分けない)。四槓流れ判定は嶺上ツモの**直前**で行う
 - **槍槓ルール**: 槍槓は**加槓のみ**対象とする。暗槓に対する国士無双ロンの可否はルール未確定(TODO: Phase 5 で詰める)。槍槓成立時はカンドラ表示・嶺上ツモ・加槓確定のいずれも行わず、加槓宣言した手牌から該当牌を除いてロン処理へ

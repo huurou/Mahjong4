@@ -50,9 +50,10 @@ public partial class RoundStateContext
         roundEndedTcs_ = new TaskCompletionSource<RoundEndedEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
         RoundStateChanged += OnRuntimeStateChanged;
 
-        tracer.OnRoundStarted(initial);
         State = new RoundStateHaipai();
         Round = initial.Haipai();
+        // 牌譜記録側は配牌済みの Round を期待する (HandArray 等がキャプチャできるよう)
+        tracer.OnRoundStarted(Round);
         // 配牌ドラは HaipaiNotification に含まれるため DoraRevealNotification は送らない規約。
         // Haipai 直後の DoraRevealedCount を初期値として保持し、槓由来の新ドラ増加のみ通知する
         lastDoraRevealedCount_ = Round.Wall.DoraRevealedCount;

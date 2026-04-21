@@ -18,7 +18,7 @@ public class RoundWindEast_PropertyTests
     }
 
     [Fact]
-    public void Name_場風牌東を返す()
+    public void Name_場風東を返す()
     {
         // Arrange
         var yaku = Yaku.RoundWindEast;
@@ -27,7 +27,7 @@ public class RoundWindEast_PropertyTests
         var result = yaku.Name;
 
         // Assert
-        Assert.Equal("場風牌・東", result);
+        Assert.Equal("場風 東", result);
     }
 
     [Fact]

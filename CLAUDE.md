@@ -26,6 +26,9 @@ dotnet run --project samples/Mahjong.Lib.Scoring.SampleApp/Mahjong.Lib.Scoring.S
 # 点数計算検証ツール実行（対話的にYYYYMMDDの日付を入力）
 dotnet run --project tools/Mahjong.Lib.Scoring.TenhouPaifuValidation/Mahjong.Lib.Scoring.TenhouPaifuValidation.csproj
 
+# 自動対局ツール実行（4人AI対局を指定回数繰り返し、順位統計を出力）
+dotnet run --project tools/Mahjong.Lib.Game.AutoPlay/Mahjong.Lib.Game.AutoPlay.csproj -- --games 100 --seed 1 --write-paifu
+
 # コードカバレッジ計測（PowerShell）
 pwsh scripts/TestCoverage.ps1
 ```
@@ -43,20 +46,27 @@ pwsh scripts/TestCoverage.ps1
 - **Mahjong.Web** — Blazor Serverフロントエンド。ApiServiceをサービスディスカバリ経由で参照
 - **Mahjong.ServiceDefaults** — OpenTelemetry、サービスディスカバリ、レジリエンス等の共有設定
 - **Mahjong.Lib.Scoring** — 麻雀の点数計算ドメインロジック。外部NuGet依存なし（追加時は慎重に判断する）
-- **Mahjong.Lib.Game** — 麻雀の対局ロジック。Mahjong.Lib.Scoringには依存せず、対局進行ドメインとして独立している。牌・手牌・山・河・副露・プレイヤー情報・**対局(Game)と局(Round)の二層状態遷移**を管理する
+- **Mahjong.Lib.Game** — 麻雀の対局ロジック。Mahjong.Lib.Scoring に `ProjectReference` で直接依存し、点数計算・テンパイ判定を静的ヘルパー (`ScoringHelper` / `TenpaiHelper` / `ShantenHelper`) 経由で呼び出す。牌・手牌・山・河・副露・プレイヤー情報・**対局(Game)と局(Round)の二層状態遷移**を管理する
 - **Mahjong.Lib.Scoring.Tests** — Mahjong.Lib.Scoringのテスト（InternalsVisibleToで内部メンバーにアクセス可能）
 - **Mahjong.Lib.Game.Tests** — Mahjong.Lib.Gameのテスト。状態遷移の統合テストと各状態の単体テストを含む
 - **Mahjong.Lib.Scoring.SampleApp** — `samples/`配下のコンソールアプリ。`HandCalculator.Calc`の代表的な入力例を実行して結果を表示する動作確認用サンプル
 - **Mahjong.Lib.Scoring.TenhouPaifuValidation**（`tools/`配下）— 天鳳牌譜をダウンロード・解析し、`HandCalculator`の点数計算結果を実データと突き合わせる検証コンソールアプリ
 - **Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests** — 上記ツールのテスト
+- **Mahjong.Lib.Game.AutoPlay**（`tools/`配下）— 4人AI自動対局を指定回数繰り返し、順位統計(`StatsReport`) と JSONL 牌譜を出力する検証・評価コンソールアプリ。`AutoPlayRunner` が `GameStateContext` をループ駆動し、`StatsTracer` / `ProgressTracer` / `PaifuRecorder` を `CompositeGameTracer` で束ねて流し込む
+- **Mahjong.Lib.Game.AutoPlay.Tests** — 上記ツールのテスト（`AutoPlayRunner_SmokeTests` / `StatsTracer_BuildTests` / `MixedPlayerFactory_CreateTests`）
 
 ソリューションフォルダ構成は `Mahjong4.slnx` を参照。
 
 ### ドメイン分割の要点
 
-- **Mahjong.Lib.Scoring** は点数計算専用で、牌種別(`TileKind`、34種)のみを扱う。**Mahjong.Lib.Game** は対局進行専用で、牌1枚を個別識別する`Tile`(0-135)を扱う。両者は相互参照しない。必要なら`Tile.Kind`(= `Id/4`) 経由でLib.Scoring側の牌種インデックスへ変換する
-- **Lib.Game → Lib.Scoring の依存境界**: Lib.Game は Lib.Scoring に直接依存しない。和了点計算は `IScoreCalculator`、テンパイ判定・待ち牌種列挙・立直中暗槓送り槓判定 (`IsKoutsuOnlyInAllInterpretations`) は `ITenpaiChecker` を Lib.Game 側の抽象として定義し、Lib.Scoring をラップする実装は上位層（ApiService等）から注入する
-- 牌種別(TileKind)と牌(Tile)の設計意図、副露種類、対局/局の状態遷移図は [docs/Design.md](docs/Design.md) が一次情報
+- **Mahjong.Lib.Scoring** は点数計算専用で、牌種別 (`TileKind`、34種) を扱う。**Mahjong.Lib.Game** は対局進行専用で、牌1枚を個別識別する`Tile` (0-135) を扱う。`Tile.Kind` は Lib.Scoring の `TileKind` 型 (`TileKind.All[Id / 4]`) を直接返し、Lib.Game と Lib.Scoring は `TileKind` を共通語彙として共有する
+- **Lib.Game → Lib.Scoring の依存境界**: Lib.Game は Lib.Scoring に**直接依存する**（`ProjectReference`）。点数計算・テンパイ判定・向聴計算は静的ヘルパー経由で Lib.Scoring を呼び出す:
+  - 和了点計算: [ScoringHelper.Calculate](src/Mahjong.Lib.Game/Games/ScoringHelper.cs) が `HandCalculator.Calc` をラップし、親子・ツモロン分配込みの `ScoreResult` を返す。`HandResult.ErrorMessage` が返った場合は `InvalidOperationException` を throw し、`RoundStateContext.ProcessEventAsync` の catch 経由で `InvalidEventReceived` に回送される (役なしロンの 0 点黙認を防ぐ)
+  - テンパイ判定・待ち牌列挙・立直中暗槓の送り槓判定: [TenpaiHelper](src/Mahjong.Lib.Game/Tenpai/TenpaiHelper.cs) が `ShantenCalculator` / `HandDivider` を呼び出す
+  - 向聴計算・有効牌列挙: [ShantenHelper](src/Mahjong.Lib.Game/Tenpai/ShantenHelper.cs) が `ShantenCalculator` を呼び出す
+  - 型変換: [ScoringConversions](src/Mahjong.Lib.Game/Games/ScoringConversions.cs) が `Hand` → `TileKindList`、`Call` → `Scoring.Calls.Call`、`GameRules` → `Scoring.Games.GameRules` の境界変換を提供する
+- 以前存在した `Mahjong.Lib.Game.Scoring` ブリッジプロジェクトおよび `IScoreCalculator` / `ITenpaiChecker` / `IShantenEvaluator` 抽象は撤廃済み。将来「特殊ルールで点数計算を差し替える」要件が発生した場合は静的ヘルパーを抽象化し直す
+- 牌種別 (TileKind) と牌 (Tile) の設計意図、副露種類、対局/局の状態遷移図は [docs/Design.md](docs/Design.md) が一次情報
 - 両ライブラリとも record + `ImmutableList`/`ImmutableArray` のイミュータブル設計を採用
 
 ### 点数計算ドメイン（Mahjong.Lib.Scoring）
@@ -87,13 +97,13 @@ pwsh scripts/TestCoverage.ps1
 
 - **局の集約**: [Mahjong.Lib.Game/Rounds/Round.cs](src/Mahjong.Lib.Game/Rounds/Round.cs) が局の全状態を保持するイミュータブルrecord。`Haipai` / `Tsumo` / `Dahai` / `NextTurn` / `Chi` / `Pon` / `Daiminkan` / `Ankan` / `Kakan` / `RinshanTsumo` / `RevealDora` / `SetPoints` / `AddKyoutakuRiichi` / `ClearKyoutaku` / `PendRiichi` / `ConfirmRiichi` / `CancelRiichi` / `EvaluateFuriten` / `SettleWin` / `SettleRyuukyoku` の各メソッドで進行。すべて新しい `Round` を返す
 - **局内プレイヤー状態**: `Round` は `PlayerRoundStatusArray` を保持し、各プレイヤーの立直保留/確定/取消、一発、門前、流し満貫資格、同巡/永久フリテン、嶺上中、第一打前(天和/地和判定用)などを進行メソッド内で更新する
-- **点数精算**: 和了時は `Round.SettleWin` が `IScoreCalculator` 経由で点数計算・移動を行い、流局時は `Round.SettleRyuukyoku` が天鳳ルール準拠でノーテン罰符・テンパイ料を計算する。いずれも終端状態への遷移アクション内で呼ばれる
+- **点数精算**: 和了時は呼び出し側 (`RoundStateDahai` / `RoundStateTsumo` / `RoundStateKan` / `RoundStateKanTsumo`) が `ScoringHelper.Calculate` で各和了者の `ScoreResult` を算出し、`Round.SettleWin` に `ImmutableArray<ScoreResult>` を渡して点数移動を適用する。流局時は `Round.SettleRyuukyoku` が天鳳ルール準拠でノーテン罰符・テンパイ料を計算する。いずれも終端状態への遷移アクション内で呼ばれる
 - **カンドラ表示のタイミング**: 暗槓は即時 `RevealDora`、加槓・大明槓は `PendingDoraReveal=true` で保留し、次の `RinshanTsumo` 直前にめくる
 - **副露種類の扱い**: `CallType` は Chi/Pon/Ankan/Daiminkan/Kakan。Lib.Scoring側と違い大明槓と加槓を区別する（表示上の差があるため — 詳細は [docs/Design.md](docs/Design.md)）
 - **状態遷移の実装** ([Mahjong.Lib.Game/States/RoundStates/](src/Mahjong.Lib.Game/States/RoundStates/)): 非同期イベント駆動のステートマシン。`System.Threading.Channels.Channel<T>` によるイベントキューでスレッドセーフに状態遷移する
   - `RoundState` — 抽象基底。`ResponseOk` / `ResponseWin` / `ResponseDahai` / `ResponseKan` / `ResponseCall` / `ResponseRyuukyoku` の仮想メソッドと `Entry` / `Exit` ライフサイクルを持つ
   - `RoundEvent` — 抽象基底。6種の具象実装（ResponseOk, ResponseDahai, ResponseCall, ResponseWin, ResponseKan, ResponseRyuukyoku）
-  - `RoundStateContext` — 局進行コンテキスト (partial 3 分割: 本体 / `Runtime` / `PlayerIo`)。状態機械 (`eventChannel_` / `Transit`) と通知・応答集約ループ (`StartAsync` / `ProcessRuntimeAsync`) を 1 クラスに統合。コンストラクタで `PlayerList` / `IRoundViewProjector` / `IResponseCandidateEnumerator` / `IResponsePriorityPolicy` / `IDefaultResponseFactory` / `ITenpaiChecker` / `IScoreCalculator` / `IGameTracer` / `ILogger<RoundStateContext>` の 9 引数を受け取る。公開 API は `ctor` と `StartAsync(round, ct)` の 2 つのみ。`State` / `Round` プロパティは `internal set` で同 assembly のみ書換可。`Response*Async` 6 個はすべて `private` (外部からの状態駆動経路は物理的に封鎖、race の構造的除去)。`RoundStateChanged` / `RoundEnded` / `InvalidEventReceived` イベントで遷移通知。`IDisposable` で 5 秒タイムアウト付きシャットダウン
+  - `RoundStateContext` — 局進行コンテキスト (partial 3 分割: 本体 / `Runtime` / `PlayerIo`)。状態機械 (`eventChannel_` / `Transit`) と通知・応答集約ループ (`StartAsync` / `ProcessRuntimeAsync`) を 1 クラスに統合。コンストラクタで `PlayerList` / `IRoundViewProjector` / `IResponseCandidateEnumerator` / `IResponsePriorityPolicy` / `IDefaultResponseFactory` / `GameRules` / `IGameTracer` / `ILogger<RoundStateContext>` の 8 引数を受け取る。公開 API は `ctor` と `StartAsync(round, ct)` の 2 つのみ。`State` / `Round` プロパティは `internal set` で同 assembly のみ書換可。`Response*Async` 6 個はすべて `private` (外部からの状態駆動経路は物理的に封鎖、race の構造的除去)。`RoundStateChanged` / `RoundEnded` / `InvalidEventReceived` イベントで遷移通知。`IDisposable` で 5 秒タイムアウト付きシャットダウン
   - **局終了通知**: 終端状態（`RoundStateWin` / `RoundStateRyuukyoku`）がOK応答時に `RoundStateContext.RoundEnded` イベント（`RoundEndedEventArgs`）を一度だけ発火する。`GameStateContext` はこれを購読し `GameEventRoundEndedByWin` / `GameEventRoundEndedByRyuukyoku` に変換して対局レベル遷移に昇格させる
   - **不正応答**: 現状態で受け付けない応答が来た場合、例外で処理ループを止めず `InvalidEventReceived` イベントに通知して続行する
   - 状態遷移フローの詳細（配牌→ツモ→打牌サイクル、副露/ロン/流局の分岐、槓サイクル、終端状態）は [docs/Design.md](docs/Design.md) の状態遷移図を参照
@@ -110,9 +120,10 @@ pwsh scripts/TestCoverage.ps1
 - **問い合わせ仕様** ([Mahjong.Lib.Game/Inquiries/](src/Mahjong.Lib.Game/Inquiries/)) — `RoundInquirySpec` は「誰に何を聞くか」
 - **採用結果** ([Mahjong.Lib.Game/Adoptions/](src/Mahjong.Lib.Game/Adoptions/)) — `AdoptedRoundAction` は応答集約・優先順位適用後の採用結果 (和了/流局/打牌/副露/槓 等)。和了者 (`AdoptedWinner`) と供託リーチの扱い (`KyoutakuRiichiAward`) もここに属する
 - **対局進行の抽象層** ([Mahjong.Lib.Game/Rounds/Managing/](src/Mahjong.Lib.Game/Rounds/Managing/)) — `IRoundViewProjector` (視点射影) / `IResponseCandidateEnumerator` (合法応答候補列挙) / `IResponsePriorityPolicy` (応答優先順位) / `IDefaultResponseFactory` (タイムアウト時既定応答) / `IGameTracer` (対局トレーサー) の 5 抽象と Tenhou/Default/Null 実装。`AdoptedRoundActionBuilder` / `ResolvedPlayerResponse` / `ResponseValidator` も通知・応答集約ループの補助型としてここにある
-- **点数結果型** ([Mahjong.Lib.Game/Games/Scoring/](src/Mahjong.Lib.Game/Games/Scoring/)) — `ScoreResult` / `YakuInfo` は Lib.Game が Lib.Scoring に依存しないための境界型。成立役は `Yaku` ではなく番号・名称・翻数・役満倍数の明細として保持する
+- **点数結果型** ([Mahjong.Lib.Game/Games/ScoreResult.cs](src/Mahjong.Lib.Game/Games/ScoreResult.cs)) — `ScoreResult(Han, Fu, PointDeltas, YakuList)` は `ScoringHelper.Calculate` の戻り値。成立役は `Mahjong.Lib.Scoring.Yakus.YakuList` (= `Yaku` 具象型の集合) をそのまま保持する。包 (責任払い) 判定は [YakuPaoExtensions.HasPaoEligibleYaku](src/Mahjong.Lib.Game/Games/YakuPaoExtensions.cs) で `Daisangen` / `Daisuushii` / `DaisuushiiDouble` / `Suukantsu` を pattern match する
 - **プレイヤー抽象** ([Mahjong.Lib.Game/Players/Player.cs](src/Mahjong.Lib.Game/Players/Player.cs)) — `Player` は abstract **class**（record ではない: 可変状態を持つ AI/人間実装での record + mutable property の相互作用リスク回避）。`PlayerId` + `DisplayName` ベースのカスタム `Equals` / `GetHashCode` / `==` / `!=` を実装し `PlayerList` / `Game` の value equality を維持。通知メソッド 15 種 (`OnGameStartAsync` / `OnRoundStartAsync` / `OnHaipaiAsync` / `OnTsumoAsync` / `OnOtherPlayerTsumoAsync` / `OnDahaiAsync` / `OnCallAsync` / `OnKanAsync` / `OnKanTsumoAsync` / `OnOtherPlayerKanTsumoAsync` / `OnDoraRevealAsync` / `OnWinAsync` / `OnRyuukyokuAsync` / `OnRoundEndAsync` / `OnGameEndAsync`) を `public abstract` で定義し、戻り値は通知ごとに異なる応答型。全メソッドに `CancellationToken ct = default` を付与 (`RoundStateContext` の通知・応答集約ループのタイムアウト制御用)
 - **テスト用疑似プレイヤー** ([tests/Mahjong.Lib.Game.Tests/Players/FakePlayer.cs](tests/Mahjong.Lib.Game.Tests/Players/FakePlayer.cs)) — `Func<TNotification, CancellationToken, TResponse>` デリゲート群を init プロパティで受け取る `Player` 実装。未設定時は安全な既定応答（OK / 先頭 `DahaiCandidate` を打牌 / `PassResponse` / `KanPassResponse` 等）を返し、受信通知を `ReceivedNotifications` に記録する
+- **AI プレイヤー実装** ([src/Mahjong.Lib.Game/Players/Impl/](src/Mahjong.Lib.Game/Players/Impl/)) — 命名は `AI_v{major}_{minor}_{patch}_{識別名}` 形式。v0.1.0 ランダム打牌、v0.2.0 有効牌（`ShantenHelper` で向聴数を下げる候補を選ぶ）。各 AI はクラスと対になる `{AI名}Factory` を提供し、自動対局ツール側が `IPlayerFactory` 抽象経由で注入する
 
 #### 対局(Game)レベル
 
@@ -120,7 +131,7 @@ pwsh scripts/TestCoverage.ps1
 - **プレイヤー**: [Mahjong.Lib.Game/Players/](src/Mahjong.Lib.Game/Players/) の `Player`（`PlayerId` + 表示名）と `PlayerList`（4人固定、index 0 が**起家**。並び替えは呼び出し側責務）
 - **対局ルール**: [Mahjong.Lib.Game/Games/GameRules.cs](src/Mahjong.Lib.Game/Games/GameRules.cs) に対局形式（`GameFormat`: SingleRound/Tonpuu/Tonnan）、赤ドラ集合、初期持ち点、トビ閾値、食いタン/後付け、連荘条件（`RenchanCondition`）を集約
 - **対局終了判定**: [Mahjong.Lib.Game/Games/GameEndPolicy.cs](src/Mahjong.Lib.Game/Games/GameEndPolicy.cs) `ShouldEndAfterRound(game, event, dealerContinues)` で判定。呼び出し順は **ApplyRoundResult → ShouldEndAfterRound → (false なら AdvanceToNextRound)**
-- **対局の外部入口**: [Mahjong.Lib.Game/Games/GameManager.cs](src/Mahjong.Lib.Game/Games/GameManager.cs) が `StartAsync(ct)` で `GameStateContext` を生成・初期化し `IDisposable` で管理。コンストラクタで `PlayerList` / `GameRules` / `IWallGenerator` / `IScoreCalculator` / `ITenpaiChecker` / `IRoundViewProjector` / `IResponseCandidateEnumerator` / `IResponsePriorityPolicy` / `IDefaultResponseFactory` / `IGameTracer` / `ILoggerFactory` の 11 引数を受け取り、`RoundStateContext` が必要とする依存を `GameStateContext` 経由で各局に供給する
+- **対局の外部入口**: [Mahjong.Lib.Game/States/GameStates/GameStateContext.cs](src/Mahjong.Lib.Game/States/GameStates/GameStateContext.cs) が `StartAsync(ct)` で対局を開始し `IDisposable` で管理。公開 API は `ctor` と `StartAsync(CancellationToken)` の 2 つのみ (RoundStateContext と対称)。コンストラクタで `PlayerList` / `GameRules` / `IWallGenerator` / `IRoundViewProjector` / `IResponseCandidateEnumerator` / `IResponsePriorityPolicy` / `IDefaultResponseFactory` / `IGameTracer` / `ILogger<GameStateContext>` / `ILogger<RoundStateContext>` の 10 引数を受け取り、`RoundStateContext` が必要とする依存を各局生成時に供給する
 - **対局レベル状態機械** ([Mahjong.Lib.Game/States/GameStates/](src/Mahjong.Lib.Game/States/GameStates/)): Round層と同じ Channel ベースのイベント駆動。`GameState`（Init/RoundRunning/End）と `GameEvent`（ResponseOk/RoundEndedByWin/RoundEndedByRyuukyoku）
   - `GameStateContext` は `RoundStateContext` をホストし、`RoundEnded` イベントを購読して `RoundEndedEventArgs` を `GameEventRoundEndedByWin` / `GameEventRoundEndedByRyuukyoku` に変換・内部発行して対局レベル遷移に昇格させる（多重発火抑止付き）
   - `GameStateRoundRunning` の `RoundEndedByWin` / `RoundEndedByRyuukyoku` ハンドラ内で `Game.ApplyRoundResult` → `GameEndPolicy.ShouldEndAfterRound` → （続行なら `Game.AdvanceToNextRound` + 次局 `RoundStateContext` 生成、終了なら `GameStateEnd` 遷移）の順で処理する
@@ -134,6 +145,17 @@ pwsh scripts/TestCoverage.ps1
 2. **ValidateCalc** — `CalcValidateService` が `AgariInfo` から `HandCalculator.Calc` を呼び出し、実データの符・翻・点数と突き合わせて `ValidateResult` を返す
 
 テストデータは [tests/Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests/TestData/](tests/Mahjong.Lib.Scoring.TenhouPaifuValidation.Tests/TestData/) 配下のXML牌譜（途中流局有無・ダブロン等のバリエーション）。
+
+### 自動対局ツール（tools/Mahjong.Lib.Game.AutoPlay/）
+
+AI同士の4人対局を一括実行して統計を取るコンソールアプリ。`Microsoft.Extensions.DependencyInjection` で `GameStateContext` に必要な抽象を組み立てる。
+
+- **実行時オプション** (`AutoPlayOptions`): `--games` 回数 / `--seed` 乱数シード / `--output` 出力先 / `--write-paifu` JSONL 牌譜出力フラグ
+- **対局ランナー** (`AutoPlayRunner`): 1対局ごとに `PlayerList` を生成し `GameStateContext` を `using` で起動、`GameStateEnd` を監視して次対局へ進む。対局単位の 5 分タイムアウトと例外時のスキップ＋次局継続を担う
+- **プレイヤー構成**: [MixedPlayerFactory](tools/Mahjong.Lib.Game.AutoPlay/MixedPlayerFactory.cs) が `IPlayerFactory[]` を受け取り、各対局開始時に席配置をシャッフル。`Program.cs` で AI を組み替えると混在対局の統計が取れる
+- **トレーサー合成**: [CompositeGameTracer](src/Mahjong.Lib.Game/Rounds/Managing/CompositeGameTracer.cs) に `StatsTracer`（順位・和了率・流局率集計）、`ProgressTracer`（局進行のログ出力）、必要に応じて `PaifuRecorder`（JSONL 牌譜書き出し）を束ねて `IGameTracer` として渡す
+- **山牌生成**: [ShuffledWallGenerator](tools/Mahjong.Lib.Game.AutoPlay/ShuffledWallGenerator.cs) は seed 指定の再現可能な Fisher–Yates シャッフル実装（天鳳互換 MT19937 ではないため検証用途では `WallGeneratorTenhou` を使うこと）
+- **出力**: `StatsReportFormatter.Format` が AI種別別の順位分布・平均順位・和了/放銃/立直/副露率・平均打点に加え、役出現上位20件と流局種別別回数を整形表示する
 
 ## 作業上の注意
 

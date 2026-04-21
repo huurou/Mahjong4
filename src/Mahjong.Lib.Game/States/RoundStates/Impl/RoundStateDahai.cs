@@ -21,14 +21,19 @@ public record RoundStateDahai : RoundState
         base.ResponseOk(context, evt);
         // ロン応答なし 保留中の立直宣言があれば確定 (持ち点-1000・供託+1)
         // 同巡フリテン適用は本イベント到達前に RoundStateContext が ApplyTemporaryFuriten で反映済
+        var pendingRiichi = context.Round.PendingRiichiPlayerIndex;
         var confirmedRound = context.Round.ConfirmRiichi();
-        if (IsRyuukyoku(confirmedRound))
+        if (pendingRiichi is { } riichiPlayer)
         {
-            // 荒牌平局: テンパイ者・流し満貫者を判定し RyuukyokuSettler に渡す
-            var tenpaiPlayers = EnumerateTenpaiPlayers(confirmedRound, context.TenpaiChecker);
-            var nagashiManganPlayers = EnumerateNagashiManganPlayers(confirmedRound);
-            var eventArgs = new RoundEndedByRyuukyokuEventArgs(RyuukyokuType.KouhaiHeikyoku, tenpaiPlayers, nagashiManganPlayers);
-            var settledRound = confirmedRound.SettleRyuukyoku(RyuukyokuType.KouhaiHeikyoku, tenpaiPlayers, nagashiManganPlayers);
+            context.Tracer.OnRiichiDeclared(riichiPlayer, step: 2);
+        }
+        if (DetermineRyuukyokuType(confirmedRound) is { } type)
+        {
+            var isKouhai = type == RyuukyokuType.KouhaiHeikyoku;
+            var tenpaiPlayers = isKouhai ? EnumerateTenpaiPlayers(confirmedRound) : [];
+            var nagashiManganPlayers = isKouhai ? EnumerateNagashiManganPlayers(confirmedRound) : [];
+            var (settledRound, pointDeltas) = confirmedRound.SettleRyuukyoku(type, tenpaiPlayers, nagashiManganPlayers);
+            var eventArgs = new RoundEndedByRyuukyokuEventArgs(type, tenpaiPlayers, nagashiManganPlayers, pointDeltas);
             Transit(context, () => new RoundStateRyuukyoku(eventArgs), _ => settledRound);
         }
         else
@@ -37,9 +42,25 @@ public record RoundStateDahai : RoundState
         }
     }
 
+    public override void ResponseRyuukyoku(RoundStateContext context, RoundEventResponseRyuukyoku evt)
+    {
+        base.ResponseRyuukyoku(context, evt);
+        // 三家和了: 3人ロンで流局扱い。保留中の立直はロン扱いで不成立 (リーチ棒を出さない)
+        var round = context.Round.CancelRiichi();
+        var (settledRound, pointDeltas) = round.SettleRyuukyoku(evt.Type, evt.TenpaiPlayers, []);
+        var eventArgs = new RoundEndedByRyuukyokuEventArgs(evt.Type, evt.TenpaiPlayers, [], pointDeltas);
+        Transit(context, () => new RoundStateRyuukyoku(eventArgs), _ => settledRound);
+    }
+
     public override void ResponseCall(RoundStateContext context, RoundEventResponseCall evt)
     {
         base.ResponseCall(context, evt);
+
+        // 鳴かれても立直は成立する。確定前に step=2 を観測通知 (updateRound 内では副作用を避けるため)
+        if (context.Round.PendingRiichiPlayerIndex is { } riichiPlayer)
+        {
+            context.Tracer.OnRiichiDeclared(riichiPlayer, step: 2);
+        }
 
         // 副露処理は遷移時 updateRound 内で行い、他の Response* との一貫性を保つ。
         // SnapshotRound には副露直後の Round (= updateRound 後の Round) を封入したいため、nextStateFactory 版 Transit を使用する。
@@ -61,6 +82,7 @@ public record RoundStateDahai : RoundState
                 };
             }
         );
+        context.Tracer.OnCallExecuted(evt.Caller, context.Round.CallListArray[evt.Caller].Last());
     }
 
     public override void ResponseWin(RoundStateContext context, RoundEventResponseWin evt)
@@ -77,8 +99,17 @@ public record RoundStateDahai : RoundState
         var loserIndex = round.Turn;
         // Ron の和了牌 = 放銃者の河末尾 (= 直前に打たれた牌)
         var winTile = round.RiverArray[loserIndex].Last();
-        var (settledRound, details) = round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, winTile, context.ScoreCalculator);
-        var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType, details.Winners, details.Honba, details.KyoutakuRiichiAward);
+        var scoreResults = CalculateScoreResults(context, round, evt.WinnerIndices, loserIndex, evt.WinType, winTile);
+        var (settledRound, details) = round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, winTile, scoreResults);
+        var eventArgs = new RoundEndedByWinEventArgs(
+            evt.WinnerIndices,
+            loserIndex,
+            evt.WinType,
+            details.Winners,
+            details.Honba,
+            details.KyoutakuRiichiAward,
+            details.UraDoraIndicators
+        );
         Transit(context, () => new RoundStateWin(eventArgs), _ => settledRound);
     }
 
@@ -103,13 +134,13 @@ public record RoundStateDahai : RoundState
         return new RoundInquirySpec(RoundInquiryPhase.Dahai, specs.ToImmutable(), inquiredBuilder.ToImmutable(), round.Turn);
     }
 
-    private static ImmutableArray<PlayerIndex> EnumerateTenpaiPlayers(Round round, ITenpaiChecker tenpaiChecker)
+    private static ImmutableArray<PlayerIndex> EnumerateTenpaiPlayers(Round round)
     {
         var builder = ImmutableArray.CreateBuilder<PlayerIndex>();
         for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
         {
             var playerIndex = new PlayerIndex(i);
-            if (tenpaiChecker.IsTenpai(round.HandArray[playerIndex], round.CallListArray[playerIndex]))
+            if (TenpaiHelper.IsTenpai(round.HandArray[playerIndex]))
             {
                 builder.Add(playerIndex);
             }
@@ -131,14 +162,26 @@ public record RoundStateDahai : RoundState
         return builder.ToImmutable();
     }
 
-    private static bool IsRyuukyoku(Round round)
+    /// <summary>
+    /// 流局種別を決定する。優先順位は Suufonrenda → SuuchaRiichi → KouhaiHeikyoku。
+    /// 九種九牌は <see cref="RoundStateTsumo"/> で、三家和了は <see cref="RoundStateContext"/> の応答集約で、
+    /// 四槓流れは <see cref="RoundStateKanTsumo"/> で判定される (本メソッドの守備範囲外)。
+    /// </summary>
+    private static RyuukyokuType? DetermineRyuukyokuType(Round round)
     {
-        // TODO: 流局判定の完全実装 (現状は荒牌平局のみ対応)
-        //  - 四家立直
-        //  - 三家和了
-        //  - 四風連打
-        //  - 四槓流れ
-        //  - 九種九牌
-        return round.Wall.LiveRemaining == 0;
+        if (round.IsSuufonrenda())
+        {
+            return RyuukyokuType.Suufonrenda;
+        }
+        if (round.IsSuuchaRiichi())
+        {
+            return RyuukyokuType.SuuchaRiichi;
+        }
+        if (round.Wall.LiveRemaining == 0)
+        {
+            return RyuukyokuType.KouhaiHeikyoku;
+        }
+
+        return null;
     }
 }

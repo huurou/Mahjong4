@@ -100,7 +100,7 @@ public class Round_ConfirmRiichiTests
     {
         // Arrange: 鳴きで全員の IsFirstTurnBeforeDiscard が落ちる
         var round = RoundTestHelper.CreateRound().Haipai().Tsumo();
-        round = round.Dahai(new Tile(83), RoundTestHelper.NoOpTenpaiChecker);
+        round = round.Dahai(new Tile(83));
         var caller = new PlayerIndex(1);
         round = RoundTestHelper.InjectHand(round, caller,
         [

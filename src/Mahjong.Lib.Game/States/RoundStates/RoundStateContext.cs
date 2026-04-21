@@ -1,10 +1,9 @@
 ﻿using Mahjong.Lib.Game.Calls;
-using Mahjong.Lib.Game.Games.Scoring;
+using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Rounds.Managing;
 using Mahjong.Lib.Game.States.RoundStates.Impl;
-using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Tiles;
 using Microsoft.Extensions.Logging;
 using System.Collections.Immutable;
@@ -28,21 +27,21 @@ public partial class RoundStateContext(
     IResponseCandidateEnumerator enumerator,
     IResponsePriorityPolicy priorityPolicy,
     IDefaultResponseFactory defaultFactory,
-    ITenpaiChecker tenpaiChecker,
-    IScoreCalculator scoreCalculator,
+    GameRules rules,
     IGameTracer tracer,
     ILogger<RoundStateContext> logger
 ) : IDisposable
 {
     /// <summary>
-    /// テンパイ判定機 (フリテン判定・荒牌平局精算で使用)
+    /// 対局ルール (和了時の点数計算等で参照)
     /// </summary>
-    public ITenpaiChecker TenpaiChecker { get; } = tenpaiChecker;
+    public GameRules Rules { get; } = rules;
 
     /// <summary>
-    /// 和了時点数計算機
+    /// 観測用トレーサー (RoundState 実装が Entry 等で状態遷移を通知するために参照する)。
+    /// 同 assembly 内部からのみアクセス可能
     /// </summary>
-    public IScoreCalculator ScoreCalculator { get; } = scoreCalculator;
+    internal IGameTracer Tracer => tracer;
 
     public event EventHandler<RoundStateChangedEventArgs>? RoundStateChanged;
 
@@ -168,7 +167,7 @@ public partial class RoundStateContext(
     /// updateRound が例外を投げた場合は <see cref="Round"/> が部分更新されないことを保証する
     /// (新 Round は updateRound が正常終了した場合のみ代入される)。
     /// updateRound 適用後の <see cref="Round"/> を遷移先のプロパティへ封入したい場合は
-    /// createNextState 内で <c>this.Round</c> を参照する (例: <see cref="Impl.RoundStateCall.SnapshotRound"/>)
+    /// createNextState 内で <c>this.Round</c> を参照する (例: <see cref="RoundStateCall.SnapshotRound"/>)
     /// </summary>
     /// <param name="createNextState">updateRound 適用後に評価される遷移先状態ファクトリ</param>
     /// <param name="updateRound">遷移時 Round 更新関数。null の場合は Round を更新しない</param>

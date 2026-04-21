@@ -1,4 +1,5 @@
 ﻿using Mahjong.Lib.Game.Adoptions;
+using Mahjong.Lib.Game.Calls;
 using Mahjong.Lib.Game.Candidates;
 using Mahjong.Lib.Game.Inquiries;
 using Mahjong.Lib.Game.Notifications;
@@ -6,25 +7,36 @@ using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Responses;
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Rounds.Managing;
+using Mahjong.Lib.Game.Tiles;
 using System.Collections.Immutable;
 
 namespace Mahjong.Lib.Game.AutoPlay.Tracing;
 
 /// <summary>
-/// 自動対局の統計集計を行う <see cref="IGameTracer"/>
+/// 自動対局の統計集計を行う <see cref="IGameTracer"/>。
+/// 混在対局・席シャッフル対応のため AI種別 (DisplayName) をキーに集計する
 /// </summary>
 public sealed class StatsTracer : IGameTracer
 {
     private const int PLAYER_COUNT = 4;
 
-    private readonly int[,] rankCounts_ = new int[PLAYER_COUNT, PLAYER_COUNT];
-    private readonly int[] winCounts_ = new int[PLAYER_COUNT];
-    private readonly int[] houjuuCounts_ = new int[PLAYER_COUNT];
-    private readonly int[] riichiCounts_ = new int[PLAYER_COUNT];
-    private readonly int[] callCounts_ = new int[PLAYER_COUNT];
-    private readonly long[] winPointSums_ = new long[PLAYER_COUNT];
-    private readonly Dictionary<string, int> yakuCounts_ = [];
+    private sealed class Accumulator
+    {
+        public int[] RankCounts { get; } = new int[PLAYER_COUNT];
+        public int GameSeatCount;
+        public int RoundAppearance;
+        public int WinCount;
+        public int HoujuuCount;
+        public int RiichiCount;
+        public int CallCount;
+        public long WinPointSum;
+    }
+
+    private readonly Dictionary<string, Accumulator> byName_ = [];
     private readonly Dictionary<RyuukyokuType, int> ryuukyokuCounts_ = [];
+    private readonly Dictionary<string, int> yakuCounts_ = [];
+
+    private readonly string[] currentNames_ = new string[PLAYER_COUNT];
     private readonly bool[] riichiDeclaredThisRound_ = new bool[PLAYER_COUNT];
     private readonly bool[] calledThisRound_ = new bool[PLAYER_COUNT];
 
@@ -46,9 +58,20 @@ public sealed class StatsTracer : IGameTracer
 
     public void OnGameNotificationSent(NotificationId notificationId, PlayerIndex recipientIndex, GameNotification notification)
     {
-        if (notification is GameEndNotification gameEnd && recipientIndex.Value == 0)
+        if (recipientIndex.Value != 0) { return; }
+
+        switch (notification)
         {
-            RecordGameEnd(gameEnd.FinalPointArray);
+            case GameStartNotification gameStart:
+                for (var i = 0; i < PLAYER_COUNT; i++)
+                {
+                    currentNames_[i] = gameStart.PlayerList[new PlayerIndex(i)].DisplayName;
+                }
+                break;
+
+            case GameEndNotification gameEnd:
+                RecordGameEnd(gameEnd.FinalPointArray);
+                break;
         }
     }
 
@@ -68,14 +91,37 @@ public sealed class StatsTracer : IGameTracer
     {
     }
 
+    public void OnTsumoDrawn(PlayerIndex turn, Tile drawnTile, bool isRinshan)
+    {
+    }
+
+    public void OnDoraRevealed(Tile newIndicator)
+    {
+    }
+
+    public void OnRiichiDeclared(PlayerIndex player, int step)
+    {
+    }
+
+    public void OnCallExecuted(PlayerIndex caller, Call call)
+    {
+    }
+
     public void OnAdoptedAction(RoundInquiryPhase phase, AdoptedPlayerResponse adopted)
     {
         var playerIndex = adopted.PlayerIndex.Value;
+        var name = currentNames_[playerIndex];
+        if (name is null) { return; }
+
         switch (adopted.Response)
         {
-            case DahaiResponse d when d.IsRiichi && !riichiDeclaredThisRound_[playerIndex]:
-                riichiDeclaredThisRound_[playerIndex] = true;
-                riichiCounts_[playerIndex]++;
+            case DahaiResponse { IsRiichi: true }:
+            case KanTsumoDahaiResponse { IsRiichi: true }:
+                if (!riichiDeclaredThisRound_[playerIndex])
+                {
+                    riichiDeclaredThisRound_[playerIndex] = true;
+                    GetOrCreate(name).RiichiCount++;
+                }
                 break;
 
             case ChiResponse:
@@ -84,7 +130,7 @@ public sealed class StatsTracer : IGameTracer
                 if (!calledThisRound_[playerIndex])
                 {
                     calledThisRound_[playerIndex] = true;
-                    callCounts_[playerIndex]++;
+                    GetOrCreate(name).CallCount++;
                 }
                 break;
         }
@@ -95,6 +141,12 @@ public sealed class StatsTracer : IGameTracer
         roundCount_++;
         Array.Clear(riichiDeclaredThisRound_);
         Array.Clear(calledThisRound_);
+        for (var i = 0; i < PLAYER_COUNT; i++)
+        {
+            var name = currentNames_[i];
+            if (name is null) { continue; }
+            GetOrCreate(name).RoundAppearance++;
+        }
     }
 
     public void OnRoundEnded(AdoptedRoundAction action)
@@ -104,16 +156,23 @@ public sealed class StatsTracer : IGameTracer
             case AdoptedWinAction win:
                 foreach (var winner in win.WinnerIndices)
                 {
-                    winCounts_[winner.PlayerIndex.Value]++;
-                    winPointSums_[winner.PlayerIndex.Value] += winner.ScoreResult.PointDeltas[winner.PlayerIndex].Value;
-                    foreach (var yaku in winner.ScoreResult.YakuInfos)
+                    var winnerName = currentNames_[winner.PlayerIndex.Value];
+                    if (winnerName is null) { continue; }
+                    var acc = GetOrCreate(winnerName);
+                    acc.WinCount++;
+                    acc.WinPointSum += winner.ScoreResult.PointDeltas[winner.PlayerIndex].Value;
+                    foreach (var yaku in winner.ScoreResult.YakuList)
                     {
                         yakuCounts_[yaku.Name] = yakuCounts_.GetValueOrDefault(yaku.Name) + 1;
                     }
                 }
                 if (win.WinType is WinType.Ron or WinType.Chankan)
                 {
-                    houjuuCounts_[win.LoserIndex.Value]++;
+                    var loserName = currentNames_[win.LoserIndex.Value];
+                    if (loserName is not null)
+                    {
+                        GetOrCreate(loserName).HoujuuCount++;
+                    }
                 }
                 break;
 
@@ -132,32 +191,50 @@ public sealed class StatsTracer : IGameTracer
             .ToList();
         for (var rank = 0; rank < PLAYER_COUNT; rank++)
         {
-            rankCounts_[indexed[rank].Index, rank]++;
+            var idx = indexed[rank].Index;
+            var name = currentNames_[idx];
+            if (name is null) { continue; }
+            var acc = GetOrCreate(name);
+            acc.RankCounts[rank]++;
+            acc.GameSeatCount++;
         }
+    }
+
+    private Accumulator GetOrCreate(string name)
+    {
+        if (!byName_.TryGetValue(name, out var acc))
+        {
+            acc = new Accumulator();
+            byName_[name] = acc;
+        }
+        return acc;
     }
 
     public StatsReport Build()
     {
-        var rankCountsBuilder = ImmutableArray.CreateBuilder<ImmutableArray<int>>(PLAYER_COUNT);
-        for (var i = 0; i < PLAYER_COUNT; i++)
+        var playerStatsBuilder = ImmutableArray.CreateBuilder<PlayerStats>(byName_.Count);
+        foreach (var kv in byName_.OrderBy(x => x.Key))
         {
-            var row = ImmutableArray.CreateBuilder<int>(PLAYER_COUNT);
-            for (var rank = 0; rank < PLAYER_COUNT; rank++)
-            {
-                row.Add(rankCounts_[i, rank]);
-            }
-            rankCountsBuilder.Add(row.ToImmutable());
+            var a = kv.Value;
+            playerStatsBuilder.Add(
+                new PlayerStats(
+                    kv.Key,
+                    [.. a.RankCounts],
+                    a.GameSeatCount,
+                    a.RoundAppearance,
+                    a.WinCount,
+                    a.HoujuuCount,
+                    a.RiichiCount,
+                    a.CallCount,
+                    a.WinPointSum
+                )
+            );
         }
 
         return new StatsReport(
             gameCount_,
             roundCount_,
-            rankCountsBuilder.ToImmutable(),
-            [.. winCounts_],
-            [.. houjuuCounts_],
-            [.. riichiCounts_],
-            [.. callCounts_],
-            [.. winPointSums_],
+            playerStatsBuilder.ToImmutable(),
             yakuCounts_.ToImmutableDictionary(),
             ryuukyokuCounts_.ToImmutableDictionary(),
             failedGameCount_

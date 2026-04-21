@@ -11,7 +11,7 @@ public class Round_MenzenDrivingTests
     {
         // Arrange
         var round = RoundTestHelper.CreateRound(0).Haipai().Tsumo();
-        round = round.Dahai(new Tile(83), RoundTestHelper.NoOpTenpaiChecker);
+        round = round.Dahai(new Tile(83));
         var caller = new PlayerIndex(1);
         round = RoundTestHelper.InjectHand(round, caller,
         [

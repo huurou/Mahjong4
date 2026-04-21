@@ -63,21 +63,22 @@ public record Call
         {
             // 順子: 全て数牌、同スーツ、連続する3牌
             var kinds = tiles.Select(x => x.Kind).OrderBy(x => x).ToArray();
-            if (kinds[0] >= 27)
+            if (!kinds[0].IsNumber)
             {
                 throw new ArgumentException(
                     $"{type} では数牌 (萬子・筒子・索子) のみ指定可能です。",
                     nameof(tiles)
                 );
             }
-            if (kinds[0] / 9 != kinds[2] / 9)
+            if (!kinds[0].IsSameSuit(kinds[2]))
             {
                 throw new ArgumentException(
                     $"{type} では同じスートの牌を指定する必要があります。",
                     nameof(tiles)
                 );
             }
-            if (kinds[0] + 1 != kinds[1] || kinds[1] + 1 != kinds[2])
+            if (!kinds[0].TryGetAtDistance(1, out var next1) || next1 != kinds[1] ||
+                !kinds[1].TryGetAtDistance(1, out var next2) || next2 != kinds[2])
             {
                 throw new ArgumentException(
                     $"{type} では連続する3牌を指定する必要があります。",

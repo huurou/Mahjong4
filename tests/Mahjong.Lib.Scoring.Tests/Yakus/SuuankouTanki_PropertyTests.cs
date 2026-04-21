@@ -18,7 +18,7 @@ public class SuuankouTanki_PropertyTests
     }
 
     [Fact]
-    public void Name_四暗刻単騎待ちを返す()
+    public void Name_四暗刻単騎を返す()
     {
         // Arrange
         var yaku = Yaku.SuuankouTanki;
@@ -27,7 +27,7 @@ public class SuuankouTanki_PropertyTests
         var result = yaku.Name;
 
         // Assert
-        Assert.Equal("四暗刻単騎待ち", result);
+        Assert.Equal("四暗刻単騎", result);
     }
 
     [Fact]

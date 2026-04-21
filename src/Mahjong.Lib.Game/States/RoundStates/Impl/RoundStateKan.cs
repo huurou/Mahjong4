@@ -1,5 +1,6 @@
 ﻿using Mahjong.Lib.Game.Calls;
 using Mahjong.Lib.Game.Candidates;
+using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Inquiries;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
@@ -12,8 +13,10 @@ namespace Mahjong.Lib.Game.States.RoundStates.Impl;
 /// <summary>
 /// 槓（暗槓・加槓）
 /// ResponseWin は加槓に対する槍槓ロン、および暗槓に対する国士無双の槍槓ロンで発生する。
-/// 暗槓チャンカンは <see cref="Games.GameRules.AllowAnkanChankanForKokushi"/> が true かつ国士無双テンパイの場合のみ成立する。
-/// 成立可否の判定 (国士無双以外の役満を不許可とする等) は <see cref="IScoreCalculator"/> 側に委譲する。
+/// 暗槓チャンカンは <see cref="GameRules.AllowAnkanChankanForKokushi"/> が true かつ国士無双テンパイの場合のみ成立する。
+/// 暗槓チャンカンの非国士役除外は <see cref="ResponseCandidateEnumerator.EnumerateForKan"/> の候補列挙段階で
+/// 「暗槓 + 全幺九牌 + ロン候補成立」の 3 条件を確認することで保証する
+/// (<see cref="ScoringHelper"/> には暗槓/加槓を区別する情報が渡されないため、ここでは候補絞り込み側に責任を置く)
 /// </summary>
 /// <param name="KanType">直前に実行された槓の種別 (Ankan または Kakan)</param>
 /// <param name="KanTiles">直前の槓で使われた槓子4枚
@@ -25,7 +28,27 @@ public record RoundStateKan(CallType KanType, ImmutableArray<Tile> KanTiles) : R
     public override void ResponseOk(RoundStateContext context, RoundEventResponseOk evt)
     {
         base.ResponseOk(context, evt);
+        // 四槓流れは嶺上ツモ**前**に判定する (Design.md 準拠)。
+        // 嶺上牌を引いた後に判定すると嶺上開花候補が誤って提示され、嶺上牌・壁が無駄に1枚消費される
+        if (context.Round.IsSuukaikan())
+        {
+            var (settledRound, pointDeltas) = context.Round.SettleRyuukyoku(RyuukyokuType.Suukaikan, [], []);
+            var eventArgs = new RoundEndedByRyuukyokuEventArgs(RyuukyokuType.Suukaikan, [], [], pointDeltas);
+            Transit(context, () => new RoundStateRyuukyoku(eventArgs), _ => settledRound);
+            return;
+        }
         Transit(context, () => new RoundStateKanTsumo(), round => round.RinshanTsumo());
+    }
+
+    public override void ResponseRyuukyoku(RoundStateContext context, RoundEventResponseRyuukyoku evt)
+    {
+        base.ResponseRyuukyoku(context, evt);
+        // 槍槓フェーズで三家和了 (3人チャンカンロン) が成立した場合の流局処理。
+        // 加槓は Round に既に反映済。立直保留はこのフェーズで通常発生しないが CancelRiichi は保留無しなら無害
+        var round = context.Round.CancelRiichi();
+        var (settledRound, pointDeltas) = round.SettleRyuukyoku(evt.Type, evt.TenpaiPlayers, []);
+        var eventArgs = new RoundEndedByRyuukyokuEventArgs(evt.Type, evt.TenpaiPlayers, [], pointDeltas);
+        Transit(context, () => new RoundStateRyuukyoku(eventArgs), _ => settledRound);
     }
 
     public override void ResponseWin(RoundStateContext context, RoundEventResponseWin evt)
@@ -37,13 +60,22 @@ public record RoundStateKan(CallType KanType, ImmutableArray<Tile> KanTiles) : R
         }
 
         // 放銃者は現手番 (= 槓宣言者)。
-        // 暗槓チャンカンは国士無双のみ成立可能。役判定は ScoreCalculator に委譲する。
+        // 暗槓チャンカンは国士無双のみ成立可能 (候補絞り込みは ResponseCandidateEnumerator で保証済み)。
         var loserIndex = context.Round.Turn;
         // Chankan の和了牌 = 槓で追加された牌 (加槓: addedTile / 暗槓: 国士対応時の槓子末尾)。
         // 副露リスト末尾ではなく KanTiles 末尾を参照するため、過去の加槓/ポン等と混同しない
         var winTile = KanTiles[^1];
-        var (settledRound, details) = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, winTile, context.ScoreCalculator);
-        var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType, details.Winners, details.Honba, details.KyoutakuRiichiAward);
+        var scoreResults = CalculateScoreResults(context, context.Round, evt.WinnerIndices, loserIndex, evt.WinType, winTile);
+        var (settledRound, details) = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, winTile, scoreResults);
+        var eventArgs = new RoundEndedByWinEventArgs(
+            evt.WinnerIndices,
+            loserIndex,
+            evt.WinType,
+            details.Winners,
+            details.Honba,
+            details.KyoutakuRiichiAward,
+            details.UraDoraIndicators
+        );
         Transit(context, () => new RoundStateWin(eventArgs), _ => settledRound);
     }
 

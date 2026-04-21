@@ -1,6 +1,5 @@
-﻿using Mahjong.Lib.Game.Inquiries;
-using Mahjong.Lib.Game.Adoptions;
-using Mahjong.Lib.Game.Games.Scoring;
+﻿using Mahjong.Lib.Game.Adoptions;
+using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Tiles;
@@ -17,7 +16,7 @@ public class AdoptedWinAction_ConstructorTests
         var winner = new AdoptedWinner(
             new PlayerIndex(1),
             new Tile(0),
-            new ScoreResult(3, 40, new PointArray(new Point(0)), [])
+            new ScoreResult(3, 40, new PointArray(new Point(0)), [], IsMenzen: false)
         );
         var award = new KyoutakuRiichiAward(new PlayerIndex(1), 2);
 
@@ -28,6 +27,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Ron,
             award,
             new Honba(1),
+            [],
             false
         );
 
@@ -39,6 +39,7 @@ public class AdoptedWinAction_ConstructorTests
         Assert.NotNull(action.KyoutakuRiichiAward);
         Assert.Equal(2, action.KyoutakuRiichiAward.Count);
         Assert.Equal(1, action.Honba.Value);
+        Assert.Empty(action.UraDoraIndicators);
         Assert.False(action.DealerContinues);
     }
 
@@ -49,7 +50,7 @@ public class AdoptedWinAction_ConstructorTests
         var winner = new AdoptedWinner(
             new PlayerIndex(0),
             new Tile(0),
-            new ScoreResult(1, 30, new PointArray(new Point(0)), [])
+            new ScoreResult(1, 30, new PointArray(new Point(0)), [], IsMenzen: false)
         );
 
         // Act
@@ -59,6 +60,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Tsumo,
             new KyoutakuRiichiAward(new PlayerIndex(0), 0),
             new Honba(0),
+            [],
             true
         );
 
@@ -73,7 +75,7 @@ public class AdoptedWinAction_ConstructorTests
     public void ダブロン_Winners複数()
     {
         // Arrange
-        var scoreResult = new ScoreResult(2, 30, new PointArray(new Point(0)), []);
+        var scoreResult = new ScoreResult(2, 30, new PointArray(new Point(0)), [], IsMenzen: false);
         var winners = ImmutableList.Create(
             new AdoptedWinner(new PlayerIndex(1), new Tile(0), scoreResult),
             new AdoptedWinner(new PlayerIndex(2), new Tile(0), scoreResult)
@@ -86,6 +88,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Ron,
             new KyoutakuRiichiAward(new PlayerIndex(1), 1),
             new Honba(0),
+            [],
             false
         );
 
@@ -100,7 +103,7 @@ public class AdoptedWinAction_ConstructorTests
         var winner = new AdoptedWinner(
             new PlayerIndex(0),
             new Tile(0),
-            new ScoreResult(1, 30, new PointArray(new Point(0)), [])
+            new ScoreResult(1, 30, new PointArray(new Point(0)), [], IsMenzen: false)
         );
 
         // Act
@@ -110,6 +113,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Tsumo,
             new KyoutakuRiichiAward(new PlayerIndex(0), 0),
             new Honba(0),
+            [],
             true
         );
 
@@ -127,6 +131,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Ron,
             new KyoutakuRiichiAward(new PlayerIndex(0), 0),
             new Honba(0),
+            [],
             false
         ));
 
@@ -141,7 +146,7 @@ public class AdoptedWinAction_ConstructorTests
         var winner = new AdoptedWinner(
             new PlayerIndex(1),
             new Tile(0),
-            new ScoreResult(1, 30, new PointArray(new Point(0)), [])
+            new ScoreResult(1, 30, new PointArray(new Point(0)), [], IsMenzen: false)
         );
 
         // Act
@@ -151,6 +156,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Chankan,
             new KyoutakuRiichiAward(new PlayerIndex(1), 0),
             new Honba(0),
+            [],
             false
         );
 
@@ -166,7 +172,7 @@ public class AdoptedWinAction_ConstructorTests
         var winner = new AdoptedWinner(
             new PlayerIndex(0),
             new Tile(0),
-            new ScoreResult(1, 30, new PointArray(new Point(0)), [])
+            new ScoreResult(1, 30, new PointArray(new Point(0)), [], IsMenzen: false)
         );
 
         // Act
@@ -176,6 +182,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Rinshan,
             new KyoutakuRiichiAward(new PlayerIndex(0), 0),
             new Honba(0),
+            [],
             true
         );
 
@@ -191,7 +198,7 @@ public class AdoptedWinAction_ConstructorTests
         var winner = new AdoptedWinner(
             new PlayerIndex(0),
             new Tile(0),
-            new ScoreResult(1, 30, new PointArray(new Point(0)), [])
+            new ScoreResult(1, 30, new PointArray(new Point(0)), [], IsMenzen: false)
         );
 
         // Act
@@ -201,6 +208,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Tsumo,
             new KyoutakuRiichiAward(new PlayerIndex(0), 0),
             new Honba(0),
+            [],
             false
         ));
 
@@ -215,7 +223,7 @@ public class AdoptedWinAction_ConstructorTests
         var winner = new AdoptedWinner(
             new PlayerIndex(2),
             new Tile(0),
-            new ScoreResult(1, 30, new PointArray(new Point(0)), [])
+            new ScoreResult(1, 30, new PointArray(new Point(0)), [], IsMenzen: false)
         );
 
         // Act
@@ -225,6 +233,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Rinshan,
             new KyoutakuRiichiAward(new PlayerIndex(2), 0),
             new Honba(0),
+            [],
             false
         ));
 
@@ -239,7 +248,7 @@ public class AdoptedWinAction_ConstructorTests
         var winner = new AdoptedWinner(
             new PlayerIndex(0),
             new Tile(0),
-            new ScoreResult(1, 30, new PointArray(new Point(0)), [])
+            new ScoreResult(1, 30, new PointArray(new Point(0)), [], IsMenzen: false)
         );
 
         // Act
@@ -249,6 +258,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Ron,
             new KyoutakuRiichiAward(new PlayerIndex(0), 0),
             new Honba(0),
+            [],
             false
         ));
 
@@ -260,7 +270,7 @@ public class AdoptedWinAction_ConstructorTests
     public void 槍槓和了でダブロン中に和了者のひとりがLoserIndexと同じ_例外が発生する()
     {
         // Arrange
-        var scoreResult = new ScoreResult(2, 30, new PointArray(new Point(0)), []);
+        var scoreResult = new ScoreResult(2, 30, new PointArray(new Point(0)), [], IsMenzen: false);
         var winners = ImmutableList.Create(
             new AdoptedWinner(new PlayerIndex(1), new Tile(0), scoreResult),
             new AdoptedWinner(new PlayerIndex(2), new Tile(0), scoreResult)
@@ -273,6 +283,7 @@ public class AdoptedWinAction_ConstructorTests
             WinType.Chankan,
             new KyoutakuRiichiAward(new PlayerIndex(1), 0),
             new Honba(0),
+            [],
             false
         ));
 

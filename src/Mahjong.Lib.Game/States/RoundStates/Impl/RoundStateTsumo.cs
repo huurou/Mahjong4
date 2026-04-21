@@ -15,9 +15,21 @@ public record RoundStateTsumo : RoundState
 {
     public override string Name => "ツモ";
 
+    public override void Entry(RoundStateContext context)
+    {
+        base.Entry(context);
+        var turn = context.Round.Turn;
+        var drawnTile = context.Round.HandArray[turn].Last();
+        context.Tracer.OnTsumoDrawn(turn, drawnTile, isRinshan: false);
+    }
+
     public override void ResponseDahai(RoundStateContext context, RoundEventResponseDahai evt)
     {
         base.ResponseDahai(context, evt);
+        if (evt.IsRiichi)
+        {
+            context.Tracer.OnRiichiDeclared(context.Round.Turn, step: 1);
+        }
         Transit(context, () => new RoundStateDahai(), round =>
         {
             // 立直宣言は保留のみ。持ち点・供託は ResponseOk (ロン応答なし) または鳴き発生時に確定
@@ -26,7 +38,7 @@ public record RoundStateTsumo : RoundState
             {
                 round = round.PendRiichi(round.Turn);
             }
-            return round.Dahai(evt.Tile, context.TenpaiChecker);
+            return round.Dahai(evt.Tile);
         });
     }
 
@@ -39,6 +51,7 @@ public record RoundStateTsumo : RoundState
             CallType.Kakan => context.Round.ResolveKakanTiles(evt.Tile),
             _ => throw new InvalidOperationException($"槓応答の副露種別は Ankan / Kakan のいずれかである必要があります。実際:{evt.CallType}")
         };
+        var caller = context.Round.Turn;
         Transit(
             context,
             () => new RoundStateKan(evt.CallType, kanTiles),
@@ -49,6 +62,7 @@ public record RoundStateTsumo : RoundState
                 _ => throw new InvalidOperationException($"槓応答の副露種別は Ankan / Kakan のいずれかである必要があります。実際:{evt.CallType}")
             }
         );
+        context.Tracer.OnCallExecuted(caller, GetExecutedKanCall(context.Round, caller, evt.CallType, evt.Tile));
     }
 
     public override void ResponseWin(RoundStateContext context, RoundEventResponseWin evt)
@@ -63,8 +77,17 @@ public record RoundStateTsumo : RoundState
         var loserIndex = context.Round.Turn;
         // Tsumo の和了牌 = 和了者の手牌末尾 (直前にツモった牌)
         var winTile = context.Round.HandArray[context.Round.Turn].Last();
-        var (settledRound, details) = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, winTile, context.ScoreCalculator);
-        var eventArgs = new RoundEndedByWinEventArgs(evt.WinnerIndices, loserIndex, evt.WinType, details.Winners, details.Honba, details.KyoutakuRiichiAward);
+        var scoreResults = CalculateScoreResults(context, context.Round, evt.WinnerIndices, loserIndex, evt.WinType, winTile);
+        var (settledRound, details) = context.Round.SettleWin(evt.WinnerIndices, loserIndex, evt.WinType, winTile, scoreResults);
+        var eventArgs = new RoundEndedByWinEventArgs(
+            evt.WinnerIndices,
+            loserIndex,
+            evt.WinType,
+            details.Winners,
+            details.Honba,
+            details.KyoutakuRiichiAward,
+            details.UraDoraIndicators
+        );
         Transit(context, () => new RoundStateWin(eventArgs), _ => settledRound);
     }
 
@@ -72,8 +95,8 @@ public record RoundStateTsumo : RoundState
     {
         base.ResponseRyuukyoku(context, evt);
         // 途中流局 (九種九牌・四風連打・四槓流れ・四家立直・三家和了) 流し満貫は荒牌平局のみなので空
-        var settledRound = context.Round.SettleRyuukyoku(evt.Type, evt.TenpaiPlayers, []);
-        var eventArgs = new RoundEndedByRyuukyokuEventArgs(evt.Type, evt.TenpaiPlayers, []);
+        var (settledRound, pointDeltas) = context.Round.SettleRyuukyoku(evt.Type, evt.TenpaiPlayers, []);
+        var eventArgs = new RoundEndedByRyuukyokuEventArgs(evt.Type, evt.TenpaiPlayers, [], pointDeltas);
         Transit(context, () => new RoundStateRyuukyoku(eventArgs), _ => settledRound);
     }
 

@@ -12,7 +12,7 @@ public class ResponseCandidateEnumerator_EnumerateForKanTsumoTests
     {
         // Arrange
         var round = RoundTestHelper.CreateRound().Haipai().Tsumo();
-        var enumerator = new ResponseCandidateEnumerator(RoundTestHelper.NoOpTenpaiChecker, new GameRules());
+        var enumerator = new ResponseCandidateEnumerator(new GameRules());
 
         // Act
         var candidates = enumerator.EnumerateForKanTsumo(round, round.Turn);
@@ -26,7 +26,7 @@ public class ResponseCandidateEnumerator_EnumerateForKanTsumoTests
     {
         // Arrange: 親 yama[135,134,133,132] は全 kind 33
         var round = RoundTestHelper.CreateRound().Haipai().Tsumo();
-        var enumerator = new ResponseCandidateEnumerator(RoundTestHelper.NoOpTenpaiChecker, new GameRules());
+        var enumerator = new ResponseCandidateEnumerator(new GameRules());
 
         // Act
         var candidates = enumerator.EnumerateForKanTsumo(round, round.Turn);
@@ -40,7 +40,7 @@ public class ResponseCandidateEnumerator_EnumerateForKanTsumoTests
     {
         // Arrange
         var round = RoundTestHelper.CreateRound().Haipai().Tsumo();
-        var enumerator = new ResponseCandidateEnumerator(RoundTestHelper.NoOpTenpaiChecker, new GameRules());
+        var enumerator = new ResponseCandidateEnumerator(new GameRules());
 
         // Act
         var candidates = enumerator.EnumerateForKanTsumo(round, round.Turn);
@@ -57,7 +57,7 @@ public class ResponseCandidateEnumerator_EnumerateForAfterKanTsumoTests
     {
         // Arrange
         var round = RoundTestHelper.CreateRound().Haipai().Tsumo();
-        var enumerator = new ResponseCandidateEnumerator(RoundTestHelper.NoOpTenpaiChecker, new GameRules());
+        var enumerator = new ResponseCandidateEnumerator(new GameRules());
 
         // Act
         var candidates = enumerator.EnumerateForAfterKanTsumo(round, round.Turn);
@@ -71,7 +71,7 @@ public class ResponseCandidateEnumerator_EnumerateForAfterKanTsumoTests
     {
         // Arrange: テンパイ・待ちヒットが発生しても AfterKanTsumo ではツモ和了候補は提示されない仕様
         var round = RoundTestHelper.CreateRound().Haipai().Tsumo();
-        var enumerator = new ResponseCandidateEnumerator(RoundTestHelper.NoOpTenpaiChecker, new GameRules());
+        var enumerator = new ResponseCandidateEnumerator(new GameRules());
 
         // Act
         var candidates = enumerator.EnumerateForAfterKanTsumo(round, round.Turn);

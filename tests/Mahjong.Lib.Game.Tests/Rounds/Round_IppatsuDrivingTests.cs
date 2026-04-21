@@ -47,7 +47,7 @@ public class Round_IppatsuDrivingTests
         Assert.True(round.PlayerRoundStatusArray[playerIndex].IsIppatsu);
 
         // Act: 打牌すると一発は消える (= ツモ和了しなかった)
-        var result = round.Dahai(round.HandArray[playerIndex].Last(), RoundTestHelper.NoOpTenpaiChecker);
+        var result = round.Dahai(round.HandArray[playerIndex].Last());
 
         // Assert
         Assert.False(result.PlayerRoundStatusArray[playerIndex].IsIppatsu);
@@ -61,7 +61,7 @@ public class Round_IppatsuDrivingTests
         var dealerIndex = round.Turn;
         round = round.PendRiichi(dealerIndex).ConfirmRiichi();
         Assert.True(round.PlayerRoundStatusArray[dealerIndex].IsIppatsu);
-        round = round.Dahai(new Tile(83), RoundTestHelper.NoOpTenpaiChecker);
+        round = round.Dahai(new Tile(83));
         var caller = new PlayerIndex(1);
         round = RoundTestHelper.InjectHand(round, caller,
         [

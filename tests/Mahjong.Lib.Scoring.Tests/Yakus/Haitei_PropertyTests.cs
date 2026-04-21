@@ -18,7 +18,7 @@ public class Haitei_PropertyTests
     }
 
     [Fact]
-    public void Name_海底撈月を返す()
+    public void Name_海底摸月を返す()
     {
         // Arrange
         var yaku = Yaku.Haitei;
@@ -27,7 +27,7 @@ public class Haitei_PropertyTests
         var result = yaku.Name;
 
         // Assert
-        Assert.Equal("海底撈月", result);
+        Assert.Equal("海底摸月", result);
     }
 
     [Fact]

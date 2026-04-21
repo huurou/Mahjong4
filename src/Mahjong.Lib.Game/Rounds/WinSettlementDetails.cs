@@ -1,5 +1,6 @@
 ﻿using Mahjong.Lib.Game.Inquiries;
 using Mahjong.Lib.Game.Adoptions;
+using Mahjong.Lib.Game.Tiles;
 using System.Collections.Immutable;
 
 namespace Mahjong.Lib.Game.Rounds;
@@ -10,8 +11,11 @@ namespace Mahjong.Lib.Game.Rounds;
 /// <param name="Winners">和了者毎の詳細 (Index / 和了牌 / 役情報を含む ScoreResult)</param>
 /// <param name="Honba">精算前の本場 (本場加算対象の集計表示に使用)</param>
 /// <param name="KyoutakuRiichiAward">供託立直棒の受取情報 (供託がない場合は <see cref="KyoutakuRiichiAward.Count"/> = 0)</param>
+/// <param name="UraDoraIndicators">立直者が和了した場合の裏ドラ表示牌 (精算時点で枚数確定するため固定長)。
+/// 立直者が一人も含まれない和了では空配列を返す</param>
 public record WinSettlementDetails(
     ImmutableArray<AdoptedWinner> Winners,
     Honba Honba,
-    KyoutakuRiichiAward KyoutakuRiichiAward
+    KyoutakuRiichiAward KyoutakuRiichiAward,
+    ImmutableArray<Tile> UraDoraIndicators
 );

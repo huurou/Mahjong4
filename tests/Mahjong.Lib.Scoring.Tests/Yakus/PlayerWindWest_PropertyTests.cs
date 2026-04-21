@@ -18,7 +18,7 @@ public class PlayerWindWest_PropertyTests
     }
 
     [Fact]
-    public void Name_自風牌西を返す()
+    public void Name_自風西を返す()
     {
         // Arrange
         var yaku = Yaku.PlayerWindWest;
@@ -27,7 +27,7 @@ public class PlayerWindWest_PropertyTests
         var result = yaku.Name;
 
         // Assert
-        Assert.Equal("自風牌・西", result);
+        Assert.Equal("自風 西", result);
     }
 
     [Fact]

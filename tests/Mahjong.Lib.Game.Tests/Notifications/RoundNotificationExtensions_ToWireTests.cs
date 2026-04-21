@@ -1,8 +1,7 @@
-﻿using Mahjong.Lib.Game.Calls;
+﻿using Mahjong.Lib.Game.Adoptions;
+using Mahjong.Lib.Game.Calls;
 using Mahjong.Lib.Game.Candidates;
-using Mahjong.Lib.Game.Inquiries;
-using Mahjong.Lib.Game.Adoptions;
-using Mahjong.Lib.Game.Games.Scoring;
+using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Hands;
 using Mahjong.Lib.Game.Notifications;
 using Mahjong.Lib.Game.Notifications.Payloads;
@@ -229,7 +228,7 @@ public class RoundNotificationExtensions_ToWireTests
 
     private static AdoptedWinAction CreateAdoptedWinAction()
     {
-        var scoreResult = new ScoreResult(1, 30, new PointArray(new Point(35000)), []);
+        var scoreResult = new ScoreResult(1, 30, new PointArray(new Point(35000)), [], IsMenzen: false);
         var winner = new AdoptedWinner(new PlayerIndex(0), new Tile(0), scoreResult);
         return new AdoptedWinAction(
             [winner],
@@ -237,6 +236,7 @@ public class RoundNotificationExtensions_ToWireTests
             WinType.Tsumo,
             new KyoutakuRiichiAward(new PlayerIndex(0), 0),
             new Honba(0),
+            [],
             false
         );
     }
@@ -247,6 +247,7 @@ public class RoundNotificationExtensions_ToWireTests
             RyuukyokuType.KouhaiHeikyoku,
             [],
             [],
+            new PointArray(new Point(0)),
             false
         );
     }

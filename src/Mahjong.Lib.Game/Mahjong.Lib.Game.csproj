@@ -11,6 +11,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Mahjong.Lib.Scoring\Mahjong.Lib.Scoring.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="Mahjong.Lib.Game.Tests" />
   </ItemGroup>
 

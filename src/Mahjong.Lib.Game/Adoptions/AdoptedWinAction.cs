@@ -1,5 +1,6 @@
 ﻿using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Rounds;
+using Mahjong.Lib.Game.Tiles;
 using System.Collections.Immutable;
 
 namespace Mahjong.Lib.Game.Adoptions;
@@ -25,6 +26,10 @@ public record AdoptedWinAction : AdoptedRoundAction
     /// <summary>本場数 (本場ボーナス計算に使用)</summary>
     public Honba Honba { get; init; }
 
+    /// <summary>立直者が和了に含まれる場合の裏ドラ表示牌 (精算時点で枚数確定するため固定長)。
+    /// 立直者が一人もいない和了では空配列</summary>
+    public ImmutableArray<Tile> UraDoraIndicators { get; init; }
+
     /// <summary>親続行 (連荘) か</summary>
     public bool DealerContinues { get; init; }
 
@@ -34,6 +39,7 @@ public record AdoptedWinAction : AdoptedRoundAction
         WinType winType,
         KyoutakuRiichiAward kyoutakuRiichiAward,
         Honba honba,
+        ImmutableArray<Tile> uraDoraIndicators,
         bool dealerContinues
     )
     {
@@ -68,6 +74,7 @@ public record AdoptedWinAction : AdoptedRoundAction
         WinType = winType;
         KyoutakuRiichiAward = kyoutakuRiichiAward;
         Honba = honba;
+        UraDoraIndicators = uraDoraIndicators;
         DealerContinues = dealerContinues;
     }
 
@@ -79,6 +86,7 @@ public record AdoptedWinAction : AdoptedRoundAction
             WinType == other.WinType &&
             KyoutakuRiichiAward == other.KyoutakuRiichiAward &&
             Honba == other.Honba &&
+            UraDoraIndicators.SequenceEqual(other.UraDoraIndicators) &&
             DealerContinues == other.DealerContinues;
     }
 
@@ -93,6 +101,10 @@ public record AdoptedWinAction : AdoptedRoundAction
         hash.Add(WinType);
         hash.Add(KyoutakuRiichiAward);
         hash.Add(Honba);
+        foreach (var tile in UraDoraIndicators)
+        {
+            hash.Add(tile);
+        }
         hash.Add(DealerContinues);
         return hash.ToHashCode();
     }

@@ -27,7 +27,7 @@ public class Round_FirstTurnDrivingTests
         var playerIndex = round.Turn;
 
         // Act
-        var result = round.Dahai(round.HandArray[playerIndex].Last(), RoundTestHelper.NoOpTenpaiChecker);
+        var result = round.Dahai(round.HandArray[playerIndex].Last());
 
         // Assert
         Assert.False(result.PlayerRoundStatusArray[playerIndex].IsFirstTurnBeforeDiscard);
@@ -43,7 +43,7 @@ public class Round_FirstTurnDrivingTests
     {
         // Arrange
         var round = RoundTestHelper.CreateRound().Haipai().Tsumo();
-        round = round.Dahai(new Tile(83), RoundTestHelper.NoOpTenpaiChecker);
+        round = round.Dahai(new Tile(83));
         var caller = new PlayerIndex(1);
         round = RoundTestHelper.InjectHand(round, caller,
         [

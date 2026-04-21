@@ -34,7 +34,7 @@ public class Round_NagashiManganDrivingTests
         ]);
 
         // Act
-        var result = round.Dahai(new Tile(0), RoundTestHelper.NoOpTenpaiChecker);
+        var result = round.Dahai(new Tile(0));
 
         // Assert
         Assert.True(result.PlayerRoundStatusArray[playerIndex].IsNagashiMangan);
@@ -55,7 +55,7 @@ public class Round_NagashiManganDrivingTests
         ]);
 
         // Act
-        var result = round.Dahai(new Tile(4), RoundTestHelper.NoOpTenpaiChecker);
+        var result = round.Dahai(new Tile(4));
 
         // Assert
         Assert.False(result.PlayerRoundStatusArray[playerIndex].IsNagashiMangan);
@@ -67,7 +67,7 @@ public class Round_NagashiManganDrivingTests
         // Arrange: 親 (P0) が打牌、子 (P1) がチー
         var round = RoundTestHelper.CreateRound().Haipai().Tsumo();
         var dealerIndex = round.Turn;
-        round = round.Dahai(new Tile(83), RoundTestHelper.NoOpTenpaiChecker);   // 親が 3索 (kind 20、中張)を捨てる → P0 はすでに資格喪失
+        round = round.Dahai(new Tile(83));   // 親が 3索 (kind 20、中張)を捨てる → P0 はすでに資格喪失
         var caller = new PlayerIndex(1);
         round = RoundTestHelper.InjectHand(round, caller,
         [

@@ -19,9 +19,9 @@ public record GameRules
     public ImmutableHashSet<Tile> RedDoraTiles { get; init; } = [new Tile(16), new Tile(52), new Tile(88)];
 
     /// <summary>
-    /// 初期持ち点 (既定: 35000)
+    /// 初期持ち点 (既定: 25000)
     /// </summary>
-    public int InitialPoints { get; init; } = 35000;
+    public int InitialPoints { get; init; } = 25000;
 
     /// <summary>
     /// オーラス親あがり止め (1位単独確定のみ)
