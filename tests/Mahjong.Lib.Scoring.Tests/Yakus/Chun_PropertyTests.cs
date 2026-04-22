@@ -18,7 +18,7 @@ public class Chun_PropertyTests
     }
 
     [Fact]
-    public void Name_中を返す()
+    public void Name_役牌中を返す()
     {
         // Arrange
         var yaku = Yaku.Chun;
@@ -27,7 +27,7 @@ public class Chun_PropertyTests
         var result = yaku.Name;
 
         // Assert
-        Assert.Equal("中", result);
+        Assert.Equal("役牌 中", result);
     }
 
     [Fact]

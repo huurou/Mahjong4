@@ -1,14 +1,9 @@
-﻿using Mahjong.Lib.Game.Calls;
-using Mahjong.Lib.Game.Hands;
-using Mahjong.Lib.Game.Inquiries;
+﻿using Mahjong.Lib.Game.Inquiries;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Responses;
 using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Rounds.Managing;
-using Mahjong.Lib.Game.Tenpai;
-using Mahjong.Lib.Game.Tests.Rounds;
 using Mahjong.Lib.Game.Tiles;
-using Moq;
 using System.Collections.Immutable;
 
 namespace Mahjong.Lib.Game.Tests.Rounds.Managing;
@@ -683,5 +678,4 @@ public class ResponseValidator_ValidateSemanticTests
         // Assert
         Assert.False(result.IsValid);
     }
-
 }

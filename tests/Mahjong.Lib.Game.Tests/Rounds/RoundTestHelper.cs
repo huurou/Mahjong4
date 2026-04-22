@@ -76,7 +76,7 @@ internal static class RoundTestHelper
             [102] = 120,  // 北
             [101] = 124,  // 白
             [100] = 128,  // 發
-            [87]  = 132,  // 中
+            [87] = 132,  // 中
         };
         var placed = positions.Values.ToHashSet();
         var remaining = Enumerable.Range(0, 136).Where(x => !placed.Contains(x)).ToList();

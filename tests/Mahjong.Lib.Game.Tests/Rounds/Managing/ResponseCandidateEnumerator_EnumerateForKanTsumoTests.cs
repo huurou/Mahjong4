@@ -1,7 +1,6 @@
 ﻿using Mahjong.Lib.Game.Candidates;
 using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Rounds.Managing;
-using Mahjong.Lib.Game.Tests.Rounds;
 
 namespace Mahjong.Lib.Game.Tests.Rounds.Managing;
 

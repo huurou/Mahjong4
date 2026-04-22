@@ -130,11 +130,11 @@ public record Call
 
     public virtual bool Equals(Call? other)
     {
-        return other is not null
-            && Type == other.Type
-            && From == other.From
-            && CalledTile == other.CalledTile
-            && Tiles.SequenceEqual(other.Tiles);
+        return other is not null &&
+            Type == other.Type &&
+            From == other.From &&
+            CalledTile == other.CalledTile &&
+            Tiles.SequenceEqual(other.Tiles);
     }
 
     public override int GetHashCode()

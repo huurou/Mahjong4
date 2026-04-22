@@ -54,6 +54,20 @@ public sealed class AI_v0_1_0_ランダム(PlayerId playerId, PlayerIndex player
         return Task.FromResult(new OkResponse());
     }
 
+    public override Task<DahaiResponse> OnAfterCallAsync(AfterCallNotification notification, CancellationToken ct = default)
+    {
+        var candidates = notification.CandidateList;
+        var dahai = candidates.GetCandidates<DahaiCandidate>().FirstOrDefault()
+            ?? throw new InvalidOperationException("副露後フェーズに DahaiCandidate が提示されませんでした。");
+        var option = PickRandomOption(dahai);
+        return Task.FromResult(new DahaiResponse(option.Tile));
+    }
+
+    public override Task<OkResponse> OnOtherPlayerAfterCallAsync(OtherPlayerAfterCallNotification notification, CancellationToken ct = default)
+    {
+        return Task.FromResult(new OkResponse());
+    }
+
     public override Task<OkResponse> OnDoraRevealAsync(DoraRevealNotification notification, CancellationToken ct = default)
     {
         return Task.FromResult(new OkResponse());

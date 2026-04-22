@@ -1,5 +1,4 @@
-﻿using Mahjong.Lib.Game.Inquiries;
-using Mahjong.Lib.Game.Adoptions;
+﻿using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Tiles;
 
 namespace Mahjong.Lib.Game.Tests.Adoptions;

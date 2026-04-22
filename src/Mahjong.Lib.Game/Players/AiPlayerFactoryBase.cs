@@ -9,7 +9,7 @@
 /// <see cref="HashCode.Combine{T1, T2}(T1, T2)"/> はプロセス起動時のランダム salt を含むため再現性を壊すので使わない
 /// </summary>
 /// <typeparam name="TPlayer">生成する <see cref="Player"/> 派生型。CreatePlayer の戻り値型に使われる</typeparam>
-public abstract class AiPlayerFactoryBase<TPlayer>(int seed, string displayName) 
+public abstract class AiPlayerFactoryBase<TPlayer>(int seed, string displayName)
     : IPlayerFactory where TPlayer : Player
 {
     public string DisplayName { get; } = displayName;

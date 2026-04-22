@@ -1,7 +1,7 @@
-﻿using System.Collections.Immutable;
-using Mahjong.Lib.Game.Players;
+﻿using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Tiles;
 using Mahjong.Lib.Game.Views;
+using System.Collections.Immutable;
 
 namespace Mahjong.Lib.Game.Notifications;
 

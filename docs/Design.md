@@ -74,6 +74,7 @@ stateDiagram-v2
     state ChoiceDahai <<choice>>
     Call: 副露<br>河から打牌を除去し副露したプレイヤーに副露を生成<br>全プレイヤーに副露したことを通知
     state ChoiceCall <<choice>>
+    AfterCall: 副露後<br>副露によって生まれた余剰牌を打牌する必要がある<br>副露者に打牌問い合わせを行う
     Kan: 槓(暗槓・加槓)<br>暗槓-手牌から牌を除去し副露を生成 加槓-ツモ牌を追加してポン副露を更新<br>全プレイヤーに槓されたことを通知<br>和了>OK
     KanTsumo: 槓ツモ<br>嶺上牌を引いて手牌に加える<br>全プレイヤーに槓ツモしたことを通知<br>嶺上ツモ和了判定あり
     AfterKanTsumo: 槓ツモ後<br>嶺上ツモ和了なし
@@ -93,8 +94,9 @@ stateDiagram-v2
     ChoiceDahai --> Tsumo: 流局でない
     ChoiceDahai --> Ryuukyoku: 流局(荒牌平局、四家立直、三家和了、四風連打など)
     Call --> ChoiceCall: OK応答
-    ChoiceCall --> Dahai: 槓でない
+    ChoiceCall --> AfterCall: 槓でない
     ChoiceCall --> KanTsumo: 槓(大明槓)
+    AfterCall --> Dahai: 打牌応答
     Kan --> KanTsumo: OK応答
     Kan --> Win: 和了応答(槍槓・加槓のみ)
     KanTsumo --> ChoiceKanTsumo: OK応答

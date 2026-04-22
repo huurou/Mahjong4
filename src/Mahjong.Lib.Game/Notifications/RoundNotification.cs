@@ -1,7 +1,7 @@
-﻿using System.Collections.Immutable;
-using System.Text.Json.Serialization;
-using Mahjong.Lib.Game.Players;
+﻿using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Views;
+using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 
 namespace Mahjong.Lib.Game.Notifications;
 
@@ -16,6 +16,8 @@ namespace Mahjong.Lib.Game.Notifications;
 [JsonDerivedType(typeof(OtherPlayerTsumoNotification), nameof(OtherPlayerTsumoNotification))]
 [JsonDerivedType(typeof(DahaiNotification), nameof(DahaiNotification))]
 [JsonDerivedType(typeof(CallNotification), nameof(CallNotification))]
+[JsonDerivedType(typeof(AfterCallNotification), nameof(AfterCallNotification))]
+[JsonDerivedType(typeof(OtherPlayerAfterCallNotification), nameof(OtherPlayerAfterCallNotification))]
 [JsonDerivedType(typeof(KanNotification), nameof(KanNotification))]
 [JsonDerivedType(typeof(KanTsumoNotification), nameof(KanTsumoNotification))]
 [JsonDerivedType(typeof(OtherPlayerKanTsumoNotification), nameof(OtherPlayerKanTsumoNotification))]

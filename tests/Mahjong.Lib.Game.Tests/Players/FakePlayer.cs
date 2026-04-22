@@ -23,6 +23,8 @@ internal sealed class FakePlayer(PlayerId playerId, string displayName, PlayerIn
     public Func<HaipaiNotification, CancellationToken, OkResponse>? OnHaipai { get; init; }
     public Func<OtherPlayerTsumoNotification, CancellationToken, OkResponse>? OnOtherPlayerTsumo { get; init; }
     public Func<CallNotification, CancellationToken, OkResponse>? OnCall { get; init; }
+    public Func<AfterCallNotification, CancellationToken, DahaiResponse>? OnAfterCall { get; init; }
+    public Func<OtherPlayerAfterCallNotification, CancellationToken, OkResponse>? OnOtherPlayerAfterCall { get; init; }
     public Func<DoraRevealNotification, CancellationToken, OkResponse>? OnDoraReveal { get; init; }
     public Func<WinNotification, CancellationToken, OkResponse>? OnWin { get; init; }
     public Func<RyuukyokuNotification, CancellationToken, OkResponse>? OnRyuukyoku { get; init; }
@@ -39,6 +41,8 @@ internal sealed class FakePlayer(PlayerId playerId, string displayName, PlayerIn
     public Func<HaipaiNotification, CancellationToken, Task<OkResponse>>? OnHaipaiHandler { get; init; }
     public Func<OtherPlayerTsumoNotification, CancellationToken, Task<OkResponse>>? OnOtherPlayerTsumoHandler { get; init; }
     public Func<CallNotification, CancellationToken, Task<OkResponse>>? OnCallHandler { get; init; }
+    public Func<AfterCallNotification, CancellationToken, Task<DahaiResponse>>? OnAfterCallHandler { get; init; }
+    public Func<OtherPlayerAfterCallNotification, CancellationToken, Task<OkResponse>>? OnOtherPlayerAfterCallHandler { get; init; }
     public Func<DoraRevealNotification, CancellationToken, Task<OkResponse>>? OnDoraRevealHandler { get; init; }
     public Func<WinNotification, CancellationToken, Task<OkResponse>>? OnWinHandler { get; init; }
     public Func<RyuukyokuNotification, CancellationToken, Task<OkResponse>>? OnRyuukyokuHandler { get; init; }
@@ -135,6 +139,28 @@ internal sealed class FakePlayer(PlayerId playerId, string displayName, PlayerIn
         }
 
         return Task.FromResult(OnCall?.Invoke(notification, ct) ?? new OkResponse());
+    }
+
+    public override Task<DahaiResponse> OnAfterCallAsync(AfterCallNotification notification, CancellationToken ct = default)
+    {
+        Record(notification);
+        if (OnAfterCallHandler is not null)
+        {
+            return OnAfterCallHandler(notification, ct);
+        }
+
+        return Task.FromResult(OnAfterCall?.Invoke(notification, ct) ?? DefaultAfterCallResponse(notification));
+    }
+
+    public override Task<OkResponse> OnOtherPlayerAfterCallAsync(OtherPlayerAfterCallNotification notification, CancellationToken ct = default)
+    {
+        Record(notification);
+        if (OnOtherPlayerAfterCallHandler is not null)
+        {
+            return OnOtherPlayerAfterCallHandler(notification, ct);
+        }
+
+        return Task.FromResult(OnOtherPlayerAfterCall?.Invoke(notification, ct) ?? new OkResponse());
     }
 
     public override Task<OkResponse> OnDoraRevealAsync(DoraRevealNotification notification, CancellationToken ct = default)
@@ -257,6 +283,14 @@ internal sealed class FakePlayer(PlayerId playerId, string displayName, PlayerIn
         return dahai is not null && dahai.DahaiOptionList.Count != 0
             ? new KanTsumoDahaiResponse(dahai.DahaiOptionList[0].Tile)
             : new KanTsumoDahaiResponse(notification.DrawnTile);
+    }
+
+    private static DahaiResponse DefaultAfterCallResponse(AfterCallNotification notification)
+    {
+        var dahai = notification.CandidateList.GetCandidates<DahaiCandidate>().FirstOrDefault();
+        return dahai is not null && dahai.DahaiOptionList.Count != 0
+            ? new DahaiResponse(dahai.DahaiOptionList[0].Tile)
+            : new DahaiResponse(notification.CalledTile);
     }
 
     public static FakePlayer Create(int index)

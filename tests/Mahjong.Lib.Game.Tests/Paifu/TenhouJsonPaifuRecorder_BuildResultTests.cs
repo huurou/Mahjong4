@@ -271,6 +271,463 @@ public class TenhouJsonPaifuRecorder_BuildResultTests
     }
 
     [Fact]
+    public void 本場1のロン_deltaに放銃者から和了者へ300点加算()
+    {
+        // Arrange
+        var rules = new GameRules();
+        var (recorder, writer) = CreateRecorder(rules);
+        var round = RoundTestHelper.CreateRound().Haipai();
+        var winner = new AdoptedWinner(
+            new PlayerIndex(1),
+            new Tile(0),
+            new ScoreResult(
+                2, 40,
+                new PointArray(new Point(0))
+                    .AddPoint(new PlayerIndex(1), 2600)
+                    .SubtractPoint(new PlayerIndex(0), 2600),
+                [],
+                IsMenzen: false
+            )
+        );
+        var action = new AdoptedWinAction(
+            [winner],
+            new PlayerIndex(0),
+            WinType.Ron,
+            new KyoutakuRiichiAward(new PlayerIndex(1), 0),
+            new Honba(1),
+            [],
+            false
+        );
+
+        // Act
+        var resultArr = Emit(recorder, writer, round, action);
+
+        // Assert: delta は素点 +/- 本場 300
+        var delta = resultArr[1];
+        Assert.Equal(-2600 - 300, delta[0].GetInt32());
+        Assert.Equal(2600 + 300, delta[1].GetInt32());
+        Assert.Equal(0, delta[2].GetInt32());
+        Assert.Equal(0, delta[3].GetInt32());
+    }
+
+    [Fact]
+    public void 本場2のツモ_各非和了者から100点ずつ和了者へ()
+    {
+        // Arrange: 親ツモを想定 (dealer=0, winner=0)
+        var rules = new GameRules();
+        var (recorder, writer) = CreateRecorder(rules);
+        var round = RoundTestHelper.CreateRound().Haipai();
+        var winner = new AdoptedWinner(
+            new PlayerIndex(0),
+            new Tile(0),
+            new ScoreResult(
+                3, 30,
+                new PointArray(new Point(0))
+                    .AddPoint(new PlayerIndex(0), 6000)
+                    .SubtractPoint(new PlayerIndex(1), 2000)
+                    .SubtractPoint(new PlayerIndex(2), 2000)
+                    .SubtractPoint(new PlayerIndex(3), 2000),
+                [],
+                IsMenzen: true
+            )
+        );
+        var action = new AdoptedWinAction(
+            [winner],
+            new PlayerIndex(0),
+            WinType.Tsumo,
+            new KyoutakuRiichiAward(new PlayerIndex(0), 0),
+            new Honba(2),
+            [],
+            false
+        );
+
+        // Act
+        var resultArr = Emit(recorder, writer, round, action);
+
+        // Assert: winner には 100*2*3=600 加算、各非和了者から 100*2=200 減算
+        var delta = resultArr[1];
+        Assert.Equal(6000 + 600, delta[0].GetInt32());
+        Assert.Equal(-2000 - 200, delta[1].GetInt32());
+        Assert.Equal(-2000 - 200, delta[2].GetInt32());
+        Assert.Equal(-2000 - 200, delta[3].GetInt32());
+    }
+
+    [Fact]
+    public void 供託1本のロン_winner先頭に1000点加算()
+    {
+        // Arrange
+        var rules = new GameRules();
+        var (recorder, writer) = CreateRecorder(rules);
+        var round = RoundTestHelper.CreateRound().Haipai();
+        var winner = new AdoptedWinner(
+            new PlayerIndex(2),
+            new Tile(0),
+            new ScoreResult(
+                3, 30,
+                new PointArray(new Point(0))
+                    .AddPoint(new PlayerIndex(2), 3900)
+                    .SubtractPoint(new PlayerIndex(1), 3900),
+                [],
+                IsMenzen: false
+            )
+        );
+        var action = new AdoptedWinAction(
+            [winner],
+            new PlayerIndex(1),
+            WinType.Ron,
+            new KyoutakuRiichiAward(new PlayerIndex(2), 1),
+            new Honba(0),
+            [],
+            false
+        );
+
+        // Act
+        var resultArr = Emit(recorder, writer, round, action);
+
+        // Assert: winner に +1000 供託、他は素点のまま
+        var delta = resultArr[1];
+        Assert.Equal(0, delta[0].GetInt32());
+        Assert.Equal(-3900, delta[1].GetInt32());
+        Assert.Equal(3900 + 1000, delta[2].GetInt32());
+        Assert.Equal(0, delta[3].GetInt32());
+    }
+
+    [Fact]
+    public void 局内リーチのみで開始kyoutakuゼロのロン_winnerに自分のリーチ棒1000点が加算される()
+    {
+        // Arrange: ヘッダ kyoutaku=0 だが局内リーチで SettleWin 時点 Count=1 になるケース (東1局の再現)
+        var rules = new GameRules();
+        var (recorder, writer) = CreateRecorder(rules);
+        var round = RoundTestHelper.CreateRound().Haipai();
+        var winner = new AdoptedWinner(
+            new PlayerIndex(1),
+            new Tile(0),
+            new ScoreResult(
+                2, 40,
+                new PointArray(new Point(0))
+                    .AddPoint(new PlayerIndex(1), 2600)
+                    .SubtractPoint(new PlayerIndex(0), 2600),
+                [],
+                IsMenzen: true
+            )
+        );
+        var action = new AdoptedWinAction(
+            [winner],
+            new PlayerIndex(0),
+            WinType.Ron,
+            new KyoutakuRiichiAward(new PlayerIndex(1), 1),
+            new Honba(0),
+            [],
+            false
+        );
+
+        // Act
+        var resultArr = Emit(recorder, writer, round, action);
+
+        // Assert: winner (player 1) に +1000 加算されていること
+        var delta = resultArr[1];
+        Assert.Equal(-2600, delta[0].GetInt32());
+        Assert.Equal(2600 + 1000, delta[1].GetInt32());
+        Assert.Equal(0, delta[2].GetInt32());
+        Assert.Equal(0, delta[3].GetInt32());
+    }
+
+    [Fact]
+    public void 本場3供託2のツモ_delta合計がkyoutaku分だけプラス()
+    {
+        // Arrange: 親ツモ (dealer=0, winner=0)
+        var rules = new GameRules();
+        var (recorder, writer) = CreateRecorder(rules);
+        var round = RoundTestHelper.CreateRound().Haipai();
+        var winner = new AdoptedWinner(
+            new PlayerIndex(0),
+            new Tile(0),
+            new ScoreResult(
+                3, 30,
+                new PointArray(new Point(0))
+                    .AddPoint(new PlayerIndex(0), 6000)
+                    .SubtractPoint(new PlayerIndex(1), 2000)
+                    .SubtractPoint(new PlayerIndex(2), 2000)
+                    .SubtractPoint(new PlayerIndex(3), 2000),
+                [],
+                IsMenzen: true
+            )
+        );
+        var action = new AdoptedWinAction(
+            [winner],
+            new PlayerIndex(0),
+            WinType.Tsumo,
+            new KyoutakuRiichiAward(new PlayerIndex(0), 2),
+            new Honba(3),
+            [],
+            false
+        );
+
+        // Act
+        var resultArr = Emit(recorder, writer, round, action);
+
+        // Assert: delta 合計 = 供託分 (=2000)。winner に本場+供託、各子に本場マイナス
+        var delta = resultArr[1];
+        var sum = delta[0].GetInt32() + delta[1].GetInt32() + delta[2].GetInt32() + delta[3].GetInt32();
+        Assert.Equal(2000, sum);
+        Assert.Equal(6000 + 100 * 3 * 3 + 2000, delta[0].GetInt32());
+        Assert.Equal(-2000 - 100 * 3, delta[1].GetInt32());
+    }
+
+    [Fact]
+    public void ダブロン本場あり_本場と供託は上家取り先頭のみに加算()
+    {
+        // Arrange: winners[0]=index 1, winners[1]=index 2 が index 3 からロン
+        var rules = new GameRules();
+        var (recorder, writer) = CreateRecorder(rules);
+        var round = RoundTestHelper.CreateRound().Haipai();
+        var winner1 = new AdoptedWinner(
+            new PlayerIndex(1),
+            new Tile(0),
+            new ScoreResult(
+                2, 40,
+                new PointArray(new Point(0))
+                    .AddPoint(new PlayerIndex(1), 2600)
+                    .SubtractPoint(new PlayerIndex(3), 2600),
+                [],
+                IsMenzen: false
+            )
+        );
+        var winner2 = new AdoptedWinner(
+            new PlayerIndex(2),
+            new Tile(0),
+            new ScoreResult(
+                3, 30,
+                new PointArray(new Point(0))
+                    .AddPoint(new PlayerIndex(2), 3900)
+                    .SubtractPoint(new PlayerIndex(3), 3900),
+                [],
+                IsMenzen: false
+            )
+        );
+        var action = new AdoptedWinAction(
+            [winner1, winner2],
+            new PlayerIndex(3),
+            WinType.Ron,
+            new KyoutakuRiichiAward(new PlayerIndex(1), 1),
+            new Honba(2),
+            [],
+            false
+        );
+
+        // Act
+        var resultArr = Emit(recorder, writer, round, action);
+
+        // Assert: result = ["和了", [delta1], [detail1], [delta2], [detail2]]
+        var delta1 = resultArr[1];
+        // winner1 (上家取り先頭) に本場 600 + 供託 1000 加算、loser から本場 600 減算
+        Assert.Equal(2600 + 600 + 1000, delta1[1].GetInt32());
+        Assert.Equal(-2600 - 600, delta1[3].GetInt32());
+        Assert.Equal(0, delta1[0].GetInt32());
+        Assert.Equal(0, delta1[2].GetInt32());
+
+        var delta2 = resultArr[3];
+        // winner2 (2 人目) は素点のまま。本場・供託を載せない
+        Assert.Equal(3900, delta2[2].GetInt32());
+        Assert.Equal(-3900, delta2[3].GetInt32());
+        Assert.Equal(0, delta2[0].GetInt32());
+        Assert.Equal(0, delta2[1].GetInt32());
+    }
+
+    [Fact]
+    public void 子ツモ_scoreTextは非親支払_親支払点形式()
+    {
+        // Arrange: 東2局 (dealer=1)、winner=index 0 の子ツモ 30符4翻
+        var rules = new GameRules();
+        var (recorder, writer) = CreateRecorder(rules);
+        var round = RoundTestHelper.CreateRound(roundNumber: 1).Haipai();
+        var winner = new AdoptedWinner(
+            new PlayerIndex(0),
+            new Tile(0),
+            new ScoreResult(
+                4, 30,
+                new PointArray(new Point(0))
+                    .AddPoint(new PlayerIndex(0), 7900)
+                    .SubtractPoint(new PlayerIndex(1), 3900)
+                    .SubtractPoint(new PlayerIndex(2), 2000)
+                    .SubtractPoint(new PlayerIndex(3), 2000),
+                [],
+                IsMenzen: true
+            )
+        );
+        var action = new AdoptedWinAction(
+            [winner],
+            new PlayerIndex(0),
+            WinType.Tsumo,
+            new KyoutakuRiichiAward(new PlayerIndex(0), 0),
+            new Honba(0),
+            [],
+            false
+        );
+
+        // Act
+        var resultArr = Emit(recorder, writer, round, action);
+
+        // Assert
+        var scoreText = resultArr[2][3].GetString();
+        Assert.Equal("30符4飜2000-3900点", scoreText);
+    }
+
+    [Fact]
+    public void 親ツモ_scoreTextは子支払点の全員支払形式()
+    {
+        // Arrange: 東1局 (dealer=0)、winner=index 0 の親ツモ 30符3翻
+        var rules = new GameRules();
+        var (recorder, writer) = CreateRecorder(rules);
+        var round = RoundTestHelper.CreateRound().Haipai();
+        var winner = new AdoptedWinner(
+            new PlayerIndex(0),
+            new Tile(0),
+            new ScoreResult(
+                3, 30,
+                new PointArray(new Point(0))
+                    .AddPoint(new PlayerIndex(0), 6000)
+                    .SubtractPoint(new PlayerIndex(1), 2000)
+                    .SubtractPoint(new PlayerIndex(2), 2000)
+                    .SubtractPoint(new PlayerIndex(3), 2000),
+                [],
+                IsMenzen: true
+            )
+        );
+        var action = new AdoptedWinAction(
+            [winner],
+            new PlayerIndex(0),
+            WinType.Tsumo,
+            new KyoutakuRiichiAward(new PlayerIndex(0), 0),
+            new Honba(0),
+            [],
+            false
+        );
+
+        // Act
+        var resultArr = Emit(recorder, writer, round, action);
+
+        // Assert
+        var scoreText = resultArr[2][3].GetString();
+        Assert.Equal("30符3飜2000点∀", scoreText);
+    }
+
+    [Fact]
+    public void 子ツモ満貫_scoreTextは満貫非親支払_親支払点形式()
+    {
+        // Arrange: 東2局、winner=index 0 の子ツモ満貫
+        var rules = new GameRules();
+        var (recorder, writer) = CreateRecorder(rules);
+        var round = RoundTestHelper.CreateRound(roundNumber: 1).Haipai();
+        var winner = new AdoptedWinner(
+            new PlayerIndex(0),
+            new Tile(0),
+            new ScoreResult(
+                5, 30,
+                new PointArray(new Point(0))
+                    .AddPoint(new PlayerIndex(0), 8000)
+                    .SubtractPoint(new PlayerIndex(1), 4000)
+                    .SubtractPoint(new PlayerIndex(2), 2000)
+                    .SubtractPoint(new PlayerIndex(3), 2000),
+                [],
+                IsMenzen: true
+            )
+        );
+        var action = new AdoptedWinAction(
+            [winner],
+            new PlayerIndex(0),
+            WinType.Tsumo,
+            new KyoutakuRiichiAward(new PlayerIndex(0), 0),
+            new Honba(0),
+            [],
+            false
+        );
+
+        // Act
+        var resultArr = Emit(recorder, writer, round, action);
+
+        // Assert
+        var scoreText = resultArr[2][3].GetString();
+        Assert.Equal("満貫2000-4000点", scoreText);
+    }
+
+    [Fact]
+    public void 親ツモ満貫_scoreTextは満貫子支払点の全員支払形式()
+    {
+        // Arrange
+        var rules = new GameRules();
+        var (recorder, writer) = CreateRecorder(rules);
+        var round = RoundTestHelper.CreateRound().Haipai();
+        var winner = new AdoptedWinner(
+            new PlayerIndex(0),
+            new Tile(0),
+            new ScoreResult(
+                5, 30,
+                new PointArray(new Point(0))
+                    .AddPoint(new PlayerIndex(0), 12000)
+                    .SubtractPoint(new PlayerIndex(1), 4000)
+                    .SubtractPoint(new PlayerIndex(2), 4000)
+                    .SubtractPoint(new PlayerIndex(3), 4000),
+                [],
+                IsMenzen: true
+            )
+        );
+        var action = new AdoptedWinAction(
+            [winner],
+            new PlayerIndex(0),
+            WinType.Tsumo,
+            new KyoutakuRiichiAward(new PlayerIndex(0), 0),
+            new Honba(0),
+            [],
+            false
+        );
+
+        // Act
+        var resultArr = Emit(recorder, writer, round, action);
+
+        // Assert
+        var scoreText = resultArr[2][3].GetString();
+        Assert.Equal("満貫4000点∀", scoreText);
+    }
+
+    [Fact]
+    public void 子ロン満貫_scoreTextは満貫点形式()
+    {
+        // Arrange
+        var rules = new GameRules();
+        var (recorder, writer) = CreateRecorder(rules);
+        var round = RoundTestHelper.CreateRound().Haipai();
+        var winner = new AdoptedWinner(
+            new PlayerIndex(1),
+            new Tile(0),
+            new ScoreResult(
+                5, 30,
+                new PointArray(new Point(0))
+                    .AddPoint(new PlayerIndex(1), 8000)
+                    .SubtractPoint(new PlayerIndex(2), 8000),
+                [],
+                IsMenzen: true
+            )
+        );
+        var action = new AdoptedWinAction(
+            [winner],
+            new PlayerIndex(2),
+            WinType.Ron,
+            new KyoutakuRiichiAward(new PlayerIndex(1), 0),
+            new Honba(0),
+            [],
+            false
+        );
+
+        // Act
+        var resultArr = Emit(recorder, writer, round, action);
+
+        // Assert
+        var scoreText = resultArr[2][3].GetString();
+        Assert.Equal("満貫8000点", scoreText);
+    }
+
+    [Fact]
     public void 途中流局_deltasを含まない()
     {
         // Arrange
@@ -292,5 +749,4 @@ public class TenhouJsonPaifuRecorder_BuildResultTests
         Assert.Single(resultArr);
         Assert.Equal("四家立直", resultArr[0].GetString());
     }
-
 }

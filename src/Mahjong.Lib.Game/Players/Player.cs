@@ -9,7 +9,6 @@ namespace Mahjong.Lib.Game.Players;
 /// </summary>
 public abstract class Player(PlayerId playerId, string displayName, PlayerIndex playerIndex)
 {
-
     /// <summary>
     /// プレイヤー識別子
     /// </summary>
@@ -59,6 +58,17 @@ public abstract class Player(PlayerId playerId, string displayName, PlayerIndex 
     /// 副露成立通知 (全プレイヤー)
     /// </summary>
     public abstract Task<OkResponse> OnCallAsync(CallNotification notification, CancellationToken ct = default);
+
+    /// <summary>
+    /// 副露後打牌要求通知 (副露者 = 現手番プレイヤー用)
+    /// チー/ポン成立直後の打牌選択を求める。暗槓・加槓・ツモ和了・九種九牌は不可。
+    /// </summary>
+    public abstract Task<DahaiResponse> OnAfterCallAsync(AfterCallNotification notification, CancellationToken ct = default);
+
+    /// <summary>
+    /// 他家副露後打牌要求通知 (非副露者用)
+    /// </summary>
+    public abstract Task<OkResponse> OnOtherPlayerAfterCallAsync(OtherPlayerAfterCallNotification notification, CancellationToken ct = default);
 
     /// <summary>
     /// ドラ表示通知 (全プレイヤー)

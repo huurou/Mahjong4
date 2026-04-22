@@ -18,7 +18,7 @@ public class Haku_PropertyTests
     }
 
     [Fact]
-    public void Name_白を返す()
+    public void Name_役牌白を返す()
     {
         // Arrange
         var yaku = Yaku.Haku;
@@ -27,7 +27,7 @@ public class Haku_PropertyTests
         var result = yaku.Name;
 
         // Assert
-        Assert.Equal("白", result);
+        Assert.Equal("役牌 白", result);
     }
 
     [Fact]

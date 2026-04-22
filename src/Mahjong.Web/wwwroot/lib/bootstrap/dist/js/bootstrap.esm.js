@@ -67,8 +67,8 @@ const TRANSITION_END = 'transitionend';
 /**
  * Properly escape IDs selectors to handle weird IDs
  * @param {string} selector
- * @returns {string}
- */
+     * @returns {string}
+         */
 const parseSelector = selector => {
     if (selector && window.CSS && window.CSS.escape) {
         // document.querySelector needs escaping to handle IDs (html5+) containing for instance /
@@ -199,10 +199,10 @@ const noop = () => { };
  * Trick to restart an element's animation
  *
  * @param {HTMLElement} element
- * @return void
- *
- * @see https://www.charistheo.io/blog/2021/02/restart-a-css-animation-with-javascript/#restarting-a-css-animation
- */
+     * @return void
+     *
+     * @see https://www.charistheo.io/blog/2021/02/restart-a-css-animation-with-javascript/#restarting-a-css-animation
+     */
 const reflow = element => {
     element.offsetHeight; // eslint-disable-line no-unused-expressions
 };
@@ -278,12 +278,12 @@ const executeAfterTransition = (callback, transitionElement, waitForTransition =
  * Return the previous/next element of a list.
  *
  * @param {array} list    The list of elements
- * @param activeElement   The active element
- * @param shouldGetNext   Choose to get next or previous element
- * @param isCycleAllowed
- * @return {Element|elem} The proper element
- */
-const getNextActiveElement = (list, activeElement, shouldGetNext, isCycleAllowed) => {
+     * @param activeElement   The active element
+     * @param shouldGetNext   Choose to get next or previous element
+     * @param isCycleAllowed
+     * @return {Element | elem} The proper element
+         */
+const getNextActiveElement =(list, activeElement, shouldGetNext, isCycleAllowed) => {
     const listLength = list.length;
     let index = list.indexOf(activeElement);
 
@@ -389,7 +389,7 @@ function addHandler(element, originalTypeEvent, handler, delegationFunction, one
     // this prevents the handler from being dispatched the same way as mouseover or mouseout does
     if (originalTypeEvent in customEvents) {
         const wrapFunction = fn => {
-            return function (event) {
+            return function(event) {
                 if (!event.relatedTarget || event.relatedTarget !== event.delegateTarget && !event.delegateTarget.contains(event.relatedTarget)) {
                     return fn.call(this, event);
                 }
@@ -796,7 +796,7 @@ const SelectorEngine = {
 const enableDismissTrigger = (component, method = 'hide') => {
     const clickEvent = `click.dismiss${component.EVENT_KEY}`;
     const name = component.NAME;
-    EventHandler.on(document, clickEvent, `[data-bs-dismiss="${name}"]`, function (event) {
+    EventHandler.on(document, clickEvent, `[data-bs-dismiss="${name}"]`, function(event) {
         if (['A', 'AREA'].includes(this.tagName)) {
             event.preventDefault();
         }
@@ -860,7 +860,7 @@ class Alert extends BaseComponent {
 
     // Static
     static jQueryInterface(config) {
-        return this.each(function () {
+        return this.each(function() {
             const data = Alert.getOrCreateInstance(this);
             if (typeof config !== 'string') {
                 return;
@@ -922,7 +922,7 @@ class Button extends BaseComponent {
 
     // Static
     static jQueryInterface(config) {
-        return this.each(function () {
+        return this.each(function() {
             const data = Button.getOrCreateInstance(this);
             if (config === 'toggle') {
                 data[config]();
@@ -1385,7 +1385,7 @@ class Carousel extends BaseComponent {
 
     // Static
     static jQueryInterface(config) {
-        return this.each(function () {
+        return this.each(function() {
             const data = Carousel.getOrCreateInstance(this, config);
             if (typeof config === 'number') {
                 data.to(config);
@@ -1405,7 +1405,7 @@ class Carousel extends BaseComponent {
  * Data API implementation
  */
 
-EventHandler.on(document, EVENT_CLICK_DATA_API$5, SELECTOR_DATA_SLIDE, function (event) {
+EventHandler.on(document, EVENT_CLICK_DATA_API$5, SELECTOR_DATA_SLIDE, function(event) {
     const target = SelectorEngine.getElementFromSelector(this);
     if (!target || !target.classList.contains(CLASS_NAME_CAROUSEL)) {
         return;
@@ -1638,7 +1638,7 @@ class Collapse extends BaseComponent {
         if (typeof config === 'string' && /show|hide/.test(config)) {
             _config.toggle = false;
         }
-        return this.each(function () {
+        return this.each(function() {
             const data = Collapse.getOrCreateInstance(this, _config);
             if (typeof config === 'string') {
                 if (typeof data[config] === 'undefined') {
@@ -1654,7 +1654,7 @@ class Collapse extends BaseComponent {
  * Data API implementation
  */
 
-EventHandler.on(document, EVENT_CLICK_DATA_API$4, SELECTOR_DATA_TOGGLE$4, function (event) {
+EventHandler.on(document, EVENT_CLICK_DATA_API$4, SELECTOR_DATA_TOGGLE$4, function(event) {
     // preventDefault only for <a> elements (which change the URL) not inside the collapsible element
     if (event.target.tagName === 'A' || event.delegateTarget && event.delegateTarget.tagName === 'A') {
         event.preventDefault();
@@ -1947,7 +1947,7 @@ class Dropdown extends BaseComponent {
 
     // Static
     static jQueryInterface(config) {
-        return this.each(function () {
+        return this.each(function() {
             const data = Dropdown.getOrCreateInstance(this, config);
             if (typeof config !== 'string') {
                 return;
@@ -2028,7 +2028,7 @@ EventHandler.on(document, EVENT_KEYDOWN_DATA_API, SELECTOR_DATA_TOGGLE$3, Dropdo
 EventHandler.on(document, EVENT_KEYDOWN_DATA_API, SELECTOR_MENU, Dropdown.dataApiKeydownHandler);
 EventHandler.on(document, EVENT_CLICK_DATA_API$3, Dropdown.clearMenus);
 EventHandler.on(document, EVENT_KEYUP_DATA_API, Dropdown.clearMenus);
-EventHandler.on(document, EVENT_CLICK_DATA_API$3, SELECTOR_DATA_TOGGLE$3, function (event) {
+EventHandler.on(document, EVENT_CLICK_DATA_API$3, SELECTOR_DATA_TOGGLE$3, function(event) {
     event.preventDefault();
     Dropdown.getOrCreateInstance(this).toggle();
 });
@@ -2610,7 +2610,7 @@ class Modal extends BaseComponent {
 
     // Static
     static jQueryInterface(config, relatedTarget) {
-        return this.each(function () {
+        return this.each(function() {
             const data = Modal.getOrCreateInstance(this, config);
             if (typeof config !== 'string') {
                 return;
@@ -2627,7 +2627,7 @@ class Modal extends BaseComponent {
  * Data API implementation
  */
 
-EventHandler.on(document, EVENT_CLICK_DATA_API$2, SELECTOR_DATA_TOGGLE$2, function (event) {
+EventHandler.on(document, EVENT_CLICK_DATA_API$2, SELECTOR_DATA_TOGGLE$2, function(event) {
     const target = SelectorEngine.getElementFromSelector(this);
     if (['A', 'AREA'].includes(this.tagName)) {
         event.preventDefault();
@@ -2830,7 +2830,7 @@ class Offcanvas extends BaseComponent {
 
     // Static
     static jQueryInterface(config) {
-        return this.each(function () {
+        return this.each(function() {
             const data = Offcanvas.getOrCreateInstance(this, config);
             if (typeof config !== 'string') {
                 return;
@@ -2847,7 +2847,7 @@ class Offcanvas extends BaseComponent {
  * Data API implementation
  */
 
-EventHandler.on(document, EVENT_CLICK_DATA_API$1, SELECTOR_DATA_TOGGLE$1, function (event) {
+EventHandler.on(document, EVENT_CLICK_DATA_API$1, SELECTOR_DATA_TOGGLE$1, function(event) {
     const target = SelectorEngine.getElementFromSelector(this);
     if (['A', 'AREA'].includes(this.tagName)) {
         event.preventDefault();
@@ -3613,7 +3613,7 @@ class Tooltip extends BaseComponent {
 
     // Static
     static jQueryInterface(config) {
-        return this.each(function () {
+        return this.each(function() {
             const data = Tooltip.getOrCreateInstance(this, config);
             if (typeof config !== 'string') {
                 return;
@@ -3693,7 +3693,7 @@ class Popover extends Tooltip {
 
     // Static
     static jQueryInterface(config) {
-        return this.each(function () {
+        return this.each(function() {
             const data = Popover.getOrCreateInstance(this, config);
             if (typeof config !== 'string') {
                 return;
@@ -3942,7 +3942,7 @@ class ScrollSpy extends BaseComponent {
 
     // Static
     static jQueryInterface(config) {
-        return this.each(function () {
+        return this.each(function() {
             const data = ScrollSpy.getOrCreateInstance(this, config);
             if (typeof config !== 'string') {
                 return;
@@ -4199,7 +4199,7 @@ class Tab extends BaseComponent {
 
     // Static
     static jQueryInterface(config) {
-        return this.each(function () {
+        return this.each(function() {
             const data = Tab.getOrCreateInstance(this);
             if (typeof config !== 'string') {
                 return;
@@ -4216,7 +4216,7 @@ class Tab extends BaseComponent {
  * Data API implementation
  */
 
-EventHandler.on(document, EVENT_CLICK_DATA_API, SELECTOR_DATA_TOGGLE, function (event) {
+EventHandler.on(document, EVENT_CLICK_DATA_API, SELECTOR_DATA_TOGGLE, function(event) {
     if (['A', 'AREA'].includes(this.tagName)) {
         event.preventDefault();
     }
@@ -4399,7 +4399,7 @@ class Toast extends BaseComponent {
 
     // Static
     static jQueryInterface(config) {
-        return this.each(function () {
+        return this.each(function() {
             const data = Toast.getOrCreateInstance(this, config);
             if (typeof config === 'string') {
                 if (typeof data[config] === 'undefined') {

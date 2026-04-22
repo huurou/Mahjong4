@@ -1,5 +1,4 @@
 ﻿using Mahjong.Lib.Game.Inquiries;
-using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Responses;
 using System.Collections.Immutable;
@@ -84,7 +83,7 @@ public sealed class TenhouResponsePriorityPolicy : IResponsePriorityPolicy
         }
 
         // 全員スルー
-        return responses; 
+        return responses;
     }
 
     /// <summary>
@@ -94,5 +93,4 @@ public sealed class TenhouResponsePriorityPolicy : IResponsePriorityPolicy
     {
         return (responder.Value - loser.Value + PlayerIndex.PLAYER_COUNT) % PlayerIndex.PLAYER_COUNT;
     }
-
 }

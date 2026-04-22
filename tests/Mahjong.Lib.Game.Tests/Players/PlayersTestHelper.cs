@@ -43,6 +43,16 @@ internal static class PlayersTestHelper
             return Task.FromResult(new OkResponse());
         }
 
+        public override Task<DahaiResponse> OnAfterCallAsync(AfterCallNotification notification, CancellationToken ct = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<OkResponse> OnOtherPlayerAfterCallAsync(OtherPlayerAfterCallNotification notification, CancellationToken ct = default)
+        {
+            return Task.FromResult(new OkResponse());
+        }
+
         public override Task<OkResponse> OnDoraRevealAsync(DoraRevealNotification notification, CancellationToken ct = default)
         {
             return Task.FromResult(new OkResponse());

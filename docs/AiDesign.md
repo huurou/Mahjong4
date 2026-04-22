@@ -250,3 +250,61 @@ v0.2.0 の [SelectBestDahai 内シャンテン→有効牌] 選抜後、`finalis
 - テンパイ時の押しは無条件 (安牌があるテンパイでも必ず押す)
 - 副露しないため、相手の鳴きに対する押し引きは発生しない (自分の鳴き判断がそもそも無い)
 - 壁・ワンチャンスなど、河以外からの安牌推定は行っていない (参考書籍の同等アルゴリズムも同様)
+
+## v0.5.0 AI_v0_5_0_鳴き
+
+**目的**: v0.4.0 までは副露を一切行わず、打点源が実質「立直＋ドラ/裏ドラ/一発」に集中し、翻牌・対々和・一色手などの鳴きで完成する手役が実質ゼロだった。v0.5.0 で「役に対するシャンテン数」と「副露マーク (+/-) 付き有効牌」による評価を導入し、役なしテンパイを避けつつチー/ポン/大明槓/暗槓/加槓を採否する。v0.4.0 の回し打ち守備はそのまま維持する。
+
+**アルゴリズム**:
+
+- **役に対するシャンテン数** ([YakuAwareShantenHelper](../src/Mahjong.Lib.Game/Tenpai/YakuAwareShantenHelper.cs)): 以下 7 経路の min を「実質シャンテン」として扱う。いずれも成立しえない場合は Infinity (= 99)
+  - **門前 (Menzen)**: 非暗槓 Call があれば Infinity、それ以外は `ShantenCalculator.Calc(list, knownCallMeldCount=暗槓数)` の通常シャンテン (暗槓は門前維持)
+  - **翻牌 (Yakuhai, 白/發/中 + 場風 + 自風)**: 対象 kind が刻子確定 (Call に pon/kan or 手牌 3 枚以上) → 通常シャンテン / 対子のみ → 対子除去後 `knownCallMeldCount+1` でシャンテン計算し +1 補正 / どちらもなし → Infinity
+  - **断么九 (Tanyao)**: `!KuitanAllowed && 非暗槓 Call` or Call に么九含む → Infinity、それ以外は手牌から么九除去してシャンテン計算し、除去枚数を下限ペナルティとして加算 (除去された么九牌は断么九では使えず最終的に必ず打牌する必要があるため、過小評価を防ぐ安全側補正)
+  - **対々和 (Toitoi)**: Call に順子あれば Infinity、それ以外は直接公式 `8 - 2*刻子数 - 対子数` (ブロック超過時 `対子数 = 5 - 刻子数` に補正)
+  - **一色手 (Isshoku, m/p/s の 3 経路)**: Call に対象スートでも字牌でもない牌あれば Infinity、それ以外は手牌から他スート数牌除去 (字牌は残す) してシャンテン計算し、除去枚数を下限ペナルティとして加算 (断么九経路と同じ理由)
+- **副露マーク付き有効牌** ([YakuAwareShantenHelper.EnumerateUsefulTileKindsWithCallMark](../src/Mahjong.Lib.Game/Tenpai/YakuAwareShantenHelper.cs)): 34 牌種のうち「引くと役ありシャンテンが減る」有効牌 K について、手牌に K が 2 枚以上ありポン仮想でも役ありシャンテンが進めば `Pon` マーク、K を含む順子仮想 (手牌から 2 枚寄与) で進めば `Chi` マーク。両方成立なら Pon 優先。
+- **打牌選択**: `DahaiOption` ごとに `hand13 = hand14.RemoveTile(option.Tile)` で役ありシャンテンを計算し、最小候補に絞る。その中で評価値 `ev = Σ unseen(K) × multiplier(Mark)` (Pon=×4 / Chi=×2 / None=×1) 最大の候補をランダム選択。`DahaiOption.RiichiAvailable` をそのまま採用。
+- **副露判断** (`OnDahaiAsync`): ロン優先 → 自テンパイなら副露しない → 他家リーチ & 自シャンテン>1 ならベタオリ継続 → 大明槓は副露後シャンテン維持で採用、ポン/チーは進めば採用。
+- **暗槓/加槓判断** (`OnTsumoAsync` / `OnKanTsumoAsync`): 和了優先 → 他家リーチ & 自非テンパイならカンしない → 副露後シャンテン維持で採用。
+- **守備判断 (回し打ち)**: v0.4.0 の [DangerEvaluator](../src/Mahjong.Lib.Game/Players/Impl/AI_v0_4_0_回し打ち.cs) をそのまま再利用。他家リーチ時は自シャンテン別に (テンパイ: 押し / 1 シャンテン: 危険度 ≤ 5 で回し打ち / 2 シャンテン以上: ベタオリ) 分岐。
+
+**クラス構成**:
+
+- [AI_v0_5_0_鳴き.cs](../src/Mahjong.Lib.Game/Players/Impl/AI_v0_5_0_鳴き.cs)
+  - `AI_v0_5_0_鳴き(PlayerId, PlayerIndex, Random) : Player`
+  - `AI_v0_5_0_鳴きFactory(int seed) : AiPlayerFactoryBase<AI_v0_5_0_鳴き>`
+- [YakuAwareShantenHelper.cs](../src/Mahjong.Lib.Game/Tenpai/YakuAwareShantenHelper.cs) — 内部ヘルパー (`Calc` + `EnumerateUsefulTileKindsWithCallMark`)
+- [ShantenCalculator.Calc(list, knownCallMeldCount)](../src/Mahjong.Lib.Scoring/Shantens/ShantenCalculator.cs) — 明示的な確定面子数を指定できる overload を新設。`(14-N)/3` 自動推定では役別経路 (幺九除去・他スート除去・対子除去) のフィルタ済み手牌でズレるため
+
+**フレームワーク差分**:
+
+- 副露 (チー/ポン) 直後に副露者へ打牌を要求する遷移がこれまで未実装で、`RoundStateCall → RoundStateDahai` と直結していた結果、打牌者の河が空のまま `RoundStateDahai.CreateInquirySpec` が例外になっていた。v0.5.0 実装時に判明し、本系列で [RoundStateAfterCall](../src/Mahjong.Lib.Game/States/RoundStates/Impl/RoundStateAfterCall.cs) を新設 (`RoundInquiryPhase.AfterCall` + `EnumerateForAfterCall` + `FromWire` + `DefaultResponseFactory` 含む)。副露者への問い合わせ候補は打牌のみ (暗槓・加槓・ツモ和了・九種九牌は不可)。遷移図は [docs/Design.md](Design.md) を参照。
+- 副露者向け通知は [AfterCallNotification](../src/Mahjong.Lib.Game/Notifications/AfterCallNotification.cs) (`CalledTile` を運搬)、他家向けは [OtherPlayerAfterCallNotification](../src/Mahjong.Lib.Game/Notifications/OtherPlayerAfterCallNotification.cs) の専用型。`Player` 抽象は [`OnAfterCallAsync`](../src/Mahjong.Lib.Game/Players/Player.cs) (戻り値 `Task<DahaiResponse>`、非門前のため立直不可) と `OnOtherPlayerAfterCallAsync` (`Task<OkResponse>`) を追加。従来 `RoundStateAfterCall` で `TsumoNotification` を再利用していた中途半端な実装は撤去済み。
+
+**使用ヘルパー**: `YakuAwareShantenHelper.Calc` / `YakuAwareShantenHelper.EnumerateUsefulTileKindsWithCallMark` / `VisibleTileCounter.CountUnseen` / `DangerEvaluator` (v0.4.0 から再利用) / `ShantenCalculator.Calc(list, knownCallMeldCount)`
+
+**統計結果** (AutoPlay で取得):
+
+- ベースライン: `AI_v0_4_0_回し打ち ×2 + AI_v0_5_0_鳴き ×2` の混在卓、`MixedPlayerFactory` で席シャッフル
+- 対局数: **1000 局 × 2 シード** (`--seed 1` / `--seed 2`)、`--parallel 4 --no-paifu` で実行
+
+| シード | AI | 平均順位 | 和了率 | 放銃率 | 立直率 | 副露率 | 平均打点 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | v0.4.0 回し打ち | 2.572 | 14.5% | 9.4% | 34.3% | 0.0% | 7053 |
+| 1 | v0.5.0 鳴き | **2.428** | **21.9%** | 9.7% | 27.7% | **23.2%** | 5193 |
+| 2 | v0.4.0 回し打ち | 2.556 | 14.8% | 9.7% | 34.5% | 0.0% | 6992 |
+| 2 | v0.5.0 鳴き | **2.444** | **21.6%** | 9.4% | 27.6% | **23.5%** | 5196 |
+
+両シードで **v0.5.0 が平均順位 -0.13 (2.56 → 2.44)**、**和了率 +7.1pt (14.7% → 21.8%)** を一貫して示し、副露による手作りが順位・和了率の両面で優位に働いている。副露率は 0% → 約 23% に乗り、立直率は -6.8pt (34.4% → 27.7%)、平均打点は -1828 (7022 → 5194) で、鳴いて門前役 (立直/裏ドラ/一発) を捨てる分打点が落ちることと整合する。放銃率は ±0pt でほぼ互角 — v0.4.0 の回し打ち守備を維持しつつ和了量で稼ぐ構図になっている。役分布では翻牌 (白/發/中/場風/自風 合計) が v0.4.0 の 約 7% から v0.5.0 では 約 41% に拡大し、断么九も 12.3% → 14.5% に上昇。書籍 0202 が意図する「鳴きで作れる役を狙う」挙動がそのまま現れている。
+
+**既知の限界** (次バージョンへの課題):
+
+- 翻牌の対子ポン仮想は 14 牌状態での +1 補正が微小にズレうる (`ShantenCalculator` の境界計算)
+- 断么九・一色手の除去枚数ペナルティは下限保証のみで過剰補正になりうる (例: 么九牌と有効牌が同じターンで入れ替わる場合、実シャンテンは除去枚数ほど遠くない)
+- 字一色専用経路は持たず、一色手 (m/p/s) の字牌包含形からのみ評価される
+- 副露後の放銃率上昇は不可避 (立直していない相手から鳴ける牌の過剰受けが生じうる)
+- 副露による打点低下は避けられない (立直/赤ドラ/裏ドラ/一発のボーナスを失うため、子の平均打点が v0.4.0 比で下がる想定)
+- くっつき有効牌の未見枚数評価は 34 牌種全体をなめるため打牌候補数が多い局面でやや重い (Kind 単位のメモ化で緩和)
+- 攻撃時のタイブレーク評価値 `ev = Σ unseen(K) × multiplier(Mark)` に、対象牌自身のドラ/赤ドラ/役牌倍率 (v0.3.0 の `outerMultiplier`) が反映されていない。有効牌 EV 同点時に赤 5 や役牌を切りうる退行。v0.5.1 以降でタイブレーカーに `outerMultiplier` を戻す方針
+- 翻牌経路 (`YakuAwareShantenHelper.CalcYakuhai`) は対子以上のみ評価する近似。孤立 1 枚の役牌は `INFINITE` 扱いになるため、混在副露手で「まだ 1 枚だけ残る役牌」を過剰に切りやすい

@@ -1,5 +1,4 @@
 ﻿using Mahjong.Lib.Game.Inquiries;
-using Mahjong.Lib.Game.Adoptions;
 using System.Collections.Immutable;
 
 namespace Mahjong.Lib.Game.Rounds.Managing;

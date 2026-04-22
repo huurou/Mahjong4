@@ -43,4 +43,10 @@ public interface IResponseCandidateEnumerator
     /// 打牌/暗槓/加槓
     /// </summary>
     CandidateList EnumerateForAfterKanTsumo(Round round, PlayerIndex turnPlayerIndex);
+
+    /// <summary>
+    /// 副露 (チー/ポン) 後に副露者が選択可能な応答候補を列挙する
+    /// 打牌/暗槓/加槓 (副露直後のツモ和了はないのでツモ和了候補なし)
+    /// </summary>
+    CandidateList EnumerateForAfterCall(Round round, PlayerIndex turnPlayerIndex);
 }

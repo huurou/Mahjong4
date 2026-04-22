@@ -1,6 +1,5 @@
 ﻿using Mahjong.Lib.Game.Calls;
 using Mahjong.Lib.Game.Inquiries;
-using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Notifications;
 using Mahjong.Lib.Game.Notifications.Bodies;
 using Mahjong.Lib.Game.Players;

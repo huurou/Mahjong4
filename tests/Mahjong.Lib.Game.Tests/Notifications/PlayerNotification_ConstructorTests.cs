@@ -37,5 +37,4 @@ public class PlayerNotification_ConstructorTests
         Assert.Equal(new PlayerIndex(0), Assert.Single(notification.InquiredPlayerIndices));
         Assert.Same(payload, notification.Payload);
     }
-
 }

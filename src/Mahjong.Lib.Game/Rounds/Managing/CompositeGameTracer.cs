@@ -22,7 +22,9 @@ public sealed class CompositeGameTracer(
     private readonly IReadOnlyList<IGameTracer> tracers_ = tracers;
     private readonly ILogger<CompositeGameTracer>? logger_ = logger;
 
-    public CompositeGameTracer(params IGameTracer[] tracers) : this((IReadOnlyList<IGameTracer>)tracers, null) { }
+    public CompositeGameTracer(params IGameTracer[] tracers) : this((IReadOnlyList<IGameTracer>)tracers, null)
+    {
+    }
 
     public void OnNotificationSent(NotificationId notificationId, PlayerIndex recipientIndex, RoundNotification notification)
     {

@@ -41,6 +41,11 @@ public enum RoundInquiryPhase
     Call,
 
     /// <summary>
+    /// 副露後 チー/ポン直後に副露者へ打牌を求める (暗槓・加槓・ツモ和了・九種九牌は不可)
+    /// </summary>
+    AfterCall,
+
+    /// <summary>
     /// 和了 全プレイヤーに和了通知のOK応答を求める (終端状態)
     /// </summary>
     Win,

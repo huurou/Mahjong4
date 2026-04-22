@@ -95,6 +95,21 @@ public sealed class AI_v0_2_0_有効牌(
         return Task.FromResult<AfterTsumoResponse>(new DahaiResponse(chosen.Tile, chosen.RiichiAvailable));
     }
 
+    public override Task<DahaiResponse> OnAfterCallAsync(AfterCallNotification notification, CancellationToken ct = default)
+    {
+        var candidates = notification.CandidateList;
+        var dahai = candidates.GetCandidates<DahaiCandidate>().FirstOrDefault()
+            ?? throw new InvalidOperationException("副露後フェーズに DahaiCandidate が提示されませんでした。");
+        var chosen = SelectBestDahai(notification.View, dahai.DahaiOptionList);
+        // 副露後は非門前のため立直不可
+        return Task.FromResult(new DahaiResponse(chosen.Tile));
+    }
+
+    public override Task<OkResponse> OnOtherPlayerAfterCallAsync(OtherPlayerAfterCallNotification notification, CancellationToken ct = default)
+    {
+        return Task.FromResult(new OkResponse());
+    }
+
     public override Task<PlayerResponse> OnDahaiAsync(DahaiNotification notification, CancellationToken ct = default)
     {
         var candidates = notification.CandidateList;

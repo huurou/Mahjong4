@@ -1,6 +1,5 @@
 ﻿using Mahjong.Lib.Scoring.Calls;
 using Mahjong.Lib.Scoring.Games;
-using Mahjong.Lib.Scoring.Tiles;
 using Mahjong.Lib.Scoring.Yakus.Impl;
 
 namespace Mahjong.Lib.Scoring.Tests.Yakus;

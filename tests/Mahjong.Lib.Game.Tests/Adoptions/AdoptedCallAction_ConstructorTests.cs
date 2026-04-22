@@ -1,6 +1,5 @@
-﻿using Mahjong.Lib.Game.Calls;
-using Mahjong.Lib.Game.Inquiries;
-using Mahjong.Lib.Game.Adoptions;
+﻿using Mahjong.Lib.Game.Adoptions;
+using Mahjong.Lib.Game.Calls;
 using Mahjong.Lib.Game.Players;
 using Mahjong.Lib.Game.Tiles;
 using System.Collections.Immutable;

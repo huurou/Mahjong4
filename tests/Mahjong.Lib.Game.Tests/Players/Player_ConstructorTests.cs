@@ -19,5 +19,4 @@ public class Player_ConstructorTests
         Assert.Equal("A", player.DisplayName);
         Assert.Equal(index, player.PlayerIndex);
     }
-
 }

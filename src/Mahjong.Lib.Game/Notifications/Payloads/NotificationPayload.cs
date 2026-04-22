@@ -11,6 +11,8 @@ namespace Mahjong.Lib.Game.Notifications.Payloads;
 [JsonDerivedType(typeof(OtherPlayerTsumoNotificationPayload), nameof(OtherPlayerTsumoNotificationPayload))]
 [JsonDerivedType(typeof(DahaiNotificationPayload), nameof(DahaiNotificationPayload))]
 [JsonDerivedType(typeof(CallNotificationPayload), nameof(CallNotificationPayload))]
+[JsonDerivedType(typeof(AfterCallNotificationPayload), nameof(AfterCallNotificationPayload))]
+[JsonDerivedType(typeof(OtherPlayerAfterCallNotificationPayload), nameof(OtherPlayerAfterCallNotificationPayload))]
 [JsonDerivedType(typeof(KanNotificationPayload), nameof(KanNotificationPayload))]
 [JsonDerivedType(typeof(KanTsumoNotificationPayload), nameof(KanTsumoNotificationPayload))]
 [JsonDerivedType(typeof(OtherPlayerKanTsumoNotificationPayload), nameof(OtherPlayerKanTsumoNotificationPayload))]

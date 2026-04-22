@@ -10,7 +10,7 @@ namespace Mahjong.Lib.Game.States.RoundStates.Impl;
 
 /// <summary>
 /// 副露。副露直後に全プレイヤーへ CallNotification を送り OK 応答を集約する観測点。
-/// ResponseOk 受信で次状態 (打牌 or 嶺上ツモ) へ遷移する
+/// ResponseOk 受信で次状態 (副露後 or 嶺上ツモ) へ遷移する
 /// </summary>
 public record RoundStateCall : RoundState
 {
@@ -33,7 +33,8 @@ public record RoundStateCall : RoundState
         }
         else
         {
-            Transit(context, () => new RoundStateDahai());
+            // ポン/チー後は副露者 (= 現手番) の打牌のみ受け付けるため、専用の RoundStateAfterCall に遷移する
+            Transit(context, () => new RoundStateAfterCall());
         }
     }
 

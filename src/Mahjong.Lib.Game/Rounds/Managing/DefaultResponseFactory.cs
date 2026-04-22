@@ -1,6 +1,5 @@
 ﻿using Mahjong.Lib.Game.Candidates;
 using Mahjong.Lib.Game.Inquiries;
-using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Responses;
 
 namespace Mahjong.Lib.Game.Rounds.Managing;
@@ -26,6 +25,7 @@ public sealed class DefaultResponseFactory : IDefaultResponseFactory
             RoundInquiryPhase.Tsumo => new DahaiResponse(dahai.DahaiOptionList[0].Tile),
             RoundInquiryPhase.KanTsumo => new KanTsumoDahaiResponse(dahai.DahaiOptionList[0].Tile),
             RoundInquiryPhase.AfterKanTsumo => new KanTsumoDahaiResponse(dahai.DahaiOptionList[0].Tile),
+            RoundInquiryPhase.AfterCall => new DahaiResponse(dahai.DahaiOptionList[0].Tile),
             _ => new OkResponse(),
         };
     }

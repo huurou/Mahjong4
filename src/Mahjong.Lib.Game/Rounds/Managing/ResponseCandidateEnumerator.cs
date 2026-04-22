@@ -2,10 +2,8 @@
 using Mahjong.Lib.Game.Candidates;
 using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Players;
-using Mahjong.Lib.Game.Rounds;
 using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Tiles;
-using Mahjong.Lib.Scoring.Tiles;
 using System.Collections.Immutable;
 using Hand = Mahjong.Lib.Game.Hands.Hand;
 
@@ -19,7 +17,6 @@ namespace Mahjong.Lib.Game.Rounds.Managing;
 /// </summary>
 public sealed class ResponseCandidateEnumerator(GameRules rules) : IResponseCandidateEnumerator
 {
-
     private const int RIICHI_POINT_MIN = 1000;
     private const int RIICHI_WALL_MIN = 4;
     private const int KYUUSHU_KIND_MIN = 9;
@@ -146,6 +143,18 @@ public sealed class ResponseCandidateEnumerator(GameRules rules) : IResponseCand
         {
             builder.AddRange(BuildKakanCandidates(round, hand, callList));
         }
+
+        return new CandidateList(builder.ToImmutable());
+    }
+
+    public CandidateList EnumerateForAfterCall(Round round, PlayerIndex turnPlayerIndex)
+    {
+        // チー/ポン直後は副露者が打牌を行うのみ (暗槓・加槓・ツモ和了・九種九牌は不可)
+        var builder = ImmutableList.CreateBuilder<ResponseCandidate>();
+        var hand = round.HandArray[turnPlayerIndex];
+        var status = round.PlayerRoundStatusArray[turnPlayerIndex];
+
+        builder.Add(BuildDahaiCandidate(round, turnPlayerIndex, hand, status));
 
         return new CandidateList(builder.ToImmutable());
     }

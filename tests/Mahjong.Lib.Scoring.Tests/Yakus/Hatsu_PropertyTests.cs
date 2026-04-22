@@ -18,7 +18,7 @@ public class Hatsu_PropertyTests
     }
 
     [Fact]
-    public void Name_發を返す()
+    public void Name_役牌發を返す()
     {
         // Arrange
         var yaku = Yaku.Hatsu;
@@ -27,7 +27,7 @@ public class Hatsu_PropertyTests
         var result = yaku.Name;
 
         // Assert
-        Assert.Equal("發", result);
+        Assert.Equal("役牌 發", result);
     }
 
     [Fact]

@@ -145,7 +145,8 @@ public sealed class TenhouJsonPaifuRecorder(TextWriter writer, PlayerList player
                 {
                     current_.UraIndicators.Add(TenhouTileNumber.Convert(indicator, rules));
                 }
-                current_.Result = BuildWinResult(win);
+                // Dealer index = Kyoku % 4 (Kyoku = RoundWind*4 + RoundNumber、RoundNumber 0-3 がそのまま親席)
+                current_.Result = BuildWinResult(win, dealerIndex: current_.Kyoku % PLAYER_COUNT);
                 break;
 
             case AdoptedRyuukyokuAction ryu:
@@ -156,25 +157,51 @@ public sealed class TenhouJsonPaifuRecorder(TextWriter writer, PlayerList player
         current_ = null;
     }
 
-    private static object[] BuildWinResult(AdoptedWinAction win)
+    // 本場 1 本あたりのロン加算 (放銃者→和了者)
+    private const int HONBA_BONUS_RON = 300;
+
+    // 本場 1 本あたりのツモ加算 (支払者 1 人あたり)
+    private const int HONBA_BONUS_TSUMO_EACH = 100;
+
+    // 供託 1 本あたりの点数
+    private const int KYOUTAKU_STICK_POINTS = 1000;
+
+    private static object[] BuildWinResult(AdoptedWinAction win, int dealerIndex)
     {
         var result = new List<object> { "和了" };
-        foreach (var winner in win.WinnerIndices)
+        var isRon = win.WinType is WinType.Ron or WinType.Chankan;
+        var honba = win.Honba.Value;
+        var kyoutakuCount = win.KyoutakuRiichiAward.Count;
+        for (var wi = 0; wi < win.WinnerIndices.Count; wi++)
         {
-            var delta = Enumerable.Range(0, PLAYER_COUNT)
-                .Select(x => winner.ScoreResult.PointDeltas[new PlayerIndex(x)].Value)
-                .ToArray();
-            var points = winner.ScoreResult.PointDeltas[winner.PlayerIndex].Value;
+            var winner = win.WinnerIndices[wi];
+            var isPrimary = wi == 0;
+            var delta = new int[PLAYER_COUNT];
+            for (var i = 0; i < PLAYER_COUNT; i++)
+            {
+                delta[i] = winner.ScoreResult.PointDeltas[new PlayerIndex(i)].Value;
+            }
+            // 天鳳仕様: 本場と供託は上家取りで先頭和了者のみ受取。
+            // Round.SettleWin は「各和了者が個別に本場受取」だが、paifu は tenhou.net/6 ビューワー互換優先で先頭集約する
+            if (isPrimary)
+            {
+                ApplyHonbaBonus(delta, winner.PlayerIndex, win.LoserIndex, honba, isRon);
+                if (kyoutakuCount > 0)
+                {
+                    delta[winner.PlayerIndex.Value] += KYOUTAKU_STICK_POINTS * kyoutakuCount;
+                }
+            }
             var isYakuman = winner.ScoreResult.YakuList.Any(x => x.IsYakuman);
             // ダブル役満 (HanClosed=26) は単独で 2 倍役満を表すため、役数でなく翻数/13 で倍率を算出する
             var yakumanHan = winner.ScoreResult.YakuList
                 .Where(x => x.IsYakuman)
                 .Sum(x => winner.ScoreResult.IsMenzen ? x.HanClosed : x.HanOpen);
             var yakumanMultiplier = yakumanHan / 13;
+            var shape = BuildPaymentShape(win.WinType, winner, dealerIndex);
             var scoreText = TenhouScoreTextFormatter.Format(
                 winner.ScoreResult.Han,
                 winner.ScoreResult.Fu,
-                points,
+                shape,
                 isYakuman,
                 yakumanMultiplier
             );
@@ -201,10 +228,73 @@ public sealed class TenhouJsonPaifuRecorder(TextWriter writer, PlayerList player
                 var han = perYakuHan * group.Count();
                 detail.Add($"{yaku.Name}({han}飜)");
             }
-            result.Add(delta);
+            result.Add(delta.Cast<object>().ToArray());
             result.Add(detail.ToArray());
         }
         return [.. result];
+    }
+
+    private static void ApplyHonbaBonus(int[] delta, PlayerIndex winnerIndex, PlayerIndex loserIndex, int honba, bool isRon)
+    {
+        if (honba <= 0) { return; }
+        if (isRon)
+        {
+            var bonus = HONBA_BONUS_RON * honba;
+            delta[winnerIndex.Value] += bonus;
+            delta[loserIndex.Value] -= bonus;
+        }
+        else
+        {
+            // Tsumo: 和了者が +300×honba、各非和了者が -100×honba
+            var each = HONBA_BONUS_TSUMO_EACH * honba;
+            for (var i = 0; i < PLAYER_COUNT; i++)
+            {
+                if (i == winnerIndex.Value)
+                {
+                    delta[i] += each * (PLAYER_COUNT - 1);
+                }
+                else
+                {
+                    delta[i] -= each;
+                }
+            }
+        }
+    }
+
+    private static ScorePaymentShape BuildPaymentShape(WinType winType, AdoptedWinner winner, int dealerIndex)
+    {
+        var deltas = winner.ScoreResult.PointDeltas;
+        var winnerIndex = winner.PlayerIndex;
+        if (winType is WinType.Ron or WinType.Chankan)
+        {
+            return new RonPaymentShape(deltas[winnerIndex].Value);
+        }
+        // Tsumo/Rinshan
+        if (winnerIndex.Value == dealerIndex)
+        {
+            // 親ツモ: 子 3 人が同額支払。いずれかの非和了席の delta から取得 (通常局面はすべて同額)
+            var nonWinner = FirstIndex(x => x.Value != winnerIndex.Value);
+            return new DealerTsumoPaymentShape(-deltas[nonWinner].Value);
+        }
+        // 子ツモ: 親支払と子支払を分けて取得
+        var dealerPlayerIndex = new PlayerIndex(dealerIndex);
+        var nonDealerNonWinner = FirstIndex(x =>
+            x.Value != winnerIndex.Value &&
+            x.Value != dealerIndex);
+        return new ChildTsumoPaymentShape(
+            NonDealerPay: -deltas[nonDealerNonWinner].Value,
+            DealerPay: -deltas[dealerPlayerIndex].Value
+        );
+    }
+
+    private static PlayerIndex FirstIndex(Func<PlayerIndex, bool> predicate)
+    {
+        for (var i = 0; i < PLAYER_COUNT; i++)
+        {
+            var p = new PlayerIndex(i);
+            if (predicate(p)) { return p; }
+        }
+        throw new InvalidOperationException("条件を満たす PlayerIndex が見つかりません。");
     }
 
     private static object[] BuildRyuukyokuResult(AdoptedRyuukyokuAction ryu)

@@ -64,7 +64,7 @@ public class RoundStateContext_IntegrationTests : IDisposable
     }
 
     [Fact]
-    public void 副露からの打牌の遷移パス()
+    public void 副露からの副露後状態の遷移パス()
     {
         // Arrange
         RoundStateContextTestHelper.InitDirect(context_, RoundStateContextTestHelper.CreateRound());
@@ -79,8 +79,8 @@ public class RoundStateContext_IntegrationTests : IDisposable
         // RoundStateCall は OK 応答を待つため明示的に送る
         RoundStateContextTestHelper.DriveResponseOk(context_);
 
-        // Assert
-        Assert.IsType<RoundStateDahai>(context_.State);
+        // Assert: 副露後は副露者に打牌を求める RoundStateAfterCall に遷移する
+        Assert.IsType<RoundStateAfterCall>(context_.State);
     }
 
     [Fact]

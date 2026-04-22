@@ -153,5 +153,4 @@ public class PlayerResponseExtensions_ToBodyTests
         Assert.Equal(CallType.Kakan, actual.CallType);
         Assert.Equal(tile, actual.Tile);
     }
-
 }

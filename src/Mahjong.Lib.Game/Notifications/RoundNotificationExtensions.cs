@@ -30,6 +30,8 @@ public static class RoundNotificationExtensions
             OtherPlayerTsumoNotification n => (okOnly, new OtherPlayerTsumoNotificationPayload(n.TsumoPlayerIndex)),
             DahaiNotification n => (n.CandidateList, new DahaiNotificationPayload(n.DiscardedTile, n.DiscarderIndex)),
             CallNotification n => (okOnly, new CallNotificationPayload(n.MadeCall, n.CallerIndex)),
+            AfterCallNotification n => (n.CandidateList, new AfterCallNotificationPayload(n.CalledTile)),
+            OtherPlayerAfterCallNotification n => (okOnly, new OtherPlayerAfterCallNotificationPayload(n.CallerIndex)),
             KanNotification n => (n.CandidateList, new KanNotificationPayload(n.KanCall, n.KanCallerIndex)),
             KanTsumoNotification n => (n.CandidateList, new KanTsumoNotificationPayload(n.DrawnTile)),
             OtherPlayerKanTsumoNotification n => (okOnly, new OtherPlayerKanTsumoNotificationPayload(n.KanTsumoPlayerIndex)),

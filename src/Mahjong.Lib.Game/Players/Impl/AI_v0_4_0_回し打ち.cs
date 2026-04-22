@@ -2,8 +2,8 @@
 using Mahjong.Lib.Game.Games;
 using Mahjong.Lib.Game.Notifications;
 using Mahjong.Lib.Game.Responses;
-using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Rounds;
+using Mahjong.Lib.Game.Tenpai;
 using Mahjong.Lib.Game.Tiles;
 using Mahjong.Lib.Game.Views;
 using Mahjong.Lib.Scoring.Tiles;
@@ -107,6 +107,21 @@ public sealed class AI_v0_4_0_回し打ち(
             ?? throw new InvalidOperationException("ツモフェーズに DahaiCandidate が提示されませんでした。");
         var chosen = SelectDahai(notification.View, dahai.DahaiOptionList);
         return Task.FromResult<AfterTsumoResponse>(new DahaiResponse(chosen.Tile, chosen.RiichiAvailable));
+    }
+
+    public override Task<DahaiResponse> OnAfterCallAsync(AfterCallNotification notification, CancellationToken ct = default)
+    {
+        var candidates = notification.CandidateList;
+        var dahai = candidates.GetCandidates<DahaiCandidate>().FirstOrDefault()
+            ?? throw new InvalidOperationException("副露後フェーズに DahaiCandidate が提示されませんでした。");
+        var chosen = SelectDahai(notification.View, dahai.DahaiOptionList);
+        // 副露後は非門前のため立直不可
+        return Task.FromResult(new DahaiResponse(chosen.Tile));
+    }
+
+    public override Task<OkResponse> OnOtherPlayerAfterCallAsync(OtherPlayerAfterCallNotification notification, CancellationToken ct = default)
+    {
+        return Task.FromResult(new OkResponse());
     }
 
     public override Task<PlayerResponse> OnDahaiAsync(DahaiNotification notification, CancellationToken ct = default)

@@ -1,6 +1,5 @@
 ﻿using Mahjong.Lib.Game.Calls;
 using Mahjong.Lib.Game.Inquiries;
-using Mahjong.Lib.Game.Adoptions;
 using Mahjong.Lib.Game.Notifications.Bodies;
 using Mahjong.Lib.Game.Responses;
 
@@ -26,6 +25,7 @@ public static class PlayerResponseEnvelopeExtensions
             RoundInquiryPhase.Kan => FromWireKan(body),
             RoundInquiryPhase.KanTsumo => FromWireKanTsumo(body),
             RoundInquiryPhase.AfterKanTsumo => FromWireAfterKanTsumo(body),
+            RoundInquiryPhase.AfterCall => FromWireAfterCall(body),
             _ => throw new ArgumentOutOfRangeException(nameof(phase), phase, "未対応のフェーズです。"),
         };
     }
@@ -95,6 +95,15 @@ public static class PlayerResponseEnvelopeExtensions
             KanResponseBody b when b.CallType == CallType.Ankan => new KanTsumoAnkanResponse(b.Tile),
             KanResponseBody b when b.CallType == CallType.Kakan => new KanTsumoKakanResponse(b.Tile),
             _ => throw InvalidBody(RoundInquiryPhase.AfterKanTsumo, body),
+        };
+    }
+
+    private static DahaiResponse FromWireAfterCall(ResponseBody body)
+    {
+        return body switch
+        {
+            DahaiResponseBody b => new DahaiResponse(b.Tile, b.IsRiichi),
+            _ => throw InvalidBody(RoundInquiryPhase.AfterCall, body),
         };
     }
 

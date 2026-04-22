@@ -121,6 +121,8 @@ public partial class RoundStateContext
             KanTsumoNotification n => await player.OnKanTsumoAsync(n, ct),
             OtherPlayerKanTsumoNotification n => await player.OnOtherPlayerKanTsumoAsync(n, ct),
             CallNotification n => await player.OnCallAsync(n, ct),
+            AfterCallNotification n => await player.OnAfterCallAsync(n, ct),
+            OtherPlayerAfterCallNotification n => await player.OnOtherPlayerAfterCallAsync(n, ct),
             WinNotification n => await player.OnWinAsync(n, ct),
             RyuukyokuNotification n => await player.OnRyuukyokuAsync(n, ct),
             DoraRevealNotification n => await player.OnDoraRevealAsync(n, ct),
@@ -221,6 +223,11 @@ public partial class RoundStateContext
             RoundStateAfterKanTsumo => isInquired
                 ? new KanTsumoNotification(view, round.HandArray[round.Turn].Last(), playerSpec.CandidateList, inquired)
                 : new OtherPlayerKanTsumoNotification(view, round.Turn, inquired),
+            RoundStateAfterCall => isInquired
+                // 副露者には打牌選択を求める専用通知 (取得した牌 CalledTile を提示、打牌のみ許可)
+                ? new AfterCallNotification(view, GetLastCalledTile(round, round.Turn), playerSpec.CandidateList, inquired)
+                // 他家には「副露者が打牌選択中」の観測通知
+                : new OtherPlayerAfterCallNotification(view, round.Turn, inquired),
             RoundStateCall => BuildCallNotification(view, round, inquired),
             RoundStateWin win => new WinNotification(view, (AdoptedWinAction)AdoptedRoundActionBuilder.Build(win.EventArgs), inquired),
             RoundStateRyuukyoku ryu => new RyuukyokuNotification(view, (AdoptedRyuukyokuAction)AdoptedRoundActionBuilder.Build(ryu.EventArgs), inquired),
@@ -233,6 +240,18 @@ public partial class RoundStateContext
         var callerIndex = round.Turn;
         var madeCall = round.CallListArray[callerIndex].Last();
         return new CallNotification(view, madeCall, callerIndex, inquired);
+    }
+
+    /// <summary>
+    /// <see cref="RoundStateAfterCall"/> で副露者が直前に取得した牌 (= 副露の <see cref="Call.CalledTile"/>)
+    /// を <see cref="AfterCallNotification.CalledTile"/> として提示するための取得ヘルパー。
+    /// 副露時は必ず CalledTile が存在するため null にはならない想定 (暗槓はこの状態を経由しない)。
+    /// </summary>
+    private static Tile GetLastCalledTile(Round round, PlayerIndex callerIndex)
+    {
+        var lastCall = round.CallListArray[callerIndex].Last();
+        return lastCall.CalledTile
+            ?? throw new InvalidOperationException($"RoundStateAfterCall で CalledTile が null です。副露種別:{lastCall.Type}");
     }
 
     private static DahaiNotification BuildDahaiNotification(PlayerRoundView view, Round round, CandidateList candidates, ImmutableArray<PlayerIndex> inquired)
@@ -286,9 +305,26 @@ public partial class RoundStateContext
                 await DispatchAfterKanTsumoAsync(FindInquiredResponse(spec, adopted).Response);
                 return null;
 
+            case RoundInquiryPhase.AfterCall:
+                await DispatchAfterCallAsync(FindInquiredResponse(spec, adopted).Response);
+                return null;
+
             default:
                 throw new InvalidOperationException($"未対応のフェーズです。実際:{spec.Phase}");
         }
+    }
+
+    /// <summary>
+    /// 副露後フェーズの応答ディスパッチ。副露後は打牌のみ許可される
+    /// </summary>
+    private async Task DispatchAfterCallAsync(PlayerResponse pendingResponse)
+    {
+        if (pendingResponse is DahaiResponse d)
+        {
+            await ResponseDahaiAsync(d.Tile, d.IsRiichi);
+            return;
+        }
+        throw new InvalidOperationException($"副露後フェーズの応答として未対応です。実際:{pendingResponse.GetType().Name}");
     }
 
     private async Task DispatchAfterKanTsumoAsync(PlayerResponse pendingResponse)
