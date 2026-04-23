@@ -110,7 +110,7 @@ public class Round_ConfirmRiichiTests
             new Tile(4), new Tile(5), new Tile(6), new Tile(7),
             new Tile(12), new Tile(13), new Tile(16),
         ]);
-        round = round.Chi(caller, System.Collections.Immutable.ImmutableList.Create(new Tile(84), new Tile(88)));
+        round = round.Chi(caller, ImmutableList.Create(new Tile(84), new Tile(88)));
         var laterPlayer = new PlayerIndex(3);
         round = round.PendRiichi(laterPlayer);
 

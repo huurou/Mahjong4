@@ -31,6 +31,35 @@ public sealed class AutoPlayRunner(
 {
     private static TimeSpan GameTimeout { get; } = TimeSpan.FromMinutes(5);
 
+    /// <summary>
+    /// 10 局ごとのサマリーログを出すチェックポイント間隔。
+    /// </summary>
+    private const int PROGRESS_SUMMARY_INTERVAL = 10;
+
+    /// <summary>
+    /// 10 局単位 (または最後の 1 局) でスループット / ETA のサマリーをログに出す。
+    /// 長時間 AutoPlay でログから進捗を掴みたい用途向け。
+    /// </summary>
+    private static void LogProgressSummaryIfCheckpoint(ILogger logger, int done, int total, TimeSpan elapsed)
+    {
+        if (done % PROGRESS_SUMMARY_INTERVAL != 0 && done != total) { return; }
+        var gamesPerSec = elapsed.TotalSeconds > 0 ? done / elapsed.TotalSeconds : 0;
+        var remaining = total - done;
+        var eta = gamesPerSec > 0 ? TimeSpan.FromSeconds(remaining / gamesPerSec) : TimeSpan.Zero;
+        logger.LogInformation(
+            "=== PROGRESS {Done}/{Total} ({Percent:00.0}%) elapsed={Elapsed} games/s={Rate:F2} ETA={Eta}",
+            done, total, done * 100.0 / total,
+            FormatElapsed(elapsed), gamesPerSec, FormatElapsed(eta)
+        );
+    }
+
+    private static string FormatElapsed(TimeSpan t)
+    {
+        return t.TotalHours >= 1
+            ? $"{(int)t.TotalHours}h{t.Minutes:00}m{t.Seconds:00}s"
+            : $"{t.Minutes:00}m{t.Seconds:00}s";
+    }
+
     public async Task<StatsReport> RunAsync(int totalGameCount, CancellationToken ct = default)
     {
         var logger = loggerFactory.CreateLogger<AutoPlayRunner>();
@@ -52,6 +81,7 @@ public sealed class AutoPlayRunner(
 
         var completedGameCount = 0;
         var parallelOpts = new ParallelOptions { MaxDegreeOfParallelism = workerCount, CancellationToken = ct };
+        var runStartTime = Stopwatch.StartNew();
         await Parallel.ForEachAsync(Enumerable.Range(0, workerCount), parallelOpts, async (workerId, workerCt) =>
         {
             var tracer = tracers[workerId];
@@ -70,6 +100,7 @@ public sealed class AutoPlayRunner(
                         "W{WorkerId} 対局 {GameNumber}/{Total} ({Percent:00.00}%) 完了 ({ElapsedSeconds:F1}s)",
                         workerId, done, actualTotal, percent, sw.Elapsed.TotalSeconds
                     );
+                    LogProgressSummaryIfCheckpoint(logger, done, actualTotal, runStartTime.Elapsed);
                 }
                 catch (OperationCanceledException) when (workerCt.IsCancellationRequested)
                 {
@@ -85,6 +116,7 @@ public sealed class AutoPlayRunner(
                         "W{WorkerId} 対局 {GameNumber}/{Total} ({Percent:00.00}%) 失敗 ({ElapsedSeconds:F1}s)",
                         workerId, done, actualTotal, done * 100.0 / actualTotal, sw.Elapsed.TotalSeconds
                     );
+                    LogProgressSummaryIfCheckpoint(logger, done, actualTotal, runStartTime.Elapsed);
                 }
             }
         });

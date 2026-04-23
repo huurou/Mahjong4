@@ -17,6 +17,16 @@ internal static class ShantenHelper
     }
 
     /// <summary>
+    /// 副露面子数を明示してシャンテン数を計算する。
+    /// 自動推定 (14 - 手牌枚数) / 3 に頼らず、呼び出し側が保有する <see cref="Calls.CallList"/>
+    /// から面子数を渡す想定。副露判定や副露シミュレーション経路で使用する。
+    /// </summary>
+    public static int CalcShanten(Hands.Hand hand, int knownCallMeldCount)
+    {
+        return ShantenCalculator.Calc(hand.ToScoringTileKindList(), knownCallMeldCount);
+    }
+
+    /// <summary>
     /// 指定手牌の有効牌 (引くとシャンテン数が減る牌種) 集合を返す。
     /// <paramref name="knownShanten"/> に呼び出し元で既に計算したシャンテン数を渡すと重複計算を避けられる
     /// </summary>

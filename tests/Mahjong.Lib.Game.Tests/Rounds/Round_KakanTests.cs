@@ -63,7 +63,7 @@ public class Round_KakanTests
         var result = round.Kakan(new Tile(86));
 
         // Assert: index 0 が加槓、index 1 がポンのまま
-        Assert.Equal(2, result.CallListArray[p1].Count());
+        Assert.Equal(2, result.CallListArray[p1].Count);
         var first = result.CallListArray[p1].First();
         var second = result.CallListArray[p1].Skip(1).First();
         Assert.Equal(CallType.Kakan, first.Type);

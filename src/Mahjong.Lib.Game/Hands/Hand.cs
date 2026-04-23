@@ -21,6 +21,17 @@ public record Hand : IEnumerable<Tile>
     }
 
     /// <summary>
+    /// <see cref="ImmutableList{T}"/> を直接受け取る内部コンストラクタ。
+    /// <see cref="AddTile(Tile)"/> / <see cref="RemoveTile(Tile)"/> が <see cref="ImmutableList{T}.Add(T)"/> /
+    /// <see cref="ImmutableList{T}.Remove(T, IEqualityComparer{T}?)"/> の結果をそのまま渡して
+    /// IEnumerable 経由の再コピーを避けるために使う。
+    /// </summary>
+    internal Hand(ImmutableList<Tile> tiles)
+    {
+        tiles_ = tiles;
+    }
+
+    /// <summary>
     /// 指定の牌を追加した新しいHandを返す
     /// </summary>
     /// <param name="tile">追加する牌</param>

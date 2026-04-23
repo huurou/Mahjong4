@@ -232,7 +232,7 @@ public class TenhouJsonPaifuRecorder_BuildResultTests
         var yakuEntries = Enumerable.Range(4, detail.GetArrayLength() - 4)
             .Select(x => detail[x].GetString() ?? "")
             .ToArray();
-        Assert.Equal<string>(
+        Assert.Equal(
             ["立直(1飜)", "一発(1飜)", "七対子(2飜)", "裏ドラ(2飜)"],
             yakuEntries
         );

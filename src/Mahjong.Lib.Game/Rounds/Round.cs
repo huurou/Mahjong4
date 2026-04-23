@@ -840,7 +840,7 @@ public record Round(
     {
         for (var i = 0; i < PlayerIndex.PLAYER_COUNT; i++)
         {
-            if (CallListArray[new PlayerIndex(i)].Any())
+            if (CallListArray[new PlayerIndex(i)].Count != 0)
             {
                 return false;
             }

@@ -97,7 +97,7 @@ internal static class YakuAwareShantenHelper
         targets.Add(TileKind.Winds[seatWindIndex]);
 
         var tileKindList = hand.ToScoringTileKindList();
-        var callMeldCount = calls.Count();
+        var callMeldCount = calls.Count;
 
         // 先に刻子確定の有無だけ判定 (1 つでも確定していれば通常シャンテン即返し)
         // 翻牌は 4 面子 1 雀頭の通常形でのみ成立する役なので、七対子・国士経路は除外
@@ -165,7 +165,7 @@ internal static class YakuAwareShantenHelper
         var filtered = FilterTileKinds(hand, k => !k.IsYaochu);
         var removedCount = handCount - filtered.Count;
         // 断么九は通常形の中張牌縛りで成立する役なので、七対子・国士経路は除外
-        var shanten = ShantenCalculator.Calc(filtered, knownCallMeldCount: calls.Count(), useChiitoitsu: false, useKokushi: false);
+        var shanten = ShantenCalculator.Calc(filtered, knownCallMeldCount: calls.Count, useChiitoitsu: false, useKokushi: false);
         return shanten + removedCount;
     }
 
@@ -237,7 +237,7 @@ internal static class YakuAwareShantenHelper
         var filtered = FilterTileKinds(hand, k => k.IsHonor || k.Value / 9 == suit);
         var removedCount = handCount - filtered.Count;
         // 混一色・清一色は通常形の一色縛りで成立する役なので、七対子・国士経路は除外
-        var shanten = ShantenCalculator.Calc(filtered, knownCallMeldCount: calls.Count(), useChiitoitsu: false, useKokushi: false);
+        var shanten = ShantenCalculator.Calc(filtered, knownCallMeldCount: calls.Count, useChiitoitsu: false, useKokushi: false);
         return shanten + removedCount;
     }
 

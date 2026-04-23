@@ -8,6 +8,20 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 var options = AutoPlayOptions.Parse(args);
+
+// stdout が端末以外 (パイプ/リダイレクト) のときはデフォルトでチャンクバッファされ、長時間ジョブの
+// 10 局ごとサマリーが MB 単位の buffer が埋まるまで見えない問題が出る。AutoFlush を明示的に有効化して
+// ログ/Console.WriteLine が 1 行ごとにフラッシュされるようにする。
+// さらに StreamWriter に UTF-8 (no BOM) を明示し、Windows ではコンソールの出力コードページも UTF-8 に
+// 揃えることで、日本語出力が CP932 として解釈されて文字化けするのを防ぐ。
+var utf8NoBom = new System.Text.UTF8Encoding(false);
+if (OperatingSystem.IsWindows())
+{
+    Console.OutputEncoding = utf8NoBom;
+}
+Console.SetOut(new StreamWriter(Console.OpenStandardOutput(), utf8NoBom) { AutoFlush = true });
+Console.SetError(new StreamWriter(Console.OpenStandardError(), utf8NoBom) { AutoFlush = true });
+
 Console.WriteLine($"[AutoPlay] Games: {options.GameCount} Seed: {options.Seed} Output: {options.OutputDirectory} WritePaifu: {options.WritePaifu} LogicalProcessors: {Environment.ProcessorCount}");
 
 var services = new ServiceCollection();
@@ -26,10 +40,10 @@ services.AddSingleton(_ =>
 {
     var aiFactories = new IPlayerFactory[]
     {
-        new AI_v0_4_0_回し打ちFactory(options.Seed),
-        new AI_v0_4_0_回し打ちFactory(options.Seed),
         new AI_v0_5_0_鳴きFactory(options.Seed),
         new AI_v0_5_0_鳴きFactory(options.Seed),
+        new AI_v0_6_0_手作りFactory(options.Seed),
+        new AI_v0_6_0_手作りFactory(options.Seed),
     };
     return new MixedPlayerFactory(aiFactories, options.Seed);
 });

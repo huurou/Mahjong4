@@ -146,4 +146,55 @@ public class ShantenCalculator_CalcWithMeldCountTests
         // Assert: 七対子計算は同一
         Assert.Equal(autoInferred, withCallMeld);
     }
+
+    [Fact]
+    public void Count配列API_通常形_正しいシャンテン数を取得できる()
+    {
+        // Arrange
+        var counts = CreateCounts(new TileKindList("567", "11", "111345677", ""));
+
+        // Act
+        var actual = ShantenCalculator.Calc(counts, knownCallMeldCount: 0, useRegular: true, useChiitoitsu: false, useKokushi: false);
+
+        // Assert
+        Assert.Equal(ShantenConstants.SHANTEN_TENPAI, actual);
+    }
+
+    [Fact]
+    public void Count配列API_全形最小シャンテンを取得できる()
+    {
+        // Arrange
+        var counts = CreateCounts(new TileKindList("77", "114477", "114477", ""));
+
+        // Act
+        var actual = ShantenCalculator.Calc(counts);
+
+        // Assert
+        Assert.Equal(ShantenConstants.SHANTEN_AGARI, actual);
+    }
+
+    [Fact]
+    public void Count配列API_計算後も入力配列が復元される()
+    {
+        // Arrange
+        var counts = CreateCounts(new TileKindList("123456789", "1111", "", ""));
+        var expected = counts.ToArray();
+
+        // Act
+        _ = ShantenCalculator.Calc(counts);
+
+        // Assert
+        Assert.Equal(expected, counts);
+    }
+
+    private static int[] CreateCounts(TileKindList hand)
+    {
+        var counts = new int[34];
+        foreach (var tileKind in hand)
+        {
+            counts[tileKind.Value]++;
+        }
+
+        return counts;
+    }
 }

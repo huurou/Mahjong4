@@ -21,6 +21,13 @@ public record CallList : IEnumerable<Call>
     }
 
     /// <summary>
+    /// 含まれる副露 (面子) の数。<see cref="ImmutableList{T}.Count"/> は O(1) のため
+    /// <see cref="Enumerable.Count{T}(IEnumerable{T})"/> 経由の列挙を避けて
+    /// キャッシュキー生成や判定の決定パスから呼び出しても負担が軽い。
+    /// </summary>
+    public int Count => calls_.Count;
+
+    /// <summary>
     /// 指定の副露を追加した新しいCallListを返す
     /// </summary>
     /// <param name="call">追加する副露</param>

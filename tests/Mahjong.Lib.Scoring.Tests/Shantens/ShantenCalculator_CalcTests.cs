@@ -111,6 +111,22 @@ public class ShantenCalculator_CalcTests
         Assert.Equal(expected, actual);
     }
 
+    [Fact]
+    public void 数牌4枚槓子と3面子のみ_対子がないので1シャンテン扱いになる()
+    {
+        // Arrange: 1111m + 234p + 567p + 123s = 13 枚。面子 4 個 (1m 槓子 + 3 面子) だが対子なし。
+        // ナイーブには「1m 槓子を 111m + 孤立 1m として 4 面子 + 単騎待ち」と見えるため shanten=0 (テンパイ) に
+        // なりそうだが、槓子を部分的に使った単騎待ちは実際には成立しない (同牌が 4 枚全部使われている)。
+        // ShantenCalculator.UpdateBestShanten の isolatedOnlyFromNumberKantsu 経路が +1 補正する対象ケース。
+        var hand = new TileKindList("1111", "234567", "123", "");
+
+        // Act
+        var actual = ShantenCalculator.Calc(hand, useRegular: true, useChiitoitsu: false, useKokushi: false);
+
+        // Assert: 1 シャンテン (対子を作る 1 枚が必要)
+        Assert.Equal(1, actual);
+    }
+
     [Theory]
     [InlineData("", "222567", "44468", "", ShantenConstants.SHANTEN_TENPAI)]
     [InlineData("", "222567", "68", "", ShantenConstants.SHANTEN_TENPAI)]

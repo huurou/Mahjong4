@@ -308,3 +308,94 @@ v0.2.0 の [SelectBestDahai 内シャンテン→有効牌] 選抜後、`finalis
 - くっつき有効牌の未見枚数評価は 34 牌種全体をなめるため打牌候補数が多い局面でやや重い (Kind 単位のメモ化で緩和)
 - 攻撃時のタイブレーク評価値 `ev = Σ unseen(K) × multiplier(Mark)` に、対象牌自身のドラ/赤ドラ/役牌倍率 (v0.3.0 の `outerMultiplier`) が反映されていない。有効牌 EV 同点時に赤 5 や役牌を切りうる退行。v0.5.1 以降でタイブレーカーに `outerMultiplier` を戻す方針
 - 翻牌経路 (`YakuAwareShantenHelper.CalcYakuhai`) は対子以上のみ評価する近似。孤立 1 枚の役牌は `INFINITE` 扱いになるため、混在副露手で「まだ 1 枚だけ残る役牌」を過剰に切りやすい
+
+## v0.6.0 AI_v0_6_0_手作り
+
+**目的**: v0.5.0 までは「役あり有効牌枚数」で打牌・副露を決めていたため、打点差が大きい選択肢 (例: 両面 2 種 8 枚 30 符 1 翻 / 嵌張 1 種 4 枚 40 符 3 翻+ドラ) でも枚数優先で安い手を選んでしまう。v0.6.0 は kobalab/majiang-ai の 0301〜0305 を C# に移植し、**和了打点を再帰評価値として打牌・副露・槓を選ぶ**。v0.4.0 守備 + v0.5.0 深いシャンテンのフォールバックを維持したハイブリッド構成。
+
+**ハイブリッド構成** (役ありシャンテン `yakuShanten` で分岐):
+
+| 状況 | 打牌選択 | 守備 | 副露判断 |
+|---|---|---|---|
+| 他家リーチ & 非テンパイ & 危険度 > 5 | v0.4.0 ベタオリ | ✓ | しない |
+| 他家リーチ & 1 シャンテン & 危険度 ≤ 5 | 攻撃ルート | ✓ | しない |
+| 通常 & `yakuShanten` ≥ 3 | v0.5.0 相当 (有効牌 × 副露マーク × 0305 染め重み) | — | v0.5.0 (役ありシャンテン減少で採用) |
+| 通常 & `yakuShanten` ≤ 2 | **0301+0302 評価値ベース** | — | **0304 評価値ベース** |
+| テンパイ | ツモ和了 / 通常打牌 | — | しない |
+
+**アルゴリズム**:
+
+- **0301 再帰評価値** ([HandShapeEvaluator.EvaluateHand13 / EvaluateHand14](../src/Mahjong.Lib.Game/Players/Impl/HandShapeEvaluator.cs)):
+  - `EvaluateHand14(hand14)`: 和了形なら `CalcHandScore` (後述)、それ以外は全打牌候補 (シャンテン戻らないもの) の `EvaluateHand13` の max
+  - `EvaluateHand13(hand13)`: シャンテン数に応じた補正係数 × Σ (unseen(K) × EvaluateHand14(hand13 + K)) over 有効牌 K
+  - シャンテン補正: テンパイ ×18 / 1 シャンテン ×3 / 2 シャンテン ×1 (書籍の分母 216/12/72/216 を約分した long スケール整数、異なるシャンテン数間の比較が厳密に可能)
+  - 再帰打ち切り: `yakuShanten ≥ 3` は v0.5.0 相当のフォールバック
+- **0302 シャンテン戻し** ([HandShapeEvaluator.EvaluateBaktrack](../src/Mahjong.Lib.Game/Players/Impl/HandShapeEvaluator.cs)): シャンテンが戻る打牌候補は通常打牌最大値 × 2 を閾値に、各有効牌 14 枚評価値がそれを超えたものだけ加算。引き戻し除外 (打牌した牌種を有効牌から除く) とフリテン除外 (EvaluateHand14 で `winCandidate == back` なら 0 返却) を実装
+- **0303 副露評価値** ([HandShapeEvaluator.EvaluateFulouForTile](../src/Mahjong.Lib.Game/Players/Impl/HandShapeEvaluator.cs)): `EvaluateHand13` の有効牌 K 加算時に「他家から K が出たときのポン/チー成立時評価値」を加算。ポン ×3 (3 家から成立可能) / チー ×1 (下家のみ) / 両立時は `peng×2 + chi` の書籍合算式。副露後打牌はテンパイ形なら待ち牌 × `CalcHandScore` の期待値で 1 段限定の軽量評価 (仮想副露の積み重ね爆発を防ぐ再帰ガード `inFulouRecursion_` + `EvaluateFulouPostDahaiTerminal`)
+- **0304 副露判断ハイブリッド** ([AI_v0_6_0_手作り.SelectFulouByEvaluation](../src/Mahjong.Lib.Game/Players/Impl/AI_v0_6_0_手作り.cs)): `yakuShanten ≤ 2` のとき、副露しない場合の評価値と大明槓/ポン/チー各候補の副露後評価値 (`EvaluateFulouCandidate`) を比較し最大値の行動を選択。`yakuShanten ≥ 3` は v0.5.0 相当 (役ありシャンテン減少で採用)
+- **0305 一色手/大三元/四喜和狙い** ([TileWeights](../src/Mahjong.Lib.Game/Players/Impl/TileWeights.cs)): 各スート+字牌の合計 ≥10 枚なら同スート ×2・字牌 ×4 / 三元牌合計 ≥6 枚なら三元 ×8 / 風牌合計 ≥9 枚なら風 ×8 の牌種別重み。`yakuShanten ≥ 3` のフォールバックルートの評価値 `ev = Σ unseen(K) × multiplier(Mark) × TileWeights.Of(K)` に乗算する (書籍では一色手・大三元・四喜和に寄せた打牌を促す補正)
+
+**CalcHandScore** ([HandShapeEvaluator.CalcHandScore](../src/Mahjong.Lib.Game/Players/Impl/HandShapeEvaluator.cs)): ツモ前提 + メンゼンならリーチ付与 + 一発/裏ドラなしで [HandCalculator.Calc](../src/Mahjong.Lib.Scoring/HandCalculating/HandCalculator.cs) を呼び、`Score.Main + Sub*2` を返す (点数総移動)。赤ドラは手牌側に含まれる枚数のみを `AkadoraCount` に反映 (ツモ引きの赤ドラ期待値は近似しない)。役なしエラー (非メンゼン × 役なし) は 0 返却。
+
+**キャッシュ戦略**:
+
+- **AI インスタンス単位 + 局スコープ (シャンテン/有効牌含む)**:
+  - `shantenCacheGlobal_` (HandSignature + meldCount → shanten) / `usefulCacheGlobal_` (同 → 有効牌集合) は純粋関数だが、長時間 AutoPlay (数百局以上) でプロセス共有にすると無制限に膨張して GC スラッシング / OOM を起こしたため、AI インスタンス単位の `Dictionary` で保持し `ClearBetweenRounds` (局開始・配牌・局終了時) でクリア。局内はドラ開示・副露・打牌が走ってもクリアしない (局面独立な純粋関数のため)
+  - `handScoreCache_` (HandSignature + akadora + winTile + menzen + Calls → Score): ドラ/赤ドラ状態を含むため対局内。`ClearAll` で局開始・ドラ開示・副露でクリア
+  - `evalCache_` (HandSignature + Calls + BackMarker + BackKind + akadora → long): 未見枚数依存のため `ClearEvalOnly` で毎ツモ・打牌でクリア。`akadora` はキーに必須 — `HandSignature` / `CallsSignature` が意図的に赤黒を区別しない (34 牌種) ため、赤 5 含む hand と含まない hand の評価値が衝突するのを防ぐ
+  - `fulouCache_` (hand13 + p + Calls + akadora → long): 同一 (hand13, p, ctx.Calls, akadora) の副露評価を共有。`ClearEvalOnly` で毎ツモ・打牌でクリア
+- `HandSignature` は 34 牌種 × 3 bit パックの 128 bit 構造体 (`ulong lo + ulong hi`)。`CallsSignature` は 64 bit FNV-1a ハッシュ。`ImmutableList`/`SequenceEqual` ベースのキーより高速
+- `useful` 列挙は [ShantenHelper.EnumerateUsefulTileKinds](../src/Mahjong.Lib.Game/Tenpai/ShantenHelper.cs) を使わず **インライン化**。34 候補の shanten 計算結果を `shantenCacheGlobal_` に格納し、続く `EvaluateHand14` での shanten lookup がキャッシュヒットするよう二重計算を除去
+
+**クラス構成**:
+
+- [AI_v0_6_0_手作り.cs](../src/Mahjong.Lib.Game/Players/Impl/AI_v0_6_0_手作り.cs)
+  - `AI_v0_6_0_手作り(PlayerId, PlayerIndex, Random) : Player`
+  - `AI_v0_6_0_手作りFactory(int seed) : AiPlayerFactoryBase<AI_v0_6_0_手作り>`
+- [HandShapeEvaluator.cs](../src/Mahjong.Lib.Game/Players/Impl/HandShapeEvaluator.cs) — 評価値計算器の本体
+- [HandShapeEvaluatorContext.cs](../src/Mahjong.Lib.Game/Players/Impl/HandShapeEvaluatorContext.cs) — 局面不変情報 (Rules / 風 / ドラ / Calls / GetUnseen / TileWeights / BackMarker) + 遅延派生キャッシュ (CallsSignature / ScoringCallList / ScoringGameRules / ScoringDoraIndicators)
+- [HandSignature.cs](../src/Mahjong.Lib.Game/Players/Impl/HandSignature.cs) — 34 牌種 × 3 bit パック署名
+- [CallsSignature.cs](../src/Mahjong.Lib.Game/Players/Impl/CallsSignature.cs) — 64 bit FNV-1a 副露ハッシュ
+- [TileWeights.cs](../src/Mahjong.Lib.Game/Players/Impl/TileWeights.cs) — 0305 の牌種別重み
+
+**元実装 (kobalab/majiang-ai 0305) との差異**:
+
+- **赤ドラ**: 手牌側の枚数のみを `CalcHandScore` に反映。ツモ引き時の赤ドラ期待値は近似しない (評価値計算中に追加される "仮想和了牌" は `RepresentativeNonRedTile` で常に非赤 Id を使用)
+- **一発・裏ドラ**: 和了打点計算で考慮しない (元実装と同じ)
+- **役なし 0 点**: `HandCalculator.Calc` の `ErrorMessage != null` のとき 0 を返す。メンゼン手は強制リーチ付与で回避されるが、非メンゼン × 役なしは 0
+- **Kind レベルの赤ドラ曖昧性**: 内部再帰が 34 牌種レベルで進むため、count=0 の赤ドラ/非赤ドラ識別は元 hand13 から継承する近似 (iterateし直さない)
+- **シャンテン閾値**: `yakuShanten ≤ 2` のみ評価値計算、`yakuShanten ≥ 3` は v0.5.0 相当フォールバック (元実装 0305 と同じ)
+- **ハイブリッド構成**: v0.4.0 守備ロジック (他家リーチ時の押し/回し/ベタオリ) を保持 (元実装 0305 にはない独自拡張)
+- **副露再帰ガード**: `EvaluateFulouForTile` が再帰中は eval_fulou 加算をスキップ (仮想副露の `CallsSignature` 爆発を抑える近似)
+
+**統計結果** (AutoPlay 1000 局 × 2 シード):
+
+- ベースライン: `AI_v0_5_0_鳴き ×2 + AI_v0_6_0_手作り ×2` の混在卓、`MixedPlayerFactory` で席シャッフル
+- 対局数: 1000 局 × 2 シード (`--seed 1` / `--seed 2`)、`--parallel 4 --no-paifu` で実行
+
+| シード | AI | 平均順位 | 和了率 | 放銃率 | 立直率 | 副露率 | 平均打点 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | v0.5.0 鳴き | 2.126 | 25.9% | 9.0% | 32.6% | 25.5% | 5225 |
+| 1 | v0.6.0 手作り | 2.874 | 8.9% | 9.5% | 17.9% | 9.8% | 8804 |
+| 2 | v0.5.0 鳴き | 2.136 | 25.8% | 8.6% | 33.0% | 25.3% | 5197 |
+| 2 | v0.6.0 手作り | 2.864 | 8.6% | 9.8% | 17.5% | 9.6% | 8735 |
+| 平均 | v0.5.0 鳴き | 2.131 | 25.85% | 8.8% | 32.8% | 25.4% | 5211 |
+| 平均 | v0.6.0 手作り | 2.869 | 8.75% | 9.65% | 17.7% | 9.7% | 8770 |
+
+**考察**:
+
+- **平均打点**: v0.6.0 は v0.5.0 比 +68.3% (5211 → 8770) を達成し、打点最適化の方向性は統計的に確認できた (書籍 0301〜0305 の想定通り)
+- **和了率の激減**: v0.6.0 は 25.85% → 8.75% (-66.2%) に落ちた。**平均順位は 2.131 → 2.869 と大幅悪化**し、打点向上で順位を取り返せなかった。副露率 9.7% (v0.5.0 の 25.4% の 4 割弱) / 立直率 17.7% (v0.5.0 の 54% 弱) から、門前高打点に固執し和了機会自体を失っていることが明確
+- **役構成**: v0.6.0 の和了のうち立直 86.5-87.4% / 門前清自摸和 49.4-50.2% / 平和 37.6-40.3% と高打点門前役に偏重 (v0.5.0 は立直 53-54% / 門前自摸 30% 程度)。混一色は 1.6-1.8% と想定ほど出ておらず、0305 染め重みが発動する局面は限定的
+- **放銃率**: v0.6.0 は 9.65% と v0.5.0 の 8.8% より微増。攻撃局面の短縮で守備不能局面が減ったが、評価値ルートで危険牌を切る判断が発生している可能性あり (v0.4.0 守備は継承しているが、1 シャンテン押し込みの判定基準が v0.5.0 と異なる)
+- **元実装との乖離**: kobalab/majiang-ai の 0305 公開スコアは 0304 比で平均打点 +1200 / 順位 -0.05 程度の改善報告。本実装の打点ゲインは方向として一致するが、和了率ロスが支配的で **ネット順位は大きく悪化**。この差は (a) 赤ドラ期待値の近似誤差、(b) 副露判定 1 段打ち切り、(c) シャンテン戻し閾値 `min_ev × 2` が厳しすぎる可能性、のいずれか / 組合せと考えられる
+- **結論**: v0.6.0 単体では実用 AI にならず、次イテレーションで和了率回復 (シャンテン戻し閾値の再調整、副露評価の深さ拡張、テンパイ維持優先度の再検討) が必要
+
+**既知の限界** (次バージョンへの課題):
+
+- Hand 表現が `ImmutableList<Tile>` ベースのため、`EvaluateHand14` の discard ループで tile × 14 回の `RemoveTile` alloc が発生し、2 シャンテン決定で 100ms オーダーの実行時間。count[34]-array ベースの内部表現に置き換えれば 3〜5 倍の高速化余地
+- 赤ドラ期待値の近似: 評価値再帰で追加する仮想牌が非赤として扱われるため、赤牌が手牌にない時の `AkadoraCount` が理論値より小さくなる
+- フリテン判定は `back` 引数で EvaluateHand14 の和了形を弾くだけで、永続フリテン (河に待ち牌がある状態) は考慮しない
+- 副露判定評価値は 1 段限定 (`EvaluateFulouPostDahaiTerminal` がテンパイのみ評価)。書籍 0303 オリジナルは再帰するが、仮想副露の `CallsSignature` 爆発で計算量 10x になるため本実装では打ち切り
+- 一発/裏ドラ未考慮: リーチ時の期待値を低めに見積もる
+- シャンテン/有効牌キャッシュはインスタンス単位で局境界にクリアするため、局を跨いだ warm-up によるヒット率向上は得られない (静的共有を試したところ長時間 AutoPlay で OOM を起こしたため断念)
