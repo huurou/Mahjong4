@@ -40,10 +40,10 @@ services.AddSingleton(_ =>
 {
     var aiFactories = new IPlayerFactory[]
     {
-        new AI_v0_5_0_鳴きFactory(options.Seed),
-        new AI_v0_5_0_鳴きFactory(options.Seed),
         new AI_v0_6_0_手作りFactory(options.Seed),
         new AI_v0_6_0_手作りFactory(options.Seed),
+        new AI_v0_6_1_手作りFactory(options.Seed),
+        new AI_v0_6_1_手作りFactory(options.Seed),
     };
     return new MixedPlayerFactory(aiFactories, options.Seed);
 });

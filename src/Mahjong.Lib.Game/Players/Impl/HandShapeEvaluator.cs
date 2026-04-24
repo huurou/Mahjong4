@@ -267,6 +267,9 @@ internal sealed class HandShapeEvaluator
         long result = 0;
         if (shanten < RECURSION_CUTOFF_SHANTEN)
         {
+            // 書籍準拠 (v0.6.1): paijia は毎 hand13 + calls で再構築する。親から使い回すと、
+            // 親 hand14 で成立していた染め条件が子 hand13 で外れるような打牌候補を誤判定する。
+            var weights = TileWeights.Build(hand13, ctx.Calls);
             long sum = 0;
             var useful = GetUsefulCached(hand13, meldCount, shanten);
             foreach (var kind in useful)
@@ -287,7 +290,8 @@ internal sealed class HandShapeEvaluator
                     ev += EvaluateFulouForTile(hand13, kind, ctx, shanten);
                     FulouTicks += System.Diagnostics.Stopwatch.GetTimestamp() - fStart;
                 }
-                sum += (long)unseen * ev;
+                // 書籍 0305 準拠: paijia (TileWeights) を乗算する (v0.6.1)
+                sum += (long)unseen * ev * weights.Of(kind);
             }
             result = sum * ShantenCoefficient(shanten);
         }
@@ -371,6 +375,8 @@ internal sealed class HandShapeEvaluator
             return 0;
         }
 
+        // 書籍準拠 (v0.6.1): paijia は hand13 + calls から再構築する
+        var weights = TileWeights.Build(hand13, ctx.Calls);
         long sum = 0;
         var useful = GetUsefulCached(hand13, meldCount, shanten);
         foreach (var kind in useful)
@@ -380,9 +386,13 @@ internal sealed class HandShapeEvaluator
             if (unseen == 0) { continue; }
             var hand14 = hand13.AddTile(RepresentativeNonRedTile(kind));
             var ev = EvaluateHand14(hand14, kind, back, ctx);
-            if (ev > minEvPerTile)
+            // 書籍 0305 準拠: 枝刈りは weights 乗算後の値で判定する (v0.6.1)。
+            // weight > 1 の牌で `ev < minEvPerTile` でも `ev * weight` が閾値を超えるケースが本来の
+            // 書籍挙動では拾われる。
+            var weighted = ev * weights.Of(kind);
+            if (weighted > minEvPerTile)
             {
-                sum += (long)unseen * ev;
+                sum += (long)unseen * weighted;
             }
         }
         return sum * ShantenCoefficient(shanten);
@@ -696,8 +706,9 @@ internal sealed class HandShapeEvaluator
 
     /// <summary>
     /// 副露評価の末端で用いる軽量評価。副露後打牌 13 枚 (または 10 枚) がテンパイなら
-    /// 待ち牌 × 和了打点の期待値にテンパイ補正 (×18) を掛けて返す。テンパイでなければ 0。
-    /// これにより <see cref="EvaluateHand13"/> を再帰呼び出しせず、仮想副露の積み重ねを止める。
+    /// 待ち牌 × 和了打点の期待値にテンパイ補正 (×18) を掛けて返す。
+    /// 1 シャンテンなら各有効牌 K について 14 枚テンパイ評価値を計算し、×3 補正で返す (v0.6.1 追加)。
+    /// 2 シャンテン以深は再帰深さ・仮想副露連鎖での計算量爆発を避けるため 0 返却で打ち切る。
     /// </summary>
     /// <remarks>
     /// 待ち牌列挙は <see cref="TenpaiHelper.EnumerateWaitTileKinds(Hand)"/> ではなく
@@ -707,21 +718,71 @@ internal sealed class HandShapeEvaluator
     /// </remarks>
     private long EvaluateFulouPostDahaiTerminal(Hand handAfterDahai, HandShapeEvaluatorContext postCtx, int shantenAfterDahai)
     {
-        if (shantenAfterDahai > 0) { return 0; }
+        if (shantenAfterDahai >= 2) { return 0; }
 
-        // テンパイ: 待ち牌 = シャンテン 0 の useful = 引くとシャンテン -1 になる牌
         var postMeldCount = postCtx.Calls.Count;
-        var waits = GetUsefulCached(handAfterDahai, postMeldCount, shantenAfterDahai);
-        long sum = 0;
-        foreach (var winKind in waits)
+
+        if (shantenAfterDahai == 0)
         {
-            var unseen = postCtx.GetUnseen(winKind);
-            if (unseen == 0) { continue; }
-            var hand14 = handAfterDahai.AddTile(RepresentativeNonRedTile(winKind));
-            var handScore = CalcHandScore(hand14, winKind, postCtx);
-            sum += (long)unseen * handScore;
+            // テンパイ: 待ち牌 = シャンテン 0 の useful = 引くとシャンテン -1 になる牌
+            // 書籍準拠: paijia は handAfterDahai + calls から再構築 (v0.6.1)
+            var weights0 = TileWeights.Build(handAfterDahai, postCtx.Calls);
+            var waits = GetUsefulCached(handAfterDahai, postMeldCount, shantenAfterDahai);
+            long sum = 0;
+            foreach (var winKind in waits)
+            {
+                var unseen = postCtx.GetUnseen(winKind);
+                if (unseen == 0) { continue; }
+                var hand14 = handAfterDahai.AddTile(RepresentativeNonRedTile(winKind));
+                var handScore = CalcHandScore(hand14, winKind, postCtx);
+                sum += (long)unseen * handScore * weights0.Of(winKind);
+            }
+            return sum * ShantenCoefficient(0);
         }
-        return sum * ShantenCoefficient(0);
+
+        // 1 シャンテン: 各有効牌 K を引いた 14 枚相当手牌 (テンパイ) から、
+        // さらに最良の打牌で作るテンパイ hand13 → 待ち牌 × CalcHandScore の期待値。
+        // hand14 を CalcHandScore に直接渡すとテンパイ形で役なし 0 返却されるため、
+        // 必ず 1 枚打牌した hand13 を経由してから和了形を構築する (Codex 指摘 P1 の修正)。
+        var handAfterDahaiWeights = TileWeights.Build(handAfterDahai, postCtx.Calls);
+        var useful = GetUsefulCached(handAfterDahai, postMeldCount, shantenAfterDahai);
+        long sum1 = 0;
+        foreach (var kind in useful)
+        {
+            var unseen = postCtx.GetUnseen(kind);
+            if (unseen == 0) { continue; }
+            var hand14 = handAfterDahai.AddTile(RepresentativeNonRedTile(kind));
+            var hand14Shanten = GetShantenCached(hand14, postMeldCount);
+            if (hand14Shanten != 0) { continue; }
+
+            // hand14 の最良打牌 (シャンテン 0 維持) を探し、hand13 のテンパイ評価値を取る
+            long bestDahaiEv = 0;
+            var seenKinds = new HashSet<int>();
+            foreach (var tile in hand14)
+            {
+                if (!seenKinds.Add(tile.Kind.Value)) { continue; }
+                var hand13 = hand14.RemoveTile(tile);
+                var hand13Shanten = GetShantenCached(hand13, postMeldCount);
+                if (hand13Shanten != 0) { continue; }
+
+                // hand13 (テンパイ) の評価値 = 全待ち牌 × CalcHandScore(hand13 + winKind)
+                var weights13 = TileWeights.Build(hand13, postCtx.Calls);
+                var waits = GetUsefulCached(hand13, postMeldCount, hand13Shanten);
+                long tenpaiEv = 0;
+                foreach (var winKind in waits)
+                {
+                    var winUnseen = postCtx.GetUnseen(winKind);
+                    if (winUnseen == 0) { continue; }
+                    var winHand = hand13.AddTile(RepresentativeNonRedTile(winKind));
+                    var handScore = CalcHandScore(winHand, winKind, postCtx);
+                    tenpaiEv += (long)winUnseen * handScore * weights13.Of(winKind);
+                }
+                var tenpaiEvWithCoef = tenpaiEv * ShantenCoefficient(0);
+                if (tenpaiEvWithCoef > bestDahaiEv) { bestDahaiEv = tenpaiEvWithCoef; }
+            }
+            sum1 += (long)unseen * bestDahaiEv * handAfterDahaiWeights.Of(kind);
+        }
+        return sum1 * ShantenCoefficient(1);
     }
 
     /// <summary>
