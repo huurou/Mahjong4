@@ -1,5 +1,5 @@
-﻿{
+{
   "appHost": {
-    "path": "Mahjong.AppHost/Mahjong.AppHost.csproj"
+    "path": "src/Mahjong.AppHost/Mahjong.AppHost.csproj"
   }
 }
